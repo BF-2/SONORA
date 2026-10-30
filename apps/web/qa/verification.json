@@ -4,7 +4,8 @@
   "build": "TypeScript strict check and Vite production build passed; final bundle index-C9Rjyi7B.js",
   "projects": {
     "editor": "project_71e7cfcab54645409d5f",
-    "standalone_svs": "project_93835a1e4d87461597f2"
+    "standalone_svs": "project_93835a1e4d87461597f2",
+    "contextual_preview": "project_3bb280a7daea469189d7"
   },
   "verified_through_ui": [
     "Create project, import existing original_demo_vocal.wav by explicit local path, actual ffprobe metadata and waveform",
@@ -18,7 +19,9 @@
     "Submit WAV export and post-fader/FX stems export; both completed and appear as real versions",
     "Export measurements show -17.7 LUFS and -4.80 dBTP from matching latest FFmpeg ebur128 result, separately from artifact sample peak",
     "Desktop-width and 390 px narrow layout checked; narrow document width 375 px within viewport 390 px; viewport restored",
-    "Final browser console has no captured errors or warnings"
+    "Final browser console has no captured errors or warnings",
+    "Selected composite candidate output remeasured with pYIN; distinct orange measured-output F0 third layer displayed alongside original and target",
+    "Real contextual RVC preview covers 0.9–1.5 s: B media local time 0 with duration 0.6 s displays project 0.9 s; A media local time 0.9 with duration 3 s retains same project 0.9 s; B switch preserves position, waveform aligned globally"
   ],
   "corrected_during_qa": [
     "Local-path import role reset prevents accidental guide role carryover",
@@ -30,12 +33,17 @@
     "Output pitch remeasurement uses distinct third curve; raw source detection remains separate"
   ],
   "not_verified_through_ui": [
-    "New contextual-preview candidate offset after worker adapter update; full-length A/B was verified earlier",
     "Microphone recording permission and device behavior",
     "Actual browser download destination: MIDI button completed without console errors but IAB download event timed out; backend media export files are verified separately",
     "MIDI file import and bounded parameter experiment batch were wired and typechecked but not exercised end to end in browser",
-    "Missing-media relink modal and output F0 third-layer display were implemented and built but not exercised end to end in browser",
-    "Subjective singing quality, listening preference and broad language coverage"
+    "Subjective singing quality, listening preference and broad language coverage",
+    "Missing-media relink modal was implemented and built but not exercised end to end in browser"
   ],
-  "screenshots": ["svs-score.png", "export.png", "narrow-export.png"]
+  "screenshots": [
+    "svs-score.png",
+    "export.png",
+    "narrow-export.png",
+    "pitch.png",
+    "preview-offset.png"
+  ]
 }
