@@ -1,0 +1,12 @@
+{
+  "name": "sonora-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/web run build",
+    "desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-sonora.ps1",
+    "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop.ps1",
+    "test": ".venv\\Scripts\\python.exe -m pytest tests/test_core.py tests/test_domain.py tests/test_review_regressions.py -q"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-30",
+  "surface": "IAB browser at http://127.0.0.1:5173; authenticated loopback FastAPI",
+  "build": "TypeScript strict check and Vite production build passed; final bundle index-C9Rjyi7B.js",
+  "projects": {
+    "editor": "project_71e7cfcab54645409d5f",
+    "standalone_svs": "project_93835a1e4d87461597f2"
+  },
+  "verified_through_ui": [
+    "Create project, import existing original_demo_vocal.wav by explicit local path, actual ffprobe metadata and waveform",
+    "Set selection 1.25–4.75 s and preserve through detail/expert/quick mode and stage navigation",
+    "Submit independent pYIN pitch analysis and receive real curve",
+    "Apply locked +12-semitone local target edit; undo and redo restore the edit",
+    "Choose existing Twilight RVC model, submit conversion, receive successful candidate with model inference provenance",
+    "Switch A/B at global time 1.25 s while preserving selection and mode",
+    "Create and render same-source candidate segment composition",
+    "Standalone SVS without original media: three-second score, four half-second notes C4 C4 G4 G4, Japanese syllables き ら き ら; real synthesis succeeds",
+    "Submit WAV export and post-fader/FX stems export; both completed and appear as real versions",
+    "Export measurements show -17.7 LUFS and -4.80 dBTP from matching latest FFmpeg ebur128 result, separately from artifact sample peak",
+    "Desktop-width and 390 px narrow layout checked; narrow document width 375 px within viewport 390 px; viewport restored",
+    "Final browser console has no captured errors or warnings"
+  ],
+  "corrected_during_qa": [
+    "Local-path import role reset prevents accidental guide role carryover",
+    "Save and event polling preserves pending edits and deferred refresh after completed jobs",
+    "Job submission retries one revision conflict with unchanged idempotency key and parameters",
+    "Playback, waveform and pitch coordinates use global timeline offsets for guide placement and contextual previews",
+    "RMS matching disabled when source and candidate do not cover the same interval",
+    "Locked pitch snapshots, notes and transpose displayed in worker-compatible priority",
+    "Output pitch remeasurement uses distinct third curve; raw source detection remains separate"
+  ],
+  "not_verified_through_ui": [
+    "New contextual-preview candidate offset after worker adapter update; full-length A/B was verified earlier",
+    "Microphone recording permission and device behavior",
+    "Actual browser download destination: MIDI button completed without console errors but IAB download event timed out; backend media export files are verified separately",
+    "MIDI file import and bounded parameter experiment batch were wired and typechecked but not exercised end to end in browser",
+    "Missing-media relink modal and output F0 third-layer display were implemented and built but not exercised end to end in browser",
+    "Subjective singing quality, listening preference and broad language coverage"
+  ],
+  "screenshots": ["svs-score.png", "export.png", "narrow-export.png"]
+}

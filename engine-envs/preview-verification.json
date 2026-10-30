@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "duration_samples": 24000,
+  "sample_rate": 40000,
+  "source_offset": 39690,
+  "source_sample_rate": 44100,
+  "baseline_timeline_offset_ticks": 43200,
+  "guide_timeline_offset_ticks": 139200,
+  "context_samples": [
+    0,
+    110250
+  ],
+  "source_sample_count": 132300,
+  "guide_edited_output_f0_median": 438.6430679243847,
+  "preview_mode": "contextual_excerpt_not_full_equivalence",
+  "requested_f0_hash": "1c33b4e64650bce89e48efa73e38a3342109b6e28fd0e5424921944e916377fb",
+  "consumed_f0_hash": "8e2a93e781086563614920f9476e843f8c0616b036adb546ae292f8f63cb9f55"
+}

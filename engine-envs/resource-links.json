@@ -1,0 +1,275 @@
+{
+  "source_hash": "be5fda96cd854a028d63563fc232aae798a56ae0da5a852656a6ed48744aca75",
+  "files": [
+    {
+      "source": "E:\\voice\\Applio\\LICENSE",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\LICENSE",
+      "sha256": "72c54bda40795cf382097befa7f63d8c38c6adf9ceb9861e12424fc048d0f18a",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\requirements.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\requirements.txt",
+      "sha256": "ae2ccf9dea57a561beec9e8381e0bb992c563d8db7654832eac8242d7412e083",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\24000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\24000.json",
+      "sha256": "ad860bdefa0235b3d2523dd0be8db8ad936e9792fd9f5ef414443b91d78c12a2",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\32000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\32000.json",
+      "sha256": "505d742040ebd82cfc3735654c375c2af49e57da38649a48e816f0f04a7033af",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\40000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\40000.json",
+      "sha256": "b8c1e217d6ae8bba95fb41bdaf796a453769eb1c0ba1e40c093e322246ea1b77",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\48000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\48000.json",
+      "sha256": "1e18a2ce2567f8a60e12b8c7a9c5cc8515f9ec7ec2dd3f19fffee3e6af1ba1bc",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\config.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\config.py",
+      "sha256": "f21962c7b45d51acd3ccd45c5b98a158a478178e062af286b0e1b3d22271d499",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\infer\\infer.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\infer\\infer.py",
+      "sha256": "3d8c4c5cd317a0a02a6e57e7c03e23c6f77f399a6e1be881a4552bf4274fd8be",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\infer\\pipeline.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\infer\\pipeline.py",
+      "sha256": "9c146b4bca8f6c7373c204f46e1c30edcd97c5b567d30851e33e945b55a8978a",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\__init__.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\attentions.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\attentions.py",
+      "sha256": "ae000916e1167b318eb826903e320c5f7954d50a5fc6f7114a595fc3fb2ad3d5",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\commons.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\commons.py",
+      "sha256": "6c46bcaa281eda218f1138beb5dc0704b2f4890d7f9033f2f6ecb8c425b6a1e9",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\discriminators.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\discriminators.py",
+      "sha256": "e936ec7254a22b9b1f449fa1b6b2a6441717cb7f2336478b5acd652fb1f36044",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\encoders.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\encoders.py",
+      "sha256": "3f5fddd682166d6257c04b3bec94acd1bd0a81c78ae8e8803d62b9150a7546b8",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\__init__.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\hifigan.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\hifigan.py",
+      "sha256": "69cb9d1f758abc7e68b5e13db80ef8d6113fbd3956f0449bbee1b06183586504",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\hifigan_mrf.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\hifigan_mrf.py",
+      "sha256": "ad18870a4d4cdb11574d41908b118d75961256533575d27cfec6b668122c7a82",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\hifigan_nsf.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\hifigan_nsf.py",
+      "sha256": "a7853908f64c4f928e61255e950f748f3551c50433be70dc7602587a1808cb07",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\refinegan.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\refinegan.py",
+      "sha256": "5beeb49cc462d7d5b5423bffff3f8512cb008743846b9ed227cd95d3fcba4703",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\modules.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\modules.py",
+      "sha256": "0c4258eda66d40b810a2b6319f6ea34e0512e6363b8730d28dd7f718ef7dbd78",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\normalization.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\normalization.py",
+      "sha256": "0f076772bb69c65907928d671d0f5fe56c8a98e7df3fb1a0cd73fa61a392571a",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\residuals.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\residuals.py",
+      "sha256": "d5ec8f61440bc640e6d25dc04f81c0f54bbd5348aba6520cc192f377a41820a6",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\synthesizers.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\synthesizers.py",
+      "sha256": "79447e987f624aa78f12f707a97ce2ac36b25da623a7e807a4b3518009c225c9",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\platform.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\platform.py",
+      "sha256": "3ef5a87f6395bcee941fc48bb006e40f9caac12f2e42968f3446f3f5dc5bee6f",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\f0.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\f0.py",
+      "sha256": "7aed5c2f59b9c8748b766c3282726e82cb79ab77aafb4aca6bd93a68a2566f15",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\F0Extractor.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\F0Extractor.py",
+      "sha256": "34c097710c10b622463c55a5bb07a1c69493663e63133dbe73586f885707f779",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\FCPE.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\FCPE.py",
+      "sha256": "53de04823df43186f89a541ff9594d2961c714a32ae6d5d96a563752cc089fd8",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\RMVPE.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\RMVPE.py",
+      "sha256": "9f2886c516bdf10ce639fbf8d6c1f3fe20ef455fc2a97203ad85863d40dee30e",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\analyzer.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\analyzer.py",
+      "sha256": "365c3f85f7f630ad64fc24bf59b5af36e7e2c1d184e7f49a2f7fbd828f426ed8",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\gdown.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\gdown.py",
+      "sha256": "05c6cffb8fcd1f6267f441b57353953e17b24833fff0b8d8898b5125bb12c22c",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\launch_tensorboard.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\launch_tensorboard.py",
+      "sha256": "61ef120baea43e4268d82bfec8b96ff244916cd9ff9e3f40bfb9bbc646ab9724",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\model_download.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\model_download.py",
+      "sha256": "faec9eb5f297237b77e9a19192fe2f3b41fd2342f1cf4cf325195e4c501e9954",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\prerequisites_download.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\prerequisites_download.py",
+      "sha256": "bbbb820590d2861fc2f7ca7318073981701ac283a8d4485e61a457d26526bcfd",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\pretrained_selector.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\pretrained_selector.py",
+      "sha256": "16b8a3b0cb1321d7f7c641c61442b6cddf9c73d9df0033bf712437f574cf950e",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\split_audio.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\split_audio.py",
+      "sha256": "d735e387867a9fa4b994d2fde81e6dd1657896b947158b0c91e4640520ec5b9a",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\tts.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\tts.py",
+      "sha256": "5188c939eac9a893bd177fc68bed03baa660d46ee2e58113a0ea9f8bfb22bdef",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\tts_voices.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\tts_voices.json",
+      "sha256": "39ac087080dc3440f2fbdfd41fdb608c8b4927d174df16f4b1dcd7eff69a1959",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\utils.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\utils.py",
+      "sha256": "c374d066e2bc30feee24b95fc6a03c321a77121d92d5d40541bde247ae69273c",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\zluda.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\zluda.py",
+      "sha256": "8d11178f07e41422e218a15772b5bc938c10437f39ec4879dc7d1b68e0c44383",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\embedders\\contentvec\\config.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\embedders\\contentvec\\config.json",
+      "sha256": "2ddde063b795d38d9051a7215a092fecf4cfe148b54251e38de51d88d356898b",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\embedders\\contentvec\\pytorch_model.bin",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\embedders\\contentvec\\pytorch_model.bin",
+      "sha256": "d8dd400e054ddf4e6be75dab5a2549db748cc99e756a097c496c099f65a4854e",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\predictors\\.gitkeep",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\predictors\\.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\predictors\\fcpe.pt",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\predictors\\fcpe.pt",
+      "sha256": "8544427eebbf2baef6213cc9a05057e46961617a8e5bd96975a0d42da6a09059",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\predictors\\rmvpe.pt",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\predictors\\rmvpe.pt",
+      "sha256": "6d62215f4306e3ca278246188607209f09af3dc77ed4232efdd069798c4ec193",
+      "method": "hardlink"
+    },
+    {
+      "source": "E:\\voice\\Applio\\TERMS_OF_USE.md",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\TERMS_OF_USE.md",
+      "sha256": "f69d6a9b365f5aea516531d70851d0c893563e37046f186f12e2ec895bc5a4dd",
+      "method": "hardlink"
+    }
+  ]
+}

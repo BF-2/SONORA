@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#151819">
+  <meta name="description" content="声序 SONORA 全流程音频工作台交互原型：导入、人声整理、音高与歌词、声音转换、混音和导出。">
+  <title>声序 SONORA · 音频工作台</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg class="svg-defs" aria-hidden="true"><defs>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10v4m4-8v12m5-16v20m5-17v14m4-9v4"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 9l12-2"/><ellipse cx="5.5" cy="18" rx="3.5" ry="3"/><ellipse cx="17.5" cy="16" rx="3.5" ry="3"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4L12 3Z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M5 3v8m0 4v6M12 3v2m0 4v12M19 3v12m0 4v2M2 11h6M9 5h6m4 10h3m-6 0h3"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M12 16V3m-4 4 4-4 4 4M4 14v7h16v-7"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 13 8-13 8V4Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 4v16M16 4v16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 12H4m6-6-6 6 6 6"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 11h11a6 6 0 1 1 0 12M8 6l-5 5 5 5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10 9-5M3 8l9 5v9M7 5.5l10 5.5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 14v-3a8 8 0 0 1 16 0v3M4 12H2v8h5v-8H4Zm16 0h2v8h-5v-8h3Z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M5 7h13l-3-3m3 3-3 3M19 17H6l3 3m-3-3 3-3M3 14V9m18 1v5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 11v2a7 7 0 0 0 14 0v-2M12 20v3M8 23h8"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="4" r="2"/><circle cx="6" cy="20" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6 6v12M6 13h7a6 6 0 0 0 6-6"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M4 3h13l4 4v14H3V3h1ZM7 3v6h9V3M7 21v-8h10v8"/></symbol>
+</defs></svg>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="#" aria-label="声序首页"><span class="brand-mark"><svg><use href="#i-wave"/></svg></span><span>SONORA<small>声 序 · 音 频 工 作 台</small></span></a>
+    <button class="project-picker" id="projectPicker"><span class="project-dot"></span><span><strong id="sidebarProject">夜航 · 人声重塑</strong><small>本地工程 · 交互原型</small></span><span class="chevron">⌄</span></button>
+    <div class="nav-label">制作流程 <span>06</span></div>
+    <nav id="stepNav" aria-label="制作步骤"></nav>
+    <div class="nav-divider"></div>
+    <button class="nav-secondary" data-panel="models"><svg><use href="#i-box"/></svg>声音与模型<span class="side-count">3</span></button>
+    <button class="nav-secondary" data-panel="versions"><svg><use href="#i-branch"/></svg>候选与版本<span class="side-count" id="versionCount">2</span></button>
+    <button class="nav-secondary" data-panel="queue"><svg><use href="#i-clock"/></svg>任务队列<span class="side-count" id="queueCount">0</span></button>
+    <div class="sidebar-bottom"><div class="local-status"><span></span>文件在本机处理</div><p>原始音频始终保留<br>每一步都能撤回</p><button class="text-button" id="aboutButton"><svg><use href="#i-info"/></svg>原型能力说明</button></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><div class="breadcrumb"><span>我的工作室</span><span>/</span><strong id="crumb">导入与诊断</strong></div><div class="top-actions"><button id="undoButton" class="icon-button" title="撤销最近编辑" aria-label="撤销"><svg><use href="#i-undo"/></svg></button><button id="saveButton" class="quiet-button"><svg><use href="#i-save"/></svg><span>保存配方</span></button><span class="separator"></span><div class="segmented mode-switch" aria-label="编辑模式"><button data-mode="guided" class="active">轻松制作</button><button data-mode="pro">精细编辑</button></div></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer class="transport" aria-label="音频播放控制">
+      <div class="transport-source"><div class="mini-cover"><svg><use href="#i-wave"/></svg></div><div><strong id="playerName">夜航 · 合成示例</strong><small id="playerHint">本地合成分轨 · 可真实试听</small></div></div>
+      <div class="transport-center"><div class="player-buttons"><button class="icon-button" id="loopButton" aria-label="循环选区" title="循环选区"><svg><use href="#i-repeat"/></svg></button><button class="play-button" id="playButton" aria-label="播放音频"><svg><use href="#i-play"/></svg></button><button class="icon-button" id="startButton" aria-label="回到选区起点" title="回到选区起点">↤</button><span class="timecode" id="timecode">00:00.0 <em>/ 00:24.0</em></span></div><input type="range" min="0" max="24" step="0.01" value="0" id="seek" aria-label="播放位置"></div>
+      <div class="transport-right"><div class="segmented ab-switch" aria-label="试听声轨"><button id="listenOriginal" class="active">原始 A</button><button id="listenCandidate">候选 B</button></div><label class="volume"><svg><use href="#i-headphones"/></svg><input type="range" id="masterVolume" min="0" max="100" value="65" aria-label="播放音量"></label></div>
+    </footer>
+  </div>
+</div>
+<input type="file" id="audioInput" accept="audio/*,.wav,.mp3,.flac,.m4a,.ogg" hidden>
+<input type="file" id="recipeInput" accept="application/json,.json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="modal"><div id="modalContent"></div></dialog>
+<script src="app.js"></script>
+</body>
+</html>

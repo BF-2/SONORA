@@ -1,0 +1,16 @@
+flowchart TD
+  Import["导入原始音频 / 干人声 / 分轨"] --> Task{"制作任务"}
+  Task -->|"语音"| Pitch["独立 F0 / 音符参考 / 锁定编辑"]
+  Task -->|"歌曲"| Separate["真实分离 / 确认人声与伴奏"] --> Pitch
+  Task -->|"改词"| Lyrics["歌词与窗口 / 手工音符或 MIDI"]
+  Lyrics --> Guide["用户录制或导入新导唱"] --> Pitch
+  Lyrics --> SVS["日语 DiffSinger 合成\n其他语言提示使用导唱"]
+  SVS --> Pitch
+  Pitch --> Preview["带上下文的真实短试听"]
+  Preview --> Candidates["同源候选 / 共享位置 A-B\n可选参数实验 / 显式串联"]
+  Candidates --> Edit{"试听是否满意"}
+  Edit -->|"修改"| Pitch
+  Edit -->|"整段渲染 / 片段拼选"| Mix["启用人声与伴奏 / 推子与效果\n不默认叠加完整原混音"]
+  SVS -->|"直接使用声库声音"| Mix
+  Mix --> Export["媒体 / 分轨 / 配方 / MIDI\n校验、测量、冲突另存版本"]
+  Export --> Listen["最终人工听感检查"]
