@@ -4,7 +4,9 @@
 
 ## 启动
 
-完成根目录 README 的核心依赖与资源准备后，双击 `启动声序.bat`。已有 `apps/desktop/target/release/sonora.exe` 时启动桌面窗口，否则使用本地浏览器界面。
+完成根目录 README 的核心依赖与资源准备后，双击 `启动声序.bat`。优先启动 `apps/desktop/target/release/sonora-harmony.exe`，不存在时使用旧版 `sonora.exe`，两者都不存在时使用本地浏览器界面。
+
+本轮和声更新按用户要求不再测试 Windows 桌面 UI。新版采用独立文件名并行交付，避免覆盖仍在运行的旧 EXE；构建脚本默认 `--bin sonora-harmony`，复用原有 Cargo 依赖缓存。旧窗口未被自动关闭，请手动关闭旧会话后启动新版。此前的原生窗口验证属于旧构建，不能作为本轮新增界面的原生验收。
 
 桌面壳先建立后台进程生命周期约束，启动 `.venv/Scripts/python.exe -m services.orchestrator.app --port 8765`，完成协议和认证握手后显示编辑器。凭据在每次启动时随机生成，仅经受限 `get_connection` IPC 交给内置主窗口。服务只监听 `127.0.0.1:8765`；已有程序占用端口时不接管或停止它。
 

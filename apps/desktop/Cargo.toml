@@ -10,6 +10,10 @@ publish = false
 name = "sonora"
 path = "src/main.rs"
 
+[[bin]]
+name = "sonora-harmony"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "=2.7.4", features = [] }
 

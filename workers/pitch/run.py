@@ -17,7 +17,10 @@ def probe():
 def render(request):
     config=resource_config(request); params=request.get('parameters',{})
     detected=analyze(request['input_path'],config,params)
-    target=apply_edits(detected,params.get('pitch_edits',[]),params.get('transpose',0))
+    target_basis=dict(detected)
+    target_basis['frame_center_offset']=detected.get('frame_center_offset',0)+round(int(params.get('source_timeline_offset_ticks',0))*detected['sample_rate']/48000)
+    target=apply_edits(target_basis,params.get('pitch_edits',[]),params.get('transpose',0))
+    target['time_reference']='project_timeline'
     # Raw detection is authoritative input; target layer is explicitly separate.
     # RVC applies the immutable job edit snapshot once, never on an already shifted curve.
     result={**detected,'target_layer':target}

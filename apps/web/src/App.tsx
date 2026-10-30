@@ -10,6 +10,7 @@ import {
   post,
   request,
   setConnection,
+  getConnectionEndpoint,
 } from "./api";
 import {
   Badge,
@@ -40,6 +41,7 @@ import type {
   PitchData,
   Project,
   Track,
+  VoicePartKey,
 } from "./types";
 
 const steps = [
@@ -91,6 +93,8 @@ const roleNames: Record<string, string> = {
   pitch: "音高分析",
   harmony: "和声",
   synthesized: "合成新演唱",
+  lead_vocal: "主唱",
+  backing_vocal: "和声",
 };
 const kindNames: Record<string, string> = {
   decode: "解码素材",
@@ -118,6 +122,36 @@ function normal(p: Project): Project {
 }
 function errorText(e: unknown) {
   return e instanceof Error ? e.message : String(e);
+}
+function mergeEditorPatch(base: Bag, delta: Bag): Bag {
+  const merged = { ...base, ...delta };
+  if (delta.voice_parts) {
+    merged.voice_parts = { ...base.voice_parts };
+    for (const [part, raw] of Object.entries(delta.voice_parts)) {
+      const change = raw as Bag,
+        previous = base.voice_parts?.[part] || {};
+      merged.voice_parts[part] = {
+        ...previous,
+        ...change,
+        ...(change.parameters
+          ? { parameters: { ...previous.parameters, ...change.parameters } }
+          : {}),
+      };
+    }
+  }
+  if (delta.track_updates) {
+    merged.track_updates = { ...base.track_updates };
+    for (const [id, raw] of Object.entries(delta.track_updates))
+      merged.track_updates[id] = {
+        ...base.track_updates?.[id],
+        ...(raw as Bag),
+      };
+    if (Array.isArray(base.tracks))
+      merged.tracks = base.tracks.map((t: Track) =>
+        delta.track_updates[t.id] ? { ...t, ...delta.track_updates[t.id] } : t,
+      );
+  }
+  return merged;
 }
 function isAudio(a: Artifact) {
   return (
@@ -147,6 +181,9 @@ export default function App() {
   const [volume, setVolume] = useState(0.75);
   const [ab, setAB] = useState<"A" | "B">("A");
   const [listenId, setListenId] = useState("");
+  const [auditionCandidateIds, setAuditionCandidateIds] = useState<
+    Record<string, string>
+  >({});
   const [matched, setMatched] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [pitchTab, setPitchTab] = useState("pitch");
@@ -168,6 +205,9 @@ export default function App() {
   const [exportId, setExportId] = useState("");
   const [exportName, setExportName] = useState("");
   const [tokenDraft, setTokenDraft] = useState("");
+  const [endpointDraft, setEndpointDraft] = useState(getConnectionEndpoint());
+  const [harmonySourceId, setHarmonySourceId] = useState("");
+  const [harmonyModelId, setHarmonyModelId] = useState("");
   const [pathDraft, setPathDraft] = useState("");
   const [modelPath, setModelPath] = useState("");
   const [newName, setNewName] = useState("新的声音作品");
@@ -240,12 +280,12 @@ export default function App() {
               });
             } else throw e;
           }
-          applyProject({ ...result, ...pending.current });
+          applyProject(mergeEditorPatch(result, pending.current) as Project);
           setSaveState(
             Object.keys(pending.current).length ? "待保存" : "已保存",
           );
         } catch (e) {
-          pending.current = { ...changes, ...pending.current };
+          pending.current = mergeEditorPatch(changes, pending.current);
           setSaveState("保存失败");
           setError(errorText(e));
           throw e;
@@ -256,8 +296,23 @@ export default function App() {
   const update = useCallback(
     (changes: Bag) => {
       if (!pRef.current) return;
-      pending.current = { ...pending.current, ...changes };
-      applyProject({ ...pRef.current, ...changes });
+      const part = pRef.current.parameters.active_voice_part as VoicePartKey;
+      const binding = pRef.current.voice_parts?.[part];
+      if (binding) {
+        const scoped: Bag = {};
+        for (const key of ["pitch_edits", "notes", "selected_candidate_id"])
+          if (key in changes) {
+            scoped[key] = changes[key];
+            delete changes[key];
+          }
+        if (Object.keys(scoped).length)
+          changes.voice_parts = {
+            ...changes.voice_parts,
+            [part]: { ...changes.voice_parts?.[part], ...scoped },
+          };
+      }
+      pending.current = mergeEditorPatch(pending.current, changes);
+      applyProject(mergeEditorPatch(pRef.current, changes) as Project);
       setSaveState("待保存");
       clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
@@ -266,8 +321,18 @@ export default function App() {
     },
     [applyProject, flush],
   );
-  const param = (changes: Bag) =>
+  const globalParam = (changes: Bag) =>
     update({ parameters: { ...pRef.current?.parameters, ...changes } });
+  const patchPart = (part: VoicePartKey, changes: Bag) => {
+    if (pRef.current?.voice_parts?.[part])
+      update({ voice_parts: { [part]: changes } });
+  };
+  const param = (changes: Bag) => {
+    const part = pRef.current?.parameters.active_voice_part as VoicePartKey,
+      binding = pRef.current?.voice_parts?.[part];
+    if (binding) patchPart(part, { parameters: changes });
+    else globalParam(changes);
+  };
   const refresh = useCallback(async () => {
     const [caps, list, ps] = await Promise.all([
       request<Bag>("/capabilities"),
@@ -376,7 +441,7 @@ export default function App() {
   const source =
     project?.assets.find((a) => a.stem_role === "original" && isAudio(a)) ||
     project?.assets.find(isAudio);
-  const vocal =
+  const legacyVocal =
     project?.assets
       .slice()
       .reverse()
@@ -386,22 +451,65 @@ export default function App() {
             a.stem_role || "",
           ) && isAudio(a),
       ) || source;
+  const activePart: VoicePartKey | "vocal" = [
+    "lead_vocal",
+    "backing_vocal",
+  ].includes(project?.parameters.active_voice_part)
+    ? project!.parameters.active_voice_part
+    : "vocal";
+  const partBinding =
+    activePart === "vocal" ? undefined : project?.voice_parts?.[activePart];
+  const hasVoiceParts = Object.keys(project?.voice_parts || {}).length > 0;
+  const editorParameters =
+    activePart === "vocal"
+      ? project?.parameters || {}
+      : partBinding?.parameters || {};
+  const editorPitchEdits =
+    activePart === "vocal"
+      ? project?.pitch_edits || []
+      : partBinding?.pitch_edits || [];
+  const editorNotes =
+    activePart === "vocal" ? project?.notes || [] : partBinding?.notes || [];
+  const vocal =
+    activePart === "vocal"
+      ? legacyVocal
+      : project?.assets.find((a) => a.id === partBinding?.source_artifact_id);
+  const candidates =
+    project?.candidates.filter((c) =>
+      activePart === "vocal" ? !c.voice_part : c.voice_part === activePart,
+    ) || [];
+  const selectedCandidateId =
+    activePart === "vocal"
+      ? project?.selected_candidate_id
+      : partBinding?.selected_candidate_id;
+  const auditionScope = `${project?.id || ""}:${activePart}`;
+  const adoptedCandidate = candidates.find((c) => c.id === selectedCandidateId);
   const candidate =
-    project?.candidates.find((c) => c.id === project.selected_candidate_id) ||
-    project?.candidates
-      .slice()
-      .reverse()
-      .find((c) => c.artifact_id);
+    candidates.find((c) => c.id === auditionCandidateIds[auditionScope]) ||
+    adoptedCandidate ||
+    (activePart === "vocal"
+      ? candidates
+          .slice()
+          .reverse()
+          .find((c) => c.artifact_id)
+      : undefined);
+  const candidateCompatible = (c: Bag) =>
+    activePart === "vocal" ||
+    (!!vocal?.sha256 &&
+      c.voice_part === activePart &&
+      project?.assets.find(
+        (a) => a.id === (c.part_source_artifact_id || c.source_artifact_id),
+      )?.sha256 === vocal?.sha256);
   const comparisonA =
     project?.assets.find((a) => a.id === candidate?.source_artifact_id) ||
-    source;
+    (activePart === "vocal" ? source : vocal);
   const comparisonB = project?.assets.find(
     (a) => a.id === candidate?.artifact_id,
   );
   const listen =
     project?.assets.find((a) => a.id === listenId) ||
     (ab === "B" ? comparisonB : comparisonA) ||
-    source;
+    (activePart === "vocal" ? source : vocal);
   const artifactOffset = (a?: Artifact) =>
     a
       ? seconds(
@@ -421,9 +529,7 @@ export default function App() {
       .map((a) => duration(a) + artifactOffset(a)) || []),
   );
   const selection = project?.selection || { start: 0, end: ticks(maxDuration) };
-  const currentModel = models.find(
-    (m) => m.id === project?.parameters.model_id,
-  );
+  const currentModel = models.find((m) => m.id === editorParameters.model_id);
   const lastPitch = project?.assets
     .slice()
     .reverse()
@@ -450,11 +556,11 @@ export default function App() {
     seed: 42,
   };
   const dirty =
-    (project?.pitch_edits.length || 0) +
-    Object.keys(project?.parameters || {}).filter(
+    editorPitchEdits.length +
+    Object.keys(editorParameters).filter(
       (k) =>
-        !["model_id", "pitch_algorithm"].includes(k) &&
-        JSON.stringify(project?.parameters[k]) !==
+        !["model_id", "pitch_algorithm", "active_voice_part"].includes(k) &&
+        JSON.stringify(editorParameters[k]) !==
           JSON.stringify(defaultParameters[k]),
     ).length;
   const svsEngine = engines.find((e) => e.id === "svs");
@@ -469,6 +575,9 @@ export default function App() {
         (e.id.includes(name) || e.name?.toLowerCase().includes(name)) &&
         ["ready", "available", "installed"].includes(e.status),
     );
+  useEffect(() => {
+    if (hasVoiceParts && pitchTab === "lyrics") setPitchTab("pitch");
+  }, [hasVoiceParts, pitchTab]);
   useEffect(() => {
     if (!lastPitch) {
       setPitchData(null);
@@ -649,6 +758,13 @@ export default function App() {
     parameters: Bag = {},
     inputId?: string,
   ) => {
+    const focused = pRef.current?.parameters.active_voice_part;
+    if (
+      ["pitch", "convert"].includes(operation) &&
+      ["lead_vocal", "backing_vocal"].includes(focused) &&
+      !parameters.voice_part
+    )
+      parameters = { ...parameters, voice_part: focused };
     await flush();
     const p = await ensureProject();
     const body = {
@@ -666,7 +782,7 @@ export default function App() {
       const latest = await request<Project>(`/projects/${p.id}`);
       if (pRef.current?.id !== p.id)
         throw new Error("工程已切换，请在当前工程重新创建任务。");
-      applyProject({ ...latest, ...pending.current });
+      applyProject(mergeEditorPatch(latest, pending.current) as Project);
       await flush();
       result = await post<Job>(`/projects/${p.id}/jobs`, {
         ...body,
@@ -679,9 +795,15 @@ export default function App() {
   };
   const renderCandidate = (short: boolean, chain = false) =>
     guard(async () => {
-      if (!project?.parameters.model_id) throw new Error("请先选择兼容模型。");
+      if (!project || !editorParameters.model_id)
+        throw new Error("请先选择兼容模型。");
+      if (activePart !== "vocal" && partBinding?.mode !== "convert")
+        throw new Error(
+          "当前声部选择了保留原声或静音。请先将处理方式切换为转换。",
+        );
       if (
-        project.task === "rewrite" &&
+        activePart === "vocal" &&
+        project!.task === "rewrite" &&
         !project.assets.some((a) =>
           ["guide", "synthesized"].includes(a.stem_role || ""),
         )
@@ -690,9 +812,9 @@ export default function App() {
       await job(
         "convert",
         {
-          ...project.parameters,
+          ...editorParameters,
           pitch_artifact_id: lastPitch?.id,
-          pitch_edits: project.pitch_edits,
+          pitch_edits: editorPitchEdits,
           ...(short ? { range_ticks: [selection.start, selection.end] } : {}),
           ...(chain && candidate ? { chain_candidate_id: candidate.id } : {}),
         },
@@ -728,6 +850,7 @@ export default function App() {
   };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       const target = e.target as HTMLElement;
       if (
         target.closest('input,textarea,select,[contenteditable="true"],dialog')
@@ -838,6 +961,386 @@ export default function App() {
       </button>
     </div>
   );
+  const focusPart = (part: VoicePartKey | "vocal") => {
+    globalParam({ active_voice_part: part });
+    setListenId("");
+    setAB("A");
+    if (part !== "vocal" && pitchTab === "lyrics") setPitchTab("pitch");
+  };
+  const partSelector = (
+    <div className="voice-part-selector">
+      <div>
+        <strong>当前编辑声部</strong>
+        <small>模型、音高、音符和候选分别保存</small>
+      </div>
+      <div className="segmented" role="group" aria-label="当前编辑声部">
+        {(["vocal", "lead_vocal", "backing_vocal"] as const).map((part) => (
+          <button
+            key={part}
+            className={activePart === part ? "active" : ""}
+            disabled={part !== "vocal" && !project?.voice_parts?.[part]}
+            onClick={() => focusPart(part)}
+          >
+            {part === "vocal" ? "完整人声" : roleNames[part]}
+          </button>
+        ))}
+      </div>
+      {activePart !== "vocal" && (
+        <Badge
+          tone={
+            partBinding?.mode === "mute"
+              ? "neutral"
+              : partBinding?.mode === "original"
+                ? "blue"
+                : partBinding?.selected_candidate_id
+                  ? ""
+                  : "orange"
+          }
+        >
+          {partBinding?.mode === "mute"
+            ? "此声部静音"
+            : partBinding?.mode === "original"
+              ? "保留原声"
+              : partBinding?.selected_candidate_id
+                ? "已有转换候选"
+                : "待转换 · 当前保留原声"}
+        </Badge>
+      )}
+    </div>
+  );
+  const separationEngine = engines.find((e) => e.id === "separation");
+  const harmonyModels: Bag[] =
+    separationEngine?.harmony_models ||
+    separationEngine?.capabilities?.harmony_models ||
+    [];
+  const harmonyReady =
+    (!!separationEngine?.capabilities?.lead_backing_separation ||
+      separationEngine?.lead_backing_separation === true) &&
+    harmonyModels.some((m) => m.status === "ready");
+  const combinedSources =
+    project?.assets.filter(
+      (a) => ["vocal", "vocals"].includes(a.stem_role || "") && isAudio(a),
+    ) || [];
+  const combinedSource =
+    combinedSources.find((a) => a.id === harmonySourceId) ||
+    combinedSources.at(-1);
+  const activeHarmonyModel =
+    harmonyModels.find((m) => m.id === harmonyModelId) ||
+    harmonyModels.find((m) => m.status === "ready") ||
+    harmonyModels[0];
+  const parts = project?.voice_parts || {};
+  const bothPartsReady =
+    !!parts.lead_vocal?.source_artifact_id &&
+    !!parts.backing_vocal?.source_artifact_id;
+  const partModeControls =
+    activePart !== "vocal" && partBinding ? (
+      <Field
+        label={`${roleNames[activePart]}在混音中的处理`}
+        hint="只改变当前声部；另一个声部与伴奏保持各自选择。"
+      >
+        <select
+          value={partBinding.mode}
+          onChange={(e) => patchPart(activePart, { mode: e.target.value })}
+        >
+          <option value="convert">使用转换候选</option>
+          <option value="original">保留原声</option>
+          <option value="mute">静音此声部</option>
+        </select>
+      </Field>
+    ) : null;
+  const harmonyPanel = (
+    <Card
+      title="第二步 · 拆分主唱与和声"
+      icon="layers"
+      aside={
+        <Badge tone={harmonyReady ? "" : "orange"}>
+          {harmonyReady ? "专用执行器可用" : "专用模型需要准备"}
+        </Badge>
+      }
+    >
+      <div className="card-pad">
+        <p className="info-inline">
+          输入是一条已去伴奏的混合人声。分离结果代表主唱组与和声组，不等于识别了每一个演唱者；串音与残留需要独听确认。
+        </p>
+        <div className="field-grid">
+          <Field label="包含主唱与和声的干人声">
+            <select
+              value={combinedSource?.id || ""}
+              onChange={(e) => setHarmonySourceId(e.target.value)}
+            >
+              <option value="">先分离原曲或导入混合干人声</option>
+              {combinedSources.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="主唱 / 和声分离模型">
+            <select
+              value={activeHarmonyModel?.id || ""}
+              onChange={(e) => {
+                setHarmonyModelId(e.target.value);
+                globalParam({ harmony_model_id: e.target.value });
+              }}
+            >
+              <option value="">尚无可用专用模型</option>
+              {harmonyModels.map((m) => (
+                <option key={m.id} value={m.id} disabled={m.status !== "ready"}>
+                  {m.name} · {stateLabel[m.status] || m.status}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {activeHarmonyModel && (
+          <p className="info-inline">
+            {activeHarmonyModel.semantic_warning ||
+              activeHarmonyModel.warning ||
+              "按模型清单映射声部，不根据 Karaoke 名称猜测输出。"}
+            {activeHarmonyModel.reason ? " " + activeHarmonyModel.reason : ""}
+          </p>
+        )}
+        <div className="row wrap">
+          <button
+            className="button primary"
+            disabled={
+              !combinedSource ||
+              !harmonyReady ||
+              activeHarmonyModel?.status !== "ready" ||
+              !!busy
+            }
+            onClick={() =>
+              void guard(
+                () =>
+                  job(
+                    "separate_harmony",
+                    { harmony_model_id: activeHarmonyModel?.id },
+                    combinedSource?.id,
+                  ),
+                "提交主唱与和声分离",
+              )
+            }
+          >
+            <Icon name="layers" />
+            分离主唱与和声
+          </button>
+          <button
+            className="button ghost"
+            onClick={() => chooseImport("lead_vocal")}
+          >
+            导入主唱分轨
+          </button>
+          <button
+            className="button ghost"
+            onClick={() => chooseImport("backing_vocal")}
+          >
+            导入和声分轨
+          </button>
+          {combinedSource && (
+            <button
+              className="text-button"
+              onClick={() => {
+                setListenId(combinedSource.id);
+                tell("正在监听拆分前的混合干人声。");
+              }}
+            >
+              <Icon name="headphones" />
+              混合人声对照
+            </button>
+          )}
+        </div>
+        <div className="voice-part-cards">
+          {(["lead_vocal", "backing_vocal"] as const).map((part) => {
+            const binding = parts[part],
+              a = project?.assets.find(
+                (x) => x.id === binding?.source_artifact_id,
+              );
+            return (
+              <div className={`voice-part-card ${part}`} key={part}>
+                <div className="flex-between">
+                  <strong>{roleNames[part]}</strong>
+                  <Badge tone={a ? "blue" : "neutral"}>
+                    {a ? kindNames[a.processing_kind] : "尚未产生"}
+                  </Badge>
+                </div>
+                <p>{a ? a.name : "完成真实分离，或显式导入此声部。"}</p>
+                {a && (
+                  <>
+                    <small>
+                      {clock(duration(a))} · {a.sample_rate / 1000} kHz ·
+                      输入血缘已保留
+                    </small>
+                    <div className="row wrap space-top">
+                      <button
+                        className="button small"
+                        onClick={() => {
+                          setListenId(a.id);
+                          tell(`正在独听原始${roleNames[part]}分轨。`);
+                        }}
+                      >
+                        <Icon name="headphones" />
+                        独听原声
+                      </button>
+                      <button
+                        className="button small ghost"
+                        onClick={() => {
+                          focusPart(part);
+                          setStep(2);
+                        }}
+                      >
+                        编辑音高
+                      </button>
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          focusPart(part);
+                          setStep(3);
+                        }}
+                      >
+                        选择独立声音
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
+  );
+  const partVoicesPanel =
+    Object.keys(parts).length > 0 ? (
+      <Card
+        title="主唱与和声 · 各自的声音"
+        icon="branch"
+        aside={<Badge tone="blue">独立模型 · 独立音高</Badge>}
+      >
+        <div className="card-pad">
+          <div className="voice-part-cards">
+            {(["lead_vocal", "backing_vocal"] as const).map((part) => {
+              const binding = parts[part],
+                chosen = project?.candidates.find(
+                  (c) => c.id === binding?.selected_candidate_id,
+                );
+              return (
+                <div
+                  className={`voice-part-card ${part} ${activePart === part ? "focused" : ""}`}
+                  key={part}
+                >
+                  <div className="flex-between">
+                    <strong>{roleNames[part]}</strong>
+                    <button
+                      className="text-button"
+                      disabled={!binding}
+                      onClick={() => focusPart(part)}
+                    >
+                      编辑此声部
+                    </button>
+                  </div>
+                  {binding ? (
+                    <>
+                      <Field label={`${roleNames[part]}目标声音模型`}>
+                        <select
+                          value={binding.parameters.model_id || ""}
+                          onChange={(e) =>
+                            patchPart(part, {
+                              parameters: { model_id: e.target.value },
+                            })
+                          }
+                        >
+                          <option value="">选择独立的 RVC 模型</option>
+                          {models
+                            .filter(
+                              (m) =>
+                                m.engine_id?.includes("rvc") ||
+                                m.capabilities?.voice_conversion,
+                            )
+                            .map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                        </select>
+                      </Field>
+                      <Field label={`${roleNames[part]}处理方式`}>
+                        <select
+                          value={binding.mode}
+                          onChange={(e) =>
+                            patchPart(part, { mode: e.target.value })
+                          }
+                        >
+                          <option value="convert">转换此声部</option>
+                          <option value="original">保留原声</option>
+                          <option value="mute">静音此声部</option>
+                        </select>
+                      </Field>
+                      <p className="info-inline">
+                        {binding.mode === "mute"
+                          ? "此声部不进入混音。"
+                          : binding.mode === "original"
+                            ? "混音保留此声部的原始分轨。"
+                            : chosen
+                              ? `采用 ${chosen.name}；另一个声部保持自己的选择。`
+                              : "待转换：目前保留此声部原声，不会冒充转换结果。"}
+                      </p>
+                      <button
+                        className="button small"
+                        disabled={
+                          binding.mode !== "convert" ||
+                          !binding.parameters.model_id ||
+                          !!busy
+                        }
+                        onClick={() =>
+                          void guard(
+                            () =>
+                              job(
+                                "convert",
+                                { voice_part: part },
+                                binding.source_artifact_id,
+                              ),
+                            `提交${roleNames[part]}转换`,
+                          )
+                        }
+                      >
+                        仅转换{roleNames[part]}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="info-inline">
+                      先完成专用分离，或手动导入此声部。
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="row wrap space-top">
+            <button
+              className="button primary"
+              disabled={!bothPartsReady || !!busy}
+              onClick={() =>
+                void guard(
+                  () =>
+                    job("convert_parts", {
+                      parts: ["lead_vocal", "backing_vocal"],
+                      mix_after: true,
+                    }),
+                  "提交双声部转换与混音",
+                )
+              }
+            >
+              <Icon name="spark" />
+              分别转换两声部并混音
+            </button>
+            <span className="info-inline">
+              按各自模式顺序处理；保留另一个声部、伴奏与已提交成果。
+            </span>
+          </div>
+        </div>
+      </Card>
+    ) : null;
   const waveformCard = (tracks?: Track[]) => {
     const rows =
       tracks ||
@@ -934,7 +1437,7 @@ export default function App() {
   const modelField = (
     <Field label="目标声音模型">
       <select
-        value={project?.parameters.model_id || ""}
+        value={editorParameters.model_id || ""}
         onChange={(e) => param({ model_id: e.target.value })}
       >
         <option value="">选择已注册的兼容模型</option>
@@ -979,7 +1482,7 @@ export default function App() {
       hint="F0 是连续音高估计；无旋律参考时不评价音准。"
     >
       <select
-        value={project?.parameters.pitch_algorithm || "rmvpe"}
+        value={editorParameters.pitch_algorithm || "rmvpe"}
         onChange={(e) => param({ pitch_algorithm: e.target.value })}
       >
         {algorithmOptions.map((a: Bag) => (
@@ -1004,7 +1507,7 @@ export default function App() {
     }
     update({
       pitch_edits: [
-        ...(project?.pitch_edits || []),
+        ...(editorPitchEdits || []),
         {
           id: uid(),
           start_tick: selection.start,
@@ -1018,11 +1521,7 @@ export default function App() {
     tell("目标曲线已保存；重新生成候选后才能听到修改。");
   };
   const patchTrack = (id: string, changes: Bag) =>
-    update({
-      tracks: project?.tracks.map((t) =>
-        t.id === id ? { ...t, ...changes } : t,
-      ),
-    });
+    update({ track_updates: { [id]: changes } });
   const record = () =>
     guard(async () => {
       if (recording) {
@@ -1064,10 +1563,10 @@ export default function App() {
 
   const renderSvs = () =>
     guard(async () => {
-      if (!project?.notes.length)
+      if (!project || !editorNotes.length)
         throw new Error("先在“人工音符”页添加音符、时间与日语音节。");
       if (!svsModelId) throw new Error("兼容 SVS 模型尚未就绪。");
-      const notes = project.notes.map((n) => {
+      const notes = editorNotes.map((n) => {
         const unit = project.lyrics.find(
           (l) => l.start <= n.start && l.end > n.start,
         );
@@ -1102,6 +1601,23 @@ export default function App() {
       });
     }, "提交歌声合成");
 
+  const latestStageNode = (index: number) => {
+    const types: Record<number, string[]> = {
+      3: ["convert", "convert_parts", "pipeline", "comp"],
+      4: ["mix"],
+      5: ["export", "export_stems"],
+    };
+    return project?.graph
+      .slice()
+      .reverse()
+      .find(
+        (n) =>
+          types[index]?.includes(n.type) &&
+          (index !== 3 ||
+            (!n.parameters?.range_ticks &&
+              (!n.voice_part || n.voice_part === activePart))),
+      );
+  };
   let content: ReactNode;
   if (step === 0)
     content = (
@@ -1320,24 +1836,35 @@ export default function App() {
             </div>
             <button
               className="button primary full space-top"
-              disabled={!source || !currentModel || !!busy}
+              disabled={
+                Object.keys(parts).length > 0
+                  ? !bothPartsReady || !!busy
+                  : !source || !currentModel || !!busy
+              }
               onClick={() =>
                 void guard(
                   () =>
-                    job(
-                      "pipeline",
-                      {
-                        ...project?.parameters,
-                        skip_separation: project?.task === "speech",
-                      },
-                      project?.task === "rewrite" ? vocal?.id : source?.id,
-                    ),
+                    Object.keys(parts).length > 0
+                      ? job("convert_parts", {
+                          parts: ["lead_vocal", "backing_vocal"],
+                          mix_after: true,
+                        })
+                      : job(
+                          "pipeline",
+                          {
+                            ...project?.parameters,
+                            skip_separation: project?.task === "speech",
+                          },
+                          project?.task === "rewrite" ? vocal?.id : source?.id,
+                        ),
                   "提交完整流程",
                 )
               }
             >
               <Icon name="spark" />
-              运行真实完整流程
+              {Object.keys(parts).length > 0
+                ? "继续双声部转换与混音"
+                : "运行真实完整流程"}
             </button>
             <p className="info-inline">
               任务在本机执行；进度与失败原因会出现在队列。
@@ -1388,6 +1915,7 @@ export default function App() {
               </button>
             </div>
           </Card>
+          {harmonyPanel}
           <div className="risk-card">
             <span className="risk-icon">i</span>
             <div>
@@ -1448,20 +1976,26 @@ export default function App() {
   else if (step === 2)
     content = (
       <>
+        {partSelector}
         <div className="step-tabs">
           {[
             ["pitch", "音高曲线"],
             ["notes", "人工音符"],
             ["lyrics", "歌词与新导唱"],
-          ].map(([id, title]) => (
-            <button
-              key={id}
-              className={pitchTab === id ? "active" : ""}
-              onClick={() => setPitchTab(id)}
-            >
-              {title}
-            </button>
-          ))}
+          ]
+            .filter(
+              ([id]) =>
+                (!hasVoiceParts && activePart === "vocal") || id !== "lyrics",
+            )
+            .map(([id, title]) => (
+              <button
+                key={id}
+                className={pitchTab === id ? "active" : ""}
+                onClick={() => setPitchTab(id)}
+              >
+                {title}
+              </button>
+            ))}
         </div>
         {pitchTab === "pitch" ? (
           <div className="layout-split">
@@ -1499,18 +2033,18 @@ export default function App() {
                   <PitchCanvas
                     data={pitchData}
                     outputData={outputPitchData}
-                    transpose={project?.parameters.transpose || 0}
+                    transpose={editorParameters.transpose || 0}
                     timelineDuration={maxDuration}
                     selection={selection}
-                    edits={project?.pitch_edits || []}
-                    notes={project?.notes || []}
+                    edits={editorPitchEdits || []}
+                    notes={editorNotes || []}
                     playhead={playhead}
                     onSelect={(s) => update({ selection: s })}
                     tool={pitchTool}
                     onPoint={(t, hz) =>
                       update({
                         pitch_edits: [
-                          ...(project?.pitch_edits || []),
+                          ...(editorPitchEdits || []),
                           {
                             id: uid(),
                             start_tick: t,
@@ -1537,8 +2071,7 @@ export default function App() {
                               "pitch",
                               {
                                 algorithm:
-                                  project?.parameters.pitch_algorithm ||
-                                  "rmvpe",
+                                  editorParameters.pitch_algorithm || "rmvpe",
                               },
                               vocal?.id,
                             ),
@@ -1559,12 +2092,12 @@ export default function App() {
                 }
               >
                 <div className="edit-list">
-                  {!project?.pitch_edits.length ? (
+                  {!editorPitchEdits.length ? (
                     <p className="info-inline">
                       尚无人工修改。检测曲线保留为原始参考。
                     </p>
                   ) : (
-                    project.pitch_edits.map((e, i) => (
+                    editorPitchEdits.map((e, i) => (
                       <div className="edit-row" key={e.id}>
                         <span>
                           {i + 1}. {clock(seconds(e.start_tick))}–
@@ -1581,7 +2114,7 @@ export default function App() {
                           className={`chip ${e.locked ? "active" : ""}`}
                           onClick={() =>
                             update({
-                              pitch_edits: project.pitch_edits.map((x) =>
+                              pitch_edits: editorPitchEdits.map((x) =>
                                 x.id === e.id ? { ...x, locked: !x.locked } : x,
                               ),
                             })
@@ -1593,7 +2126,7 @@ export default function App() {
                           className="text-button"
                           onClick={() =>
                             update({
-                              pitch_edits: project.pitch_edits.filter(
+                              pitch_edits: editorPitchEdits.filter(
                                 (x) => x.id !== e.id,
                               ),
                             })
@@ -1624,7 +2157,7 @@ export default function App() {
                           "pitch",
                           {
                             algorithm:
-                              project?.parameters.pitch_algorithm || "rmvpe",
+                              editorParameters.pitch_algorithm || "rmvpe",
                           },
                           vocal?.id,
                         ),
@@ -1705,7 +2238,12 @@ export default function App() {
                 </label>
                 <button
                   className="button primary full"
-                  disabled={!currentModel || !pitchData || !!busy}
+                  disabled={
+                    !currentModel ||
+                    !pitchData ||
+                    !!busy ||
+                    (activePart !== "vocal" && partBinding?.mode !== "convert")
+                  }
                   onClick={() => void renderCandidate(true)}
                 >
                   <Icon name="play" />
@@ -1728,35 +2266,37 @@ export default function App() {
               aside={<Badge tone="purple">目标旋律 · 渲染后生效</Badge>}
             >
               <div className="card-pad">
-                <Field
-                  label="乐谱时长（秒）"
-                  hint="可以不导入音频，直接创建音符并使用兼容 SVS 声库。时长包括休止与尾部。"
-                >
-                  <input
-                    type="number"
-                    min={0.1}
-                    max={3600}
-                    step={0.1}
-                    value={seconds(
-                      project?.parameters.timeline_duration_ticks ||
-                        ticks(maxDuration),
-                    )}
-                    onChange={(e) => {
-                      const end = ticks(
-                        Math.max(0.1, Math.min(3600, +e.target.value)),
-                      );
-                      update({
-                        parameters: {
-                          ...project?.parameters,
-                          timeline_duration_ticks: end,
-                        },
-                        ...(!selection.end
-                          ? { selection: { start: 0, end } }
-                          : {}),
-                      });
-                    }}
-                  />
-                </Field>
+                {activePart === "vocal" && (
+                  <Field
+                    label="乐谱时长（秒）"
+                    hint="可以不导入音频，直接创建音符并使用兼容 SVS 声库。时长包括休止与尾部。"
+                  >
+                    <input
+                      type="number"
+                      min={0.1}
+                      max={3600}
+                      step={0.1}
+                      value={seconds(
+                        project?.parameters.timeline_duration_ticks ||
+                          ticks(maxDuration),
+                      )}
+                      onChange={(e) => {
+                        const end = ticks(
+                          Math.max(0.1, Math.min(3600, +e.target.value)),
+                        );
+                        update({
+                          parameters: {
+                            ...project?.parameters,
+                            timeline_duration_ticks: end,
+                          },
+                          ...(!selection.end
+                            ? { selection: { start: 0, end } }
+                            : {}),
+                        });
+                      }}
+                    />
+                  </Field>
+                )}
                 {selectionControls}
                 <div className="row wrap space-top">
                   <button
@@ -1765,7 +2305,7 @@ export default function App() {
                     onClick={() =>
                       update({
                         notes: [
-                          ...(project?.notes || []),
+                          ...(editorNotes || []),
                           {
                             id: uid(),
                             start: selection.start,
@@ -1780,27 +2320,31 @@ export default function App() {
                   >
                     在选区添加音符
                   </button>
-                  <button
-                    className="button ghost"
-                    onClick={() => midiInput.current?.click()}
-                  >
-                    导入 MIDI
-                  </button>
-                  <button
-                    className="button ghost"
-                    disabled={!project?.notes.length}
-                    onClick={() =>
-                      void guard(async () => {
-                        await flush();
-                        await download(
-                          `/projects/${project!.id}/midi`,
-                          `${project!.name}.mid`,
-                        );
-                      })
-                    }
-                  >
-                    导出 MIDI
-                  </button>
+                  {activePart === "vocal" && (
+                    <button
+                      className="button ghost"
+                      onClick={() => midiInput.current?.click()}
+                    >
+                      导入 MIDI
+                    </button>
+                  )}
+                  {activePart === "vocal" && (
+                    <button
+                      className="button ghost"
+                      disabled={!editorNotes.length}
+                      onClick={() =>
+                        void guard(async () => {
+                          await flush();
+                          await download(
+                            `/projects/${project!.id}/midi`,
+                            `${project!.name}.mid`,
+                          );
+                        })
+                      }
+                    >
+                      导出 MIDI
+                    </button>
+                  )}
                   <p className="info-inline">
                     精确时间和音高均可用数值编辑。人工音符在转换时作为目标 F0
                     条件，保留原清音与休止；仍需试听确认表现。
@@ -1813,13 +2357,13 @@ export default function App() {
                     <tr>
                       <th>起点 / 终点（秒）</th>
                       <th>MIDI 音高</th>
-                      <th>演唱音节 / 音素（SVS）</th>
+                      {!hasVoiceParts && <th>演唱音节 / 音素（SVS）</th>}
                       <th>来源</th>
                       <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {project?.notes.map((n) => (
+                    {editorNotes.map((n) => (
                       <tr key={n.id}>
                         <td>
                           <div className="row">
@@ -1831,7 +2375,7 @@ export default function App() {
                               value={seconds(n.start)}
                               onChange={(e) =>
                                 update({
-                                  notes: project.notes.map((x) =>
+                                  notes: editorNotes.map((x) =>
                                     x.id === n.id
                                       ? {
                                           ...x,
@@ -1853,7 +2397,7 @@ export default function App() {
                               value={seconds(n.end)}
                               onChange={(e) =>
                                 update({
-                                  notes: project.notes.map((x) =>
+                                  notes: editorNotes.map((x) =>
                                     x.id === n.id
                                       ? {
                                           ...x,
@@ -1879,7 +2423,7 @@ export default function App() {
                             value={n.pitch_midi_float}
                             onChange={(e) =>
                               update({
-                                notes: project.notes.map((x) =>
+                                notes: editorNotes.map((x) =>
                                   x.id === n.id
                                     ? {
                                         ...x,
@@ -1891,38 +2435,40 @@ export default function App() {
                             }
                           />
                         </td>
-                        <td>
-                          <div className="stack compact">
-                            <input
-                              aria-label="音符演唱音节"
-                              placeholder="例：あ"
-                              value={n.lyric || ""}
-                              onChange={(e) =>
-                                update({
-                                  notes: project.notes.map((x) =>
-                                    x.id === n.id
-                                      ? { ...x, lyric: e.target.value }
-                                      : x,
-                                  ),
-                                })
-                              }
-                            />
-                            <input
-                              aria-label="音符显式音素"
-                              placeholder="可选：a"
-                              value={n.phonemes || ""}
-                              onChange={(e) =>
-                                update({
-                                  notes: project.notes.map((x) =>
-                                    x.id === n.id
-                                      ? { ...x, phonemes: e.target.value }
-                                      : x,
-                                  ),
-                                })
-                              }
-                            />
-                          </div>
-                        </td>
+                        {!hasVoiceParts && (
+                          <td>
+                            <div className="stack compact">
+                              <input
+                                aria-label="音符演唱音节"
+                                placeholder="例：あ"
+                                value={n.lyric || ""}
+                                onChange={(e) =>
+                                  update({
+                                    notes: editorNotes.map((x) =>
+                                      x.id === n.id
+                                        ? { ...x, lyric: e.target.value }
+                                        : x,
+                                    ),
+                                  })
+                                }
+                              />
+                              <input
+                                aria-label="音符显式音素"
+                                placeholder="可选：a"
+                                value={n.phonemes || ""}
+                                onChange={(e) =>
+                                  update({
+                                    notes: editorNotes.map((x) =>
+                                      x.id === n.id
+                                        ? { ...x, phonemes: e.target.value }
+                                        : x,
+                                    ),
+                                  })
+                                }
+                              />
+                            </div>
+                          </td>
+                        )}
                         <td>人工参考</td>
                         <td>
                           <div className="row">
@@ -1931,7 +2477,7 @@ export default function App() {
                               onClick={() =>
                                 update({
                                   pitch_edits: [
-                                    ...project.pitch_edits,
+                                    ...editorPitchEdits,
                                     {
                                       id: uid(),
                                       start_tick: n.start,
@@ -1952,7 +2498,7 @@ export default function App() {
                               className="text-button"
                               onClick={() =>
                                 update({
-                                  notes: project.notes.filter(
+                                  notes: editorNotes.filter(
                                     (x) => x.id !== n.id,
                                   ),
                                 })
@@ -1967,7 +2513,7 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-              {!project?.notes.length && (
+              {!editorNotes.length && (
                 <Empty title="尚无人工音符">
                   <p>选择区间，然后添加一个参考音符。</p>
                 </Empty>
@@ -2279,7 +2825,7 @@ export default function App() {
                   disabled={
                     !engineReady("svs") ||
                     !svsModelId ||
-                    !project?.notes.length ||
+                    !editorNotes.length ||
                     !!busy
                   }
                   onClick={() => void renderSvs()}
@@ -2305,495 +2851,573 @@ export default function App() {
     );
   else if (step === 3)
     content = (
-      <div className="layout-split">
-        <div className="stack">
-          <Card
-            title="每个候选，都从干净源出发"
-            icon="branch"
-            aside={<Badge tone="neutral">同源候选</Badge>}
-          >
-            <div className="pipeline-row">
-              <div className="pipeline-node">
-                <strong>
-                  {project?.task === "rewrite" ? "新词导唱" : "当前干净人声"}
-                </strong>
-                <small>{vocal?.name || "等待导入"}</small>
+      <>
+        {partSelector}
+        <div className="layout-split">
+          <div className="stack">
+            {partVoicesPanel}
+            <Card
+              title="每个候选，都从干净源出发"
+              icon="branch"
+              aside={<Badge tone="neutral">同源候选</Badge>}
+            >
+              <div className="pipeline-row">
+                <div className="pipeline-node">
+                  <strong>
+                    {activePart !== "vocal"
+                      ? roleNames[activePart]
+                      : project?.task === "rewrite"
+                        ? "新词导唱"
+                        : "当前干净人声"}
+                  </strong>
+                  <small>{vocal?.name || "等待导入"}</small>
+                </div>
+                <span>→</span>
+                <div className="pipeline-node">
+                  <strong>已确认的目标音高</strong>
+                  <small>{editorPitchEdits.length || 0} 项人工调整</small>
+                </div>
+                <span>→</span>
+                <div className="pipeline-node">
+                  <strong>{currentModel?.name || "选择声音模型"}</strong>
+                  <small>真实 RVC 执行器</small>
+                </div>
               </div>
-              <span>→</span>
-              <div className="pipeline-node">
-                <strong>已确认的目标音高</strong>
-                <small>{project?.pitch_edits.length || 0} 项人工调整</small>
-              </div>
-              <span>→</span>
-              <div className="pipeline-node">
-                <strong>{currentModel?.name || "选择声音模型"}</strong>
-                <small>真实 RVC 执行器</small>
-              </div>
+            </Card>
+            <div className="flex-between">
+              <h2 className="section-title">
+                候选与版本 <span>{candidates.length || 0}</span>
+              </h2>
+              <label className="inline-check">
+                <input
+                  type="checkbox"
+                  checked={blind}
+                  onChange={(e) => setBlind(e.target.checked)}
+                />
+                隐藏模型名盲听
+              </label>
             </div>
-          </Card>
-          <div className="flex-between">
-            <h2 className="section-title">
-              候选与版本 <span>{project?.candidates.length || 0}</span>
-            </h2>
-            <label className="inline-check">
-              <input
-                type="checkbox"
-                checked={blind}
-                onChange={(e) => setBlind(e.target.checked)}
-              />
-              隐藏模型名盲听
-            </label>
-          </div>
-          <div className="version-grid">
-            {project?.candidates.map((c, i) => (
-              <div
-                className={`version-card ${candidate?.id === c.id ? "selected" : ""}`}
-                key={c.id}
-              >
-                <div className="version-top">
-                  <h3>
+            <div className="version-grid">
+              {candidates.map((c, i) => (
+                <div
+                  className={`version-card ${candidate?.id === c.id ? "selected" : ""}`}
+                  key={c.id}
+                >
+                  <div className="version-top">
+                    <h3>
+                      {blind
+                        ? `候选 ${String.fromCharCode(65 + i)}`
+                        : c.name || `候选 ${i + 1}`}
+                    </h3>
+                    <span className="version-number">#{i + 1}</span>
+                  </div>
+                  <p>
                     {blind
-                      ? `候选 ${String.fromCharCode(65 + i)}`
-                      : c.name || `候选 ${i + 1}`}
-                  </h3>
-                  <span className="version-number">#{i + 1}</span>
-                </div>
-                <p>
-                  {blind
-                    ? "模型信息已隐藏"
-                    : models.find((m) => m.id === c.model_id)?.name ||
-                      c.model_id}
-                  <br />
-                  {c.parameters?.segments
-                    ? "同源片段拼选 · 需检查接缝"
-                    : c.generation_depth > 1
-                      ? `显式串联 · 第 ${c.generation_depth} 代`
-                      : "从干净源生成 · 第 1 代"}
-                </p>
-                <div className="chip-row">
-                  <span className="chip">
-                    {c.parameters?.transpose || 0} st
-                  </span>
-                  <span className="chip">
-                    {stateLabel[c.state] || c.state || "已渲染"}
-                  </span>
-                  <span className="chip">
-                    源 …{c.source_artifact_id?.slice(-8)}
-                  </span>
-                </div>
-                <div className="version-actions space-top">
-                  <button
-                    className={`button small ${candidate?.id === c.id ? "primary" : ""}`}
-                    disabled={!c.artifact_id}
-                    onClick={() => {
-                      update({ selected_candidate_id: c.id });
-                      setListenId("");
-                      setAB("B");
-                    }}
-                  >
-                    {candidate?.id === c.id ? "已选候选" : "采用此候选"}
-                  </button>
-                  <button
-                    className="button ghost small"
-                    disabled={!c.artifact_id}
-                    onClick={() => {
-                      update({ selected_candidate_id: c.id });
-                      setListenId("");
-                      setAB("B");
-                      tell("候选已载入，按空格试听。");
-                    }}
-                  >
-                    <Icon name="play" />
-                    试听
-                  </button>
-                  <button
-                    className={`chip ${c.favorite ? "active" : ""}`}
-                    onClick={() =>
+                      ? "模型信息已隐藏"
+                      : models.find((m) => m.id === c.model_id)?.name ||
+                        c.model_id}
+                    <br />
+                    {c.parameters?.segments
+                      ? "同源片段拼选 · 需检查接缝"
+                      : c.generation_depth > 1
+                        ? `显式串联 · 第 ${c.generation_depth} 代`
+                        : "从干净源生成 · 第 1 代"}
+                  </p>
+                  <div className="chip-row">
+                    {c.preview_only && (
+                      <Badge tone="orange">片段试听 · 不改变混音</Badge>
+                    )}
+                    <span className="chip">
+                      {c.parameters?.transpose || 0} st
+                    </span>
+                    <span className="chip">
+                      {stateLabel[c.state] || c.state || "已渲染"}
+                    </span>
+                    <span className="chip">
+                      源 …{c.source_artifact_id?.slice(-8)}
+                    </span>
+                  </div>
+                  <div className="version-actions space-top">
+                    <button
+                      className={`button small ${adoptedCandidate?.id === c.id ? "primary" : ""}`}
+                      disabled={
+                        !c.artifact_id ||
+                        !!c.preview_only ||
+                        !candidateCompatible(c) ||
+                        (activePart === "vocal" &&
+                          Object.keys(parts).length > 0)
+                      }
+                      onClick={() => {
+                        update({ selected_candidate_id: c.id });
+                        setAuditionCandidateIds((previous) => ({
+                          ...previous,
+                          [auditionScope]: c.id,
+                        }));
+                        setListenId("");
+                        setAB("B");
+                      }}
+                    >
+                      {c.preview_only
+                        ? "片段仅供试听"
+                        : !candidateCompatible(c)
+                          ? "旧输入仅供试听"
+                          : activePart === "vocal" &&
+                              Object.keys(parts).length > 0
+                            ? "旧版仅供试听"
+                            : adoptedCandidate?.id === c.id
+                              ? "已选候选"
+                              : "采用此候选"}
+                    </button>
+                    <button
+                      className="button ghost small"
+                      disabled={!c.artifact_id}
+                      onClick={() => {
+                        setAuditionCandidateIds((previous) => ({
+                          ...previous,
+                          [auditionScope]: c.id,
+                        }));
+                        setListenId("");
+                        setAB("B");
+                        tell(
+                          c.preview_only
+                            ? "已载入片段试听；不会改变整曲混音或另一声部。"
+                            : "候选已载入试听；混音采用状态保持不变。",
+                        );
+                      }}
+                    >
+                      <Icon name="play" />
+                      试听
+                    </button>
+                    <button
+                      className={`chip ${c.favorite ? "active" : ""}`}
+                      onClick={() =>
+                        update({
+                          candidates: project!.candidates.map((x) =>
+                            x.id === c.id ? { ...x, favorite: !x.favorite } : x,
+                          ),
+                        })
+                      }
+                    >
+                      {c.favorite ? "已收藏" : "收藏"}
+                    </button>
+                    <button
+                      className="text-button"
+                      disabled={!c.artifact_id || !!busy}
+                      onClick={() =>
+                        void guard(
+                          () =>
+                            job(
+                              "pitch",
+                              {
+                                pitch_algorithm:
+                                  editorParameters.pitch_algorithm || "rmvpe",
+                              },
+                              c.artifact_id,
+                            ),
+                          "提交输出音高复测",
+                        )
+                      }
+                    >
+                      复测输出音高
+                    </button>
+                  </div>
+                  <input
+                    className="candidate-note"
+                    aria-label={`候选 ${i + 1} 备注`}
+                    value={c.notes || ""}
+                    placeholder="写下听感与下一步调整…"
+                    onChange={(e) =>
                       update({
-                        candidates: project.candidates.map((x) =>
-                          x.id === c.id ? { ...x, favorite: !x.favorite } : x,
+                        candidates: project!.candidates.map((x) =>
+                          x.id === c.id ? { ...x, notes: e.target.value } : x,
                         ),
                       })
                     }
-                  >
-                    {c.favorite ? "已收藏" : "收藏"}
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={!c.artifact_id || !!busy}
-                    onClick={() =>
-                      void guard(
-                        () =>
-                          job(
-                            "pitch",
-                            {
-                              pitch_algorithm:
-                                project.parameters.pitch_algorithm || "rmvpe",
-                            },
-                            c.artifact_id,
-                          ),
-                        "提交输出音高复测",
-                      )
-                    }
-                  >
-                    复测输出音高
-                  </button>
+                  />
                 </div>
-                <input
-                  className="candidate-note"
-                  aria-label={`候选 ${i + 1} 备注`}
-                  value={c.notes || ""}
-                  placeholder="写下听感与下一步调整…"
-                  onChange={(e) =>
-                    update({
-                      candidates: project.candidates.map((x) =>
-                        x.id === c.id ? { ...x, notes: e.target.value } : x,
-                      ),
-                    })
-                  }
-                />
-              </div>
-            ))}
-          </div>
-          {!project?.candidates.length && (
-            <Card>
-              <Empty title="第一版声音，值得认真试听" icon="headphones">
-                <p>选择模型，先渲染当前选区。候选保留完整来源与参数。</p>
-              </Empty>
-            </Card>
-          )}
-          <Card className="card-pad">
-            {selectionControls}
-            <div className="row wrap space-top">
-              <button
-                className="button primary"
-                disabled={
-                  !vocal ||
-                  !currentModel ||
-                  !!busy ||
-                  selection.end <= selection.start
-                }
-                onClick={() => void renderCandidate(true)}
-              >
-                <Icon name="spark" />
-                生成选区试听
-              </button>
-              <button
-                className="button ghost"
-                disabled={!vocal || !currentModel || !!busy}
-                onClick={() => void renderCandidate(false)}
-              >
-                生成整段候选
-              </button>
-              <button className="text-button" onClick={() => setModal("queue")}>
-                查看任务队列
-              </button>
+              ))}
             </div>
-            <p className="info-inline">
-              选区试听包含前后文，并在原时间轴上对齐。短片段结果不保证逐采样等同整段渲染；修改参数后，上一版继续保留。
-            </p>
-          </Card>
-          {mode !== "quick" && !!project?.candidates.length && (
-            <Card
-              title="逐句拼选"
-              icon="branch"
-              aside={<Badge tone="purple">同源片段 · 交叉淡化</Badge>}
-            >
-              <div className="card-pad">
-                <Field label="基础候选（保留整段时间轴）">
-                  <select
-                    value={
-                      project.parameters.comp_base_candidate_id ||
-                      candidate?.id ||
-                      ""
-                    }
-                    onChange={(e) =>
-                      param({ comp_base_candidate_id: e.target.value })
-                    }
-                  >
-                    {project.candidates.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <p className="info-inline">
-                  当前采用的候选可覆盖所选句子。接缝在覆盖区间内部淡化，保留整段长度；不同来源或重叠区间会被拒绝。
-                </p>
-                <button
-                  className="button"
-                  disabled={!candidate || selection.end <= selection.start}
-                  onClick={() => {
-                    const segments: Bag[] =
-                      project.parameters.comp_segments || [];
-                    if (
-                      segments.some(
-                        (s) =>
-                          s.start_tick < selection.end &&
-                          s.end_tick > selection.start,
-                      )
-                    ) {
-                      tell("此选区与已有拼选片段重叠，请先调整边界。");
-                      return;
-                    }
-                    param({
-                      comp_base_candidate_id:
-                        project.parameters.comp_base_candidate_id ||
-                        candidate?.id,
-                      comp_segments: [
-                        ...segments,
-                        {
-                          candidate_id: candidate?.id,
-                          start_tick: selection.start,
-                          end_tick: selection.end,
-                          fade_ms: 20,
-                        },
-                      ],
-                    });
-                  }}
-                >
-                  将当前候选用于选区
-                </button>
-                <div className="edit-list">
-                  {(project.parameters.comp_segments || []).map(
-                    (s: Bag, i: number) => (
-                      <div className="edit-row" key={i}>
-                        <span>
-                          {clock(seconds(s.start_tick))} —{" "}
-                          {clock(seconds(s.end_tick))}
-                        </span>
-                        <strong>
-                          {project.candidates.find(
-                            (c) => c.id === s.candidate_id,
-                          )?.name || "候选缺失"}
-                        </strong>
-                        <label className="inline-check">
-                          淡化 ms{" "}
-                          <input
-                            className="comp-fade"
-                            type="number"
-                            min={1}
-                            max={200}
-                            value={s.fade_ms}
-                            aria-label={`拼选片段 ${i + 1} 淡化毫秒`}
-                            onChange={(e) =>
-                              param({
-                                comp_segments:
-                                  project.parameters.comp_segments.map(
-                                    (x: Bag, j: number) =>
-                                      i === j
-                                        ? {
-                                            ...x,
-                                            fade_ms: Math.max(
-                                              1,
-                                              Math.min(200, +e.target.value),
-                                            ),
-                                          }
-                                        : x,
-                                  ),
-                              })
-                            }
-                          />
-                        </label>
-                        <button
-                          className="text-button"
-                          onClick={() =>
-                            param({
-                              comp_segments:
-                                project.parameters.comp_segments.filter(
-                                  (_x: Bag, j: number) => j !== i,
-                                ),
-                            })
-                          }
-                        >
-                          移除
-                        </button>
-                      </div>
-                    ),
-                  )}
-                </div>
+            {!candidates.length && (
+              <Card>
+                <Empty title="第一版声音，值得认真试听" icon="headphones">
+                  <p>选择模型，先渲染当前选区。候选保留完整来源与参数。</p>
+                </Empty>
+              </Card>
+            )}
+            <Card className="card-pad">
+              {selectionControls}
+              <div className="row wrap space-top">
                 <button
                   className="button primary"
-                  disabled={!project.parameters.comp_segments?.length || !!busy}
-                  onClick={() =>
-                    void guard(
-                      () =>
-                        job("comp", {
-                          base_candidate_id:
-                            project.parameters.comp_base_candidate_id ||
-                            candidate?.id,
-                          segments: project.parameters.comp_segments,
-                        }),
-                      "提交片段拼选",
-                    )
-                  }
-                >
-                  <Icon name="branch" />
-                  渲染拼选候选
-                </button>
-              </div>
-            </Card>
-          )}
-          {waveformCard(
-            project?.tracks.filter((t) =>
-              ["vocal", "vocals", "guide", "converted"].includes(t.role),
-            ),
-          )}
-        </div>
-        <aside className="inspector stack">
-          <Card className="card-pad">
-            <div className="inspector-heading">
-              <strong>声音转换设置</strong>
-              <span>RVC ADAPTER</span>
-            </div>
-            {modelField}
-            {algorithmField}
-            <Field label="起点预设">
-              <select
-                defaultValue=""
-                onChange={(e) => {
-                  const presets: Record<string, Bag> = {
-                    natural: { transpose: 0, index_rate: 0, protect: 0.33 },
-                    soft: { transpose: 0, index_rate: 0, protect: 0.45 },
-                    retrieve: { transpose: 0, index_rate: 0.5, protect: 0.33 },
-                  };
-                  param({
-                    ...presets[e.target.value],
-                    preset_id: e.target.value,
-                  });
-                  tell("已应用预设参数；可继续逐项调整。");
-                }}
-              >
-                <option value="" disabled>
-                  选择一个起点
-                </option>
-                <option value="natural">自然对白 · 不使用检索</option>
-                <option value="soft">保留清辅音 · 较强保护</option>
-                <option value="retrieve">声音检索 · 需要匹配索引</option>
-              </select>
-            </Field>
-            <Slider
-              label="主唱整体移调"
-              value={project?.parameters.transpose || 0}
-              min={-24}
-              max={24}
-              suffix="st"
-              onChange={(v) => param({ transpose: v })}
-            />
-            <Slider
-              label="检索特征比例"
-              value={project?.parameters.index_rate || 0}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(v) => param({ index_rate: v })}
-              hint="大于零时需要匹配的索引；不会静默忽略缺失索引。"
-            />
-            <Slider
-              label="清辅音保护"
-              value={project?.parameters.protect ?? 0.33}
-              min={0}
-              max={0.5}
-              step={0.01}
-              onChange={(v) => param({ protect: v })}
-            />
-            {mode === "expert" && (
-              <div className="advanced-block">
-                <div className="warning-inline">
-                  显式串联会增加转换世代，也可能积累失真。
-                </div>
-                <button
-                  className="button full"
-                  disabled={!candidate || !currentModel || !!busy}
-                  onClick={() => void renderCandidate(false, true)}
-                >
-                  以上一候选为输入，再转换一轮
-                </button>
-                <Field label="固定随机种子">
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={project?.parameters.seed ?? 42}
-                    onChange={(e) => param({ seed: +e.target.value })}
-                  />
-                </Field>
-                <div className="line" />
-                <strong className="track-heading">短片段参数实验</strong>
-                <Field
-                  label="对比移调（半音，用逗号分隔）"
-                  hint="最多 8 组，同源输入、固定种子，按队列顺序执行；锁定人工曲线保持优先。"
-                >
-                  <input
-                    value={experimentShifts}
-                    onChange={(e) => setExperimentShifts(e.target.value)}
-                    placeholder="-2,0,2"
-                  />
-                </Field>
-                <button
-                  className="button full"
                   disabled={
-                    !currentModel ||
                     !vocal ||
+                    !currentModel ||
                     !!busy ||
+                    (activePart !== "vocal" &&
+                      partBinding?.mode !== "convert") ||
                     selection.end <= selection.start
                   }
-                  onClick={() =>
-                    void guard(async () => {
-                      const shifts = experimentShifts
-                        .split(/[,，]/)
-                        .map((s) => Number(s.trim()));
-                      if (
-                        !shifts.length ||
-                        shifts.length > 8 ||
-                        shifts.some(
-                          (n) => !Number.isFinite(n) || Math.abs(n) > 24,
-                        )
-                      )
-                        throw new Error(
-                          "请输入 1–8 个 −24 至 +24 之间的移调数值。",
-                        );
-                      await flush();
-                      const p = pRef.current!;
-                      const result = await post<Bag>(
-                        `/projects/${p.id}/experiments`,
-                        {
-                          revision: p.revision,
-                          idempotency_key: uid(),
-                          input_artifact_id: vocal?.id,
-                          range_ticks: [selection.start, selection.end],
-                          variants: shifts.map((transpose) => ({
-                            transpose,
-                            seed: p.parameters.seed ?? 42,
-                          })),
-                        },
-                      );
-                      setJobs((js) => [...result.jobs, ...js]);
-                      tell(`已加入 ${result.jobs.length} 个同源参数实验。`);
-                    }, "提交参数实验")
-                  }
+                  onClick={() => void renderCandidate(true)}
                 >
-                  生成对比候选组
+                  <Icon name="spark" />
+                  生成选区试听
+                </button>
+                <button
+                  className="button ghost"
+                  disabled={
+                    !vocal ||
+                    !currentModel ||
+                    !!busy ||
+                    (activePart !== "vocal" && partBinding?.mode !== "convert")
+                  }
+                  onClick={() => void renderCandidate(false)}
+                >
+                  生成整段候选
+                </button>
+                <button
+                  className="text-button"
+                  onClick={() => setModal("queue")}
+                >
+                  查看任务队列
                 </button>
               </div>
+              <p className="info-inline">
+                选区试听包含前后文，并在原时间轴上对齐。短片段结果不保证逐采样等同整段渲染；修改参数后，上一版继续保留。
+              </p>
+            </Card>
+            {project &&
+              activePart === "vocal" &&
+              !hasVoiceParts &&
+              mode !== "quick" &&
+              !!candidates.length && (
+                <Card
+                  title="逐句拼选"
+                  icon="branch"
+                  aside={<Badge tone="purple">同源片段 · 交叉淡化</Badge>}
+                >
+                  <div className="card-pad">
+                    <Field label="基础候选（保留整段时间轴）">
+                      <select
+                        value={
+                          project.parameters.comp_base_candidate_id ||
+                          candidate?.id ||
+                          ""
+                        }
+                        onChange={(e) =>
+                          param({ comp_base_candidate_id: e.target.value })
+                        }
+                      >
+                        {candidates.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <p className="info-inline">
+                      当前采用的候选可覆盖所选句子。接缝在覆盖区间内部淡化，保留整段长度；不同来源或重叠区间会被拒绝。
+                    </p>
+                    <button
+                      className="button"
+                      disabled={!candidate || selection.end <= selection.start}
+                      onClick={() => {
+                        const segments: Bag[] =
+                          project.parameters.comp_segments || [];
+                        if (
+                          segments.some(
+                            (s) =>
+                              s.start_tick < selection.end &&
+                              s.end_tick > selection.start,
+                          )
+                        ) {
+                          tell("此选区与已有拼选片段重叠，请先调整边界。");
+                          return;
+                        }
+                        param({
+                          comp_base_candidate_id:
+                            project.parameters.comp_base_candidate_id ||
+                            candidate?.id,
+                          comp_segments: [
+                            ...segments,
+                            {
+                              candidate_id: candidate?.id,
+                              start_tick: selection.start,
+                              end_tick: selection.end,
+                              fade_ms: 20,
+                            },
+                          ],
+                        });
+                      }}
+                    >
+                      将当前候选用于选区
+                    </button>
+                    <div className="edit-list">
+                      {(project.parameters.comp_segments || []).map(
+                        (s: Bag, i: number) => (
+                          <div className="edit-row" key={i}>
+                            <span>
+                              {clock(seconds(s.start_tick))} —{" "}
+                              {clock(seconds(s.end_tick))}
+                            </span>
+                            <strong>
+                              {candidates.find((c) => c.id === s.candidate_id)
+                                ?.name || "候选缺失"}
+                            </strong>
+                            <label className="inline-check">
+                              淡化 ms{" "}
+                              <input
+                                className="comp-fade"
+                                type="number"
+                                min={1}
+                                max={200}
+                                value={s.fade_ms}
+                                aria-label={`拼选片段 ${i + 1} 淡化毫秒`}
+                                onChange={(e) =>
+                                  param({
+                                    comp_segments:
+                                      project.parameters.comp_segments.map(
+                                        (x: Bag, j: number) =>
+                                          i === j
+                                            ? {
+                                                ...x,
+                                                fade_ms: Math.max(
+                                                  1,
+                                                  Math.min(
+                                                    200,
+                                                    +e.target.value,
+                                                  ),
+                                                ),
+                                              }
+                                            : x,
+                                      ),
+                                  })
+                                }
+                              />
+                            </label>
+                            <button
+                              className="text-button"
+                              onClick={() =>
+                                param({
+                                  comp_segments:
+                                    project.parameters.comp_segments.filter(
+                                      (_x: Bag, j: number) => j !== i,
+                                    ),
+                                })
+                              }
+                            >
+                              移除
+                            </button>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                    <button
+                      className="button primary"
+                      disabled={
+                        !project.parameters.comp_segments?.length || !!busy
+                      }
+                      onClick={() =>
+                        void guard(
+                          () =>
+                            job("comp", {
+                              base_candidate_id:
+                                project.parameters.comp_base_candidate_id ||
+                                candidate?.id,
+                              segments: project.parameters.comp_segments,
+                            }),
+                          "提交片段拼选",
+                        )
+                      }
+                    >
+                      <Icon name="branch" />
+                      渲染拼选候选
+                    </button>
+                  </div>
+                </Card>
+              )}
+            {waveformCard(
+              project?.tracks.filter((t) =>
+                activePart === "vocal"
+                  ? ["vocal", "vocals", "guide", "converted"].includes(
+                      t.role,
+                    ) && !t.voice_part
+                  : t.role === activePart || t.voice_part === activePart,
+              ),
             )}
-          </Card>
-          <div className="helper-box">
-            <strong>A/B 要在同一位置。</strong>
-            <p>
-              底部 A 是候选的输入，B
-              是当前候选，共用播放头与循环范围。响度匹配使用可用的实际 RMS
-              测量。
-            </p>
           </div>
-        </aside>
-      </div>
+          <aside className="inspector stack">
+            <Card className="card-pad">
+              <div className="inspector-heading">
+                <strong>声音转换设置</strong>
+                <span>RVC ADAPTER</span>
+              </div>
+              {modelField}
+              {partModeControls}
+              {algorithmField}
+              <Field label="起点预设">
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const presets: Record<string, Bag> = {
+                      natural: { transpose: 0, index_rate: 0, protect: 0.33 },
+                      soft: { transpose: 0, index_rate: 0, protect: 0.45 },
+                      retrieve: {
+                        transpose: 0,
+                        index_rate: 0.5,
+                        protect: 0.33,
+                      },
+                    };
+                    param({
+                      ...presets[e.target.value],
+                      preset_id: e.target.value,
+                    });
+                    tell("已应用预设参数；可继续逐项调整。");
+                  }}
+                >
+                  <option value="" disabled>
+                    选择一个起点
+                  </option>
+                  <option value="natural">自然对白 · 不使用检索</option>
+                  <option value="soft">保留清辅音 · 较强保护</option>
+                  <option value="retrieve">声音检索 · 需要匹配索引</option>
+                </select>
+              </Field>
+              <Slider
+                label={
+                  activePart === "vocal"
+                    ? "主唱整体移调"
+                    : `${roleNames[activePart]}整体移调`
+                }
+                value={editorParameters.transpose || 0}
+                min={-24}
+                max={24}
+                suffix="st"
+                onChange={(v) => param({ transpose: v })}
+              />
+              <Slider
+                label="检索特征比例"
+                value={editorParameters.index_rate || 0}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(v) => param({ index_rate: v })}
+                hint="大于零时需要匹配的索引；不会静默忽略缺失索引。"
+              />
+              <Slider
+                label="清辅音保护"
+                value={editorParameters.protect ?? 0.33}
+                min={0}
+                max={0.5}
+                step={0.01}
+                onChange={(v) => param({ protect: v })}
+              />
+              {activePart === "vocal" &&
+                !hasVoiceParts &&
+                mode === "expert" && (
+                  <div className="advanced-block">
+                    <div className="warning-inline">
+                      显式串联会增加转换世代，也可能积累失真。
+                    </div>
+                    <button
+                      className="button full"
+                      disabled={!candidate || !currentModel || !!busy}
+                      onClick={() => void renderCandidate(false, true)}
+                    >
+                      以上一候选为输入，再转换一轮
+                    </button>
+                    <Field label="固定随机种子">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={editorParameters.seed ?? 42}
+                        onChange={(e) => param({ seed: +e.target.value })}
+                      />
+                    </Field>
+                    <div className="line" />
+                    <strong className="track-heading">短片段参数实验</strong>
+                    <Field
+                      label="对比移调（半音，用逗号分隔）"
+                      hint="最多 8 组，同源输入、固定种子，按队列顺序执行；锁定人工曲线保持优先。"
+                    >
+                      <input
+                        value={experimentShifts}
+                        onChange={(e) => setExperimentShifts(e.target.value)}
+                        placeholder="-2,0,2"
+                      />
+                    </Field>
+                    <button
+                      className="button full"
+                      disabled={
+                        !currentModel ||
+                        !vocal ||
+                        !!busy ||
+                        selection.end <= selection.start
+                      }
+                      onClick={() =>
+                        void guard(async () => {
+                          const shifts = experimentShifts
+                            .split(/[,，]/)
+                            .map((s) => Number(s.trim()));
+                          if (
+                            !shifts.length ||
+                            shifts.length > 8 ||
+                            shifts.some(
+                              (n) => !Number.isFinite(n) || Math.abs(n) > 24,
+                            )
+                          )
+                            throw new Error(
+                              "请输入 1–8 个 −24 至 +24 之间的移调数值。",
+                            );
+                          await flush();
+                          const p = pRef.current!;
+                          const result = await post<Bag>(
+                            `/projects/${p.id}/experiments`,
+                            {
+                              revision: p.revision,
+                              idempotency_key: uid(),
+                              input_artifact_id: vocal?.id,
+                              range_ticks: [selection.start, selection.end],
+                              variants: shifts.map((transpose) => ({
+                                transpose,
+                                seed: p.parameters.seed ?? 42,
+                              })),
+                            },
+                          );
+                          setJobs((js) => [...result.jobs, ...js]);
+                          tell(`已加入 ${result.jobs.length} 个同源参数实验。`);
+                        }, "提交参数实验")
+                      }
+                    >
+                      生成对比候选组
+                    </button>
+                  </div>
+                )}
+            </Card>
+            <div className="helper-box">
+              <strong>A/B 要在同一位置。</strong>
+              <p>
+                底部 A 是候选的输入，B
+                是当前候选，共用播放头与循环范围。响度匹配使用可用的实际 RMS
+                测量。
+              </p>
+            </div>
+          </aside>
+        </div>
+      </>
     );
   else if (step === 4) {
     const mixTracks =
       project?.tracks.filter(
-        (t) => !["pitch", "original", "mix"].includes(t.role),
+        (t) =>
+          !["pitch", "original", "mix"].includes(t.role) &&
+          !t.preview_only &&
+          !project?.candidates.some(
+            (c) => c.preview_only && c.artifact_id === t.artifact_id,
+          ) &&
+          (Object.keys(parts).length === 0 ||
+            (!["vocal", "vocals", "guide", "synthesized"].includes(t.role) &&
+              !(t.role === "converted" && !t.voice_part))),
       ) || [];
     content = (
       <div className="layout-split">
@@ -2833,7 +3457,7 @@ export default function App() {
                         type="range"
                         min={-60}
                         max={12}
-                        step={0.5}
+                        step={0.1}
                         value={t.gain_db || 0}
                         onChange={(e) =>
                           patchTrack(t.id, { gain_db: +e.target.value })
@@ -2852,7 +3476,7 @@ export default function App() {
                         type="number"
                         min={-60}
                         max={12}
-                        step={0.5}
+                        step={0.1}
                         value={t.gain_db || 0}
                         onChange={(e) =>
                           patchTrack(t.id, { gain_db: +e.target.value })
@@ -2863,12 +3487,14 @@ export default function App() {
                     <div className="channel-buttons">
                       <button
                         className={t.mute ? "active" : ""}
+                        aria-pressed={t.mute}
                         onClick={() => patchTrack(t.id, { mute: !t.mute })}
                       >
                         静音
                       </button>
                       <button
                         className={t.solo ? "active" : ""}
+                        aria-pressed={t.solo}
                         onClick={() => patchTrack(t.id, { solo: !t.solo })}
                       >
                         独奏
@@ -2917,7 +3543,7 @@ export default function App() {
               disabled={!mixTracks.length || !!busy}
               onClick={() =>
                 void guard(
-                  () => job("mix", { tracks: mixTracks, sample_rate: 48000 }),
+                  () => job("mix", { sample_rate: 48000 }),
                   "提交混音任务",
                 )
               }
@@ -3355,13 +3981,7 @@ export default function App() {
         </div>
         <nav aria-label="制作步骤">
           {steps.map(([icon, title], i) => {
-            const stale = project?.graph.some(
-              (n) =>
-                n.state === "stale" &&
-                ((i === 3 && ["convert", "pipeline"].includes(n.type)) ||
-                  (i === 4 && n.type === "mix") ||
-                  (i === 5 && n.type === "export")),
-            );
+            const stale = latestStageNode(i)?.state === "stale";
             const done =
               i === 0
                 ? !!source
@@ -3407,7 +4027,7 @@ export default function App() {
         <button className="nav-secondary" onClick={() => setStep(3)}>
           <Icon name="branch" />
           候选与版本
-          <span className="side-count">{project?.candidates.length || 0}</span>
+          <span className="side-count">{candidates.length || 0}</span>
         </button>
         <button className="nav-secondary" onClick={() => setModal("queue")}>
           <Icon name="clock" />
@@ -3589,7 +4209,7 @@ export default function App() {
             </div>
           </div>
           {step >= 2 &&
-            project?.graph.some((n) => n.state === "stale") &&
+            [3, 4, 5].some((i) => latestStageNode(i)?.state === "stale") &&
             project?.warnings.some((w) => w.code === "pending_render") && (
               <div className="pending-strip">
                 新版本待试听 · 已完成版本继续保留，请渲染受影响的节点。
@@ -4053,9 +4673,18 @@ export default function App() {
                     </span>
                     <div className="job-text">
                       <strong>
+                        {j.parameters?.voice_part && (
+                          <span>
+                            {roleNames[j.parameters.voice_part] ||
+                              j.parameters.voice_part}{" "}
+                            ·{" "}
+                          </span>
+                        )}
                         {(
                           {
                             separate: "人声与伴奏分离",
+                            separate_harmony: "主唱与和声分离",
+                            convert_parts: "两声部独立转换与混音",
                             pitch: "音高分析",
                             convert: "声音转换",
                             mix: "混音渲染",
@@ -4173,6 +4802,8 @@ export default function App() {
                   <option value="vocal">干人声</option>
                   <option value="instrumental">伴奏</option>
                   <option value="guide">新词导唱</option>
+                  <option value="lead_vocal">主唱干声分轨</option>
+                  <option value="backing_vocal">和声干声分轨</option>
                 </select>
               </Field>
               <button
@@ -4202,9 +4833,16 @@ export default function App() {
               <div className="setting-section">
                 <h3>本机服务连接</h3>
                 <p className="info-inline">
-                  固定端点 127.0.0.1:8765 · 协议
-                  v1。仅使用启动器提供的当前会话令牌。
+                  明确配置的本机端点 · 协议
+                  v1。仅使用启动器提供的当前会话令牌，不扫描端口。
                 </p>
+                <Field label="本机服务端点">
+                  <input
+                    value={endpointDraft}
+                    onChange={(e) => setEndpointDraft(e.target.value)}
+                    placeholder="http://127.0.0.1:8765"
+                  />
+                </Field>
                 <Field label="会话令牌">
                   <input
                     type="password"
@@ -4218,7 +4856,24 @@ export default function App() {
                   className="button primary"
                   onClick={() =>
                     void guard(async () => {
-                      if (tokenDraft) setConnection(tokenDraft);
+                      const changingEndpoint =
+                        endpointDraft.replace(/\/$/, "") !==
+                        getConnectionEndpoint();
+                      if (changingEndpoint && !tokenDraft)
+                        throw new Error(
+                          "切换服务端点时，请同时提供该服务的当前会话令牌。",
+                        );
+                      if (changingEndpoint) {
+                        await flush();
+                        audio.current?.pause();
+                        pRef.current = null;
+                        setProject(null);
+                        setJobs([]);
+                        setListenId("");
+                        eventCursor.current = 0;
+                        jobSignature.current = "";
+                      }
+                      if (tokenDraft) setConnection(tokenDraft, endpointDraft);
                       await refresh();
                       setTokenDraft("");
                       setError("");

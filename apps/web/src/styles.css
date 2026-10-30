@@ -16,6 +16,107 @@
   --radius: 14px;
   --font: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
 }
+.voice-part-selector {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+  padding: 14px 18px;
+  border: 1px solid #3c4935;
+  background: #20281f;
+  border-radius: 10px;
+}
+.voice-part-selector > div:first-child {
+  flex: 1;
+  min-width: 170px;
+}
+.voice-part-selector strong {
+  display: block;
+  color: #d2dec9;
+  font-weight: 500;
+  font-size: 12px;
+}
+.voice-part-selector small {
+  display: block;
+  color: #819575;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.voice-part-selector .segmented button {
+  font-size: 11px;
+  padding: 7px 15px;
+}
+.voice-part-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.voice-part-card {
+  min-width: 0;
+  border: 1px solid #45513c;
+  border-top: 2px solid #b8d984;
+  border-radius: 9px;
+  background: #20281e;
+  padding: 16px;
+}
+.voice-part-card.backing_vocal {
+  border-top-color: #b9a6db;
+}
+.voice-part-card.focused {
+  box-shadow: inset 0 0 0 1px #a4bb7b44;
+  background: #283223;
+}
+.voice-part-card strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.voice-part-card > p {
+  font-size: 11px;
+  color: #b1bda7;
+  overflow-wrap: anywhere;
+}
+.voice-part-card > small {
+  font-size: 9px;
+  color: #819975;
+}
+.voice-part-card .field {
+  margin: 14px 0;
+}
+.voice-part-card .badge {
+  font-size: 8px;
+}
+.voice-part-card .button {
+  font-size: 10px;
+}
+.voice-part-card .row {
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .voice-part-selector {
+    gap: 10px;
+    padding: 12px;
+  }
+  .voice-part-selector > div:first-child {
+    min-width: 100%;
+    flex-basis: 100%;
+  }
+  .voice-part-selector .segmented {
+    width: 100%;
+  }
+  .voice-part-selector .segmented button {
+    flex: 1;
+    padding: 7px;
+  }
+  .voice-part-cards {
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+  .voice-part-card {
+    padding: 14px;
+  }
+}
 .pending-strip {
   margin: 0 0 18px;
   padding: 10px 14px;
@@ -107,6 +208,8 @@ svg {
   min-height: 100vh;
 }
 .sidebar {
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #191d1e;
   border-right: 1px solid var(--line-soft);
   padding: 31px 18px 20px;

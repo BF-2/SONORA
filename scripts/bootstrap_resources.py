@@ -149,11 +149,19 @@ def main():
         link_file(ckpt,dest); link_file(yaml,dest.with_name(yaml_name))
         separator_models.append({'id':ckpt.stem,'name':ckpt.stem,'path':str(dest),'config_path':str(dest.with_name(yaml_name)),
                                  'model_hash':sha256(ckpt),'config_hash':sha256(yaml),'license':'unconfirmed',
+                                 'task':'vocals_instrumental','native_stem_roles':{'Vocals':'vocal','Instrumental':'instrumental'},
                                  'stem_roles':{'Vocals':'vocal','Instrumental':'instrumental'},'sample_rate':44100,'test_status':'unverified'})
+    harmony_manifest=ROOT/'engine-envs/harmony/model-manifest.json'
+    default_harmony_model=None
+    if harmony_manifest.exists():
+        harmony=json.loads(harmony_manifest.read_text(encoding='utf-8'))
+        if harmony.get('task')=='lead_backing' and Path(harmony['path']).is_file() and Path(harmony['config_path']).is_file():
+            if sha256(harmony['path'])==harmony['model_hash'] and sha256(harmony['config_path'])==harmony['config_hash']:
+                separator_models.append(harmony);default_harmony_model=harmony['id']
     config={'schema_version':1,'applio':{'python':str(python),'root':str(snapshot),'revision':models[0]['engine_revision'] if models else None,
                                        'source_hash':source_hash.hexdigest(),'original_root':str(applio)},
             'separation':{'python':str(source/'audio-separator-venv/Scripts/python.exe'),'version':'0.44.2','model_dir':str(resources/'separation'),
-                          'default_model':'mel_band_roformer_vocals_fv4_gabox','models':separator_models},
+                          'default_model':'mel_band_roformer_vocals_fv4_gabox','default_harmony_model':default_harmony_model,'models':separator_models},
             'models':models,'svs':svs_resources(source),'pitch':pitch_resources(source,args.install_pitch_overlay),**media_tools(source)}
     write_json(ROOT/'engine-envs/resources.json',config)
     write_json(ROOT/'engine-envs/resource-links.json',{'source_hash':source_hash.hexdigest(),'files':links})

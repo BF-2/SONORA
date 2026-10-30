@@ -1,0 +1,57 @@
+{
+  "id": "melband-karaoke-aufr33-viperx-10.1956",
+  "name": "MelBand RoFormer Karaoke · aufr33 & viperx",
+  "task": "lead_backing",
+  "engine_id": "audio-separator",
+  "path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+  "config_path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+  "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+  "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+  "sample_rate": 44100,
+  "native_stem_roles": {
+    "Vocals": "lead_vocal",
+    "Instrumental": "backing_vocal"
+  },
+  "stem_roles": {
+    "Vocals": "lead_vocal",
+    "Instrumental": "backing_vocal"
+  },
+  "native_target": "Vocals",
+  "residual_native_stem": "Instrumental",
+  "required_input_role": "combined_vocals",
+  "semantic_basis": "Pinned Karaoke checkpoint estimates lead vocals; apply to combined isolated vocals. Complement is backing group plus any residual bleed.",
+  "semantic_sources": [
+    "https://mvsep.com/algorithms/76",
+    "https://raw.githubusercontent.com/nomadkaraoke/python-audio-separator/v0.44.2/audio_separator/models.json",
+    "https://raw.githubusercontent.com/nomadkaraoke/python-audio-separator/v0.44.2/audio_separator/ensemble_presets.json"
+  ],
+  "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+  "config_source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+  "source_release_id": 175147634,
+  "source_release_tag": "model-configs",
+  "source_asset_ids": [
+    192841139,
+    192850484
+  ],
+  "source_release_updated": "2024-09-16",
+  "code_version": "audio-separator 0.44.2",
+  "authors": [
+    "aufr33",
+    "viperx"
+  ],
+  "license": "unconfirmed",
+  "redistribution": "not bundled; weight license not established by code MIT license",
+  "test_status": "verified_local_combined_vocal",
+  "local_segment_render": false,
+  "warnings": [
+    "仅对合并人声运行第二步分离。输入若有伴奏残留，会进入背景组；结果需试听。",
+    "分组是模型估计，不能保证重唱者、所有和声或混响完全分开。"
+  ],
+  "verification": "engine-envs/harmony/verification.json",
+  "validation_scope": "Demonstrated source grouping on one controlled mixture of natural voices; failed the SVS composite. Not universal song or subjective listening acceptance.",
+  "verified_devices": [
+    "cuda:0",
+    "cpu"
+  ],
+  "user_sample_verification": "engine-envs/harmony/user-sample-verification.json"
+}

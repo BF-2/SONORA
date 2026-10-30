@@ -9,6 +9,8 @@ $ErrorActionPreference = 'Stop'
 $sonoraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $sonoraPython = Join-Path $sonoraRoot '.venv\Scripts\python.exe'
 $sonoraExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora.exe'
+$sonoraHarmonyExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-harmony.exe'
+if (Test-Path -LiteralPath $sonoraHarmonyExe) { $sonoraExe = $sonoraHarmonyExe }
 $sonoraPort = 8765
 
 if (-not $Browser -and (Test-Path -LiteralPath $sonoraExe)) {

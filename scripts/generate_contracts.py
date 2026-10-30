@@ -8,6 +8,8 @@ def ts(node):
     if 'const' in node:return json.dumps(node['const'])
     if 'enum' in node:return ' | '.join(json.dumps(x) for x in node['enum'])
     kind=node.get('type')
+    if isinstance(kind,list):return ' | '.join(ts({'type':item}) for item in kind)
+    if kind=='null':return 'null'
     if kind in ('number','integer'):return 'number'
     if kind=='string':return 'string'
     if kind=='boolean':return 'boolean'

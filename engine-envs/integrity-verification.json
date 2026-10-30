@@ -1,5 +1,5 @@
 {
-  "checked_files": 218,
+  "checked_files": 220,
   "hardlinks": 216,
   "all_original_hashes_match": true,
   "all_reused_hashes_match": true,
@@ -1747,6 +1747,20 @@
       "original_matches": true,
       "linked_matches": true,
       "same_file": false
+    }
+  ],
+  "downloaded_files": [
+    {
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+      "expected_sha256": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "matches": true,
+      "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "expected_sha256": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "matches": true,
+      "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"
     }
   ]
 }

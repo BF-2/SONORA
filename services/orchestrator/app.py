@@ -24,6 +24,7 @@ from .scheduler import Scheduler
 from .store import Store, Conflict, now, uid
 from .editing import freeze_locks
 from .midi import read_midi,write_midi
+from .voices import VOICE_PARTS,PART_NAMES,voice_part,new_binding,sync_part_tracks,resolve_part,remap_parts,invalidate_mix,covers_source
 
 app=FastAPI(title='声序 SONORA',version='1.0.0',docs_url=None,redoc_url=None,openapi_url=None)
 store=Store(); scheduler=Scheduler(store)
@@ -76,7 +77,7 @@ def capabilities():
     tested_path=ROOT/'tests/results/workers/verification.json'
     tested=json.loads(tested_path.read_text(encoding='utf-8')) if tested_path.exists() else None
     engines=[{'id':'ffmpeg','name':'FFmpeg · 解码与后期','status':'ready','capabilities':{'decode':True,'export':['wav','flac','mp3'],'effects':['highpass','lowpass','compressor','delay','limiter']},'test_status':'signal_tests'},
-             {'id':'separation','name':'MelBand RoFormer · 人声分离','status':'ready' if config.get('separation',{}).get('models') else 'unavailable','reason':'按实际权重配置映射人声与伴奏；不保证主唱/和声可分开','models':config.get('separation',{}).get('models',[]),'capabilities':{'stem_separation':True,'local_segment_render':False}},
+             {'id':'separation','name':'MelBand RoFormer · 人声与声部分离','status':'ready' if config.get('separation',{}).get('models') else 'unavailable','reason':'先提取混合人声，再用专用模型估计主唱与和声；重叠声部仍需试听检查串音。','models':[m for m in config.get('separation',{}).get('models',[]) if m.get('task')!='lead_backing'],'harmony_models':[{**m,'status':'ready' if Path(m['path']).is_file() and Path(m['config_path']).is_file() else 'missing'} for m in config.get('separation',{}).get('models',[]) if m.get('task')=='lead_backing'],'default_harmony_model':config.get('separation',{}).get('default_harmony_model'),'capabilities':{'stem_separation':True,'lead_backing_separation':bool(config.get('separation',{}).get('default_harmony_model')),'local_segment_render':False}},
              {'id':'pitch','name':'独立音高服务','status':'ready' if installed else 'unavailable','capabilities':{'algorithms':['rmvpe','fcpe','crepe','crepe-tiny','pyin','harvest','dio'],'external_f0':True},'test_status':'installed; see engine verification'},
              {'id':'rvc','name':'Applio / RVC','status':'ready' if installed and os.environ.get('SONORA_DISABLE_MODEL_WORKERS')!='1' else 'unavailable','reason':'真实外部 F0 条件；模型音质仍需人工试听','capabilities':{'voice_conversion':True,'singing_conversion':True,'external_f0':True,'streaming':False,'svs':False,'local_segment_render':False},'test_status':'see per-model manifest'},
              {'id':'svs','name':'DiffSinger · Nishiren Gard AI','status':'ready' if config.get('svs',{}).get('models') else 'unavailable','reason':'已接入日语假名/显式音素 + 音符的锁定窗口合成。其他语言请使用新导唱路线。','default_model':config.get('svs',{}).get('default_model'),'models':[{k:v for k,v in m.items() if k!='components'} for m in config.get('svs',{}).get('models',[])],'capabilities':{'svs':bool(config.get('svs',{}).get('models')),'languages':['ja'],'notes':True,'phoneme_timing':True,'timing_policy':['locked_window'],'max_phrase_seconds':60}},
@@ -142,7 +143,7 @@ def check_structure(value,depth=0):
     elif isinstance(value,str) and len(value)>100000: raise ValueError('文本超长。')
 
 def validate_patch(p,patch):
-    allowed={'name','task','selection','playhead','mode','parameters','pitch_edits','notes','lyrics','tracks','candidates','selected_candidate_id','warnings'}
+    allowed={'name','task','selection','playhead','mode','parameters','pitch_edits','notes','lyrics','tracks','candidates','selected_candidate_id','voice_parts','warnings'}
     if set(patch)-allowed: raise ValueError('不可直接修改产物、图结构或工程身份。')
     check_structure(patch)
     if patch.get('mode',p['mode']) not in ('quick','detail','expert'): raise ValueError('无效编辑模式。')
@@ -167,6 +168,7 @@ def validate_patch(p,patch):
         media.bounded(t.get('gain_db',0),-96,24);media.bounded(t.get('pan',0),-1,1);media.effects_filter(t.get('effects',[]))
         if not isinstance(t.get('offset_ticks',0),int): raise ValueError('轨道偏移必须为整数 tick。')
     params=patch.get('parameters',{})
+    if params.get('active_voice_part','vocal') not in ('vocal',*VOICE_PARTS):raise ValueError('未知的编辑声部。')
     for key,lo,hi in [('transpose',-36,36),('index_rate',0,1),('protect',0,.5),('volume_envelope',0,1),('segment_size',32,2048),('overlap',1,16)]:
         if key in params: media.bounded(params[key],lo,hi)
     if 'candidates' in patch:
@@ -174,18 +176,72 @@ def validate_patch(p,patch):
         for c in patch['candidates']:
             original=old.get(c.get('id'))
             if not original: raise ValueError('候选只能由成功推理创建。')
-            for key in ('source_artifact_id','artifact_id','model_id','generation_depth'):
+            for key in ('source_artifact_id','artifact_id','model_id','generation_depth','voice_part','part_source_artifact_id'):
                 if c.get(key)!=original.get(key): raise ValueError('候选推理来源不可编辑。')
+    if 'voice_parts' in patch:
+        parts=patch['voice_parts']
+        if not isinstance(parts,dict) or set(parts)-set(VOICE_PARTS):raise ValueError('声部绑定仅支持主唱与和声。')
+        if set(p.get('voice_parts',{}))-set(parts):raise ValueError('不能删除已有声部绑定；请使用静音模式或撤销分离。')
+        for part,binding in parts.items():
+            if not isinstance(binding,dict) or set(binding)-{'source_artifact_id','mode','parameters','pitch_edits','notes','selected_candidate_id'}:raise ValueError('声部配置字段无效。')
+            source=next((a for a in p['assets'] if a['id']==binding.get('source_artifact_id') and a.get('stem_role')==part),None)
+            if source is None:raise ValueError('声部源不属于当前工程，或角色不符。')
+            if binding.get('mode') not in ('convert','original','mute'):raise ValueError('声部模式必须为转换、保留原声或静音。')
+            validate_patch(p,{key:binding.get(key,{} if key=='parameters' else []) for key in ('parameters','pitch_edits','notes')})
+            selected=binding.get('selected_candidate_id')
+            if selected:
+                c=next((c for c in p['candidates'] if c['id']==selected and c.get('voice_part')==part),None)
+                origin=next((a for a in p['assets'] if c and a['id']==c.get('part_source_artifact_id',c['source_artifact_id'])),None)
+                if not c or not origin or origin['sha256']!=source['sha256']:raise ValueError('候选不属于当前声部源，不能跨声部或跨源采用。')
+                output=next(a for a in p['assets'] if a['id']==c['artifact_id'])
+                source_track=next((t for t in p['tracks'] if t['artifact_id']==source['id']),{})
+                if not covers_source(output,source,source_track.get('offset_ticks',0)):raise ValueError('短试听不能替换整条声部；请完整渲染后采用。')
 
 @app.patch('/api/v1/projects/{pid}')
 def patch_project(pid:str,body:dict):
     if not isinstance(body.get('revision'),int): raise ValueError('保存需要工程版本号。')
     patch=body.get('patch',{})
     def mutate(p):
+        if 'track_updates' in patch:
+            updates=patch.pop('track_updates')
+            if not isinstance(updates,dict) or set(updates)-{t['id'] for t in p['tracks']}:raise ValueError('轨道更新引用未知轨道。')
+            allowed_track={'gain_db','pan','mute','solo','offset_ticks','effects','name'}
+            for fields in updates.values():
+                if not isinstance(fields,dict) or set(fields)-allowed_track:raise ValueError('轨道增量不能改变来源或声部身份。')
+            patch['tracks']=[{**t,**updates.get(t['id'],{})} for t in p['tracks']]
+        if 'voice_parts' in patch:
+            if not isinstance(patch['voice_parts'],dict):raise ValueError('声部配置必须为对象。')
+            merged=copy.deepcopy(p.get('voice_parts',{}))
+            for part,delta in patch['voice_parts'].items():
+                if part not in VOICE_PARTS or not isinstance(delta,dict):raise ValueError('未知或无效声部配置。')
+                prior=merged.get(part,{})
+                merged[part]={**prior,**delta}
+                if 'parameters' in delta:
+                    if not isinstance(delta['parameters'],dict):raise ValueError('声部参数必须为对象。')
+                    merged[part]['parameters']={**prior.get('parameters',{}),**delta['parameters']}
+            patch['voice_parts']=merged
         validate_patch(p,patch)
-        freeze_locks(p,patch,store)
+        if 'pitch_edits' in patch:freeze_locks(p,patch,store)
+        changed_parts=[];routing_parts=[]
+        for part,binding in patch.get('voice_parts',{}).items():
+            previous=p.get('voice_parts',{}).get(part,{})
+            if any(binding.get(k)!=previous.get(k) for k in ('source_artifact_id','parameters','pitch_edits','notes')):changed_parts.append(part)
+            if any(binding.get(k)!=previous.get(k) for k in ('source_artifact_id','mode','selected_candidate_id')):routing_parts.append(part)
+            view={**p,'pitch_edits':previous.get('pitch_edits',[]),'notes':previous.get('notes',[]),'parameters':binding.get('parameters',{})}
+            freeze_locks(view,binding,store,binding['source_artifact_id'])
         changed=set(patch)&{'parameters','pitch_edits','notes','lyrics','tracks'}
+        # Switching editor focus is not an audio parameter change.
+        if changed=={'parameters'} and {k:v for k,v in patch['parameters'].items() if k!='active_voice_part'}=={k:v for k,v in p['parameters'].items() if k!='active_voice_part'}:changed=set()
         p.update(copy.deepcopy(patch))
+        if changed_parts:
+            for node in p['graph']:
+                if node.get('voice_part') in changed_parts or node['type'] in ('mix','export','export_stems'):
+                    node.update(state='stale',invalidation_scope='whole_voice_part_context_unknown',reason='该声部参数变更，新版本待试听')
+            p['warnings']=[w for w in p['warnings'] if not(w.get('code')=='pending_render' and w.get('voice_part') in changed_parts)]
+            p['warnings'] += [{'code':'pending_render','voice_part':part,'message':PART_NAMES[part]+'新版本待试听；另一声部保持当前版本。'} for part in changed_parts]
+        if routing_parts:
+            sync_part_tracks(p,routing_parts)
+            invalidate_mix(p,'主唱/和声的采用候选或模式已变化')
         if changed:
             affected='mix_export' if changed=={'tracks'} else 'conversion_mix_export'
             for node in p['graph']:
@@ -193,6 +249,7 @@ def patch_project(pid:str,body:dict):
                     node['state']='stale';node['invalidation_scope']='whole_node_context_unknown';node['reason']='编辑变更，保留旧版本试听，新版本待渲染'
             p['warnings']=[w for w in p['warnings'] if w.get('code')!='pending_render']+[{'code':'pending_render','message':'新版本待试听：旧产物仍可播放；重新运行受影响节点。','scope':affected}]
         if 'selected_candidate_id' in patch and patch['selected_candidate_id']:
+            if p.get('voice_parts'):raise ValueError('主唱/和声模式请在对应声部采用候选，不能将完整混合人声重新叠入。')
             selected=next((c for c in p['candidates'] if c['id']==patch['selected_candidate_id']),None)
             if not selected: raise ValueError('候选不存在。')
             for c in p['candidates']: c['selected']=c['id']==selected['id']
@@ -218,6 +275,7 @@ def export_midi(pid:str):
 @app.post('/api/v1/projects/{pid}/experiments')
 def experiments(pid:str,body:dict):
     p=store.get('projects',pid)
+    if p.get('voice_parts'):raise ValueError('双声部模式请分别调整声部参数；旧完整人声参数实验暂不用于双声部混音。')
     if body.get('revision')!=p['revision']:raise Conflict('工程已更新，请刷新后再实验。')
     variants=body.get('variants',[])
     if not 1<=len(variants)<=8:raise ValueError('单次实验需要 1–8 组参数。')
@@ -238,7 +296,10 @@ def attach_import(pid,a):
     def mutate(p):
         p['assets'].append(a)
         role=a['stem_role'];duration=round(a['sample_count']*TIMEBASE/a['sample_rate'])
-        p['tracks'].append({'id':uid('track'),'name':a['name'],'role':role,'artifact_id':a['id'],'gain_db':0,'pan':0,'mute':False,'solo':False,'offset_ticks':0,'effects':[]})
+        p['tracks'].append({'id':uid('track'),'name':a['name'],'role':role,'voice_part':voice_part(a),'artifact_id':a['id'],'gain_db':0,'pan':0,'mute':False,'solo':False,'offset_ticks':a.get('timeline_offset_ticks',0),'effects':[]})
+        if role in VOICE_PARTS:
+            bindings=p.setdefault('voice_parts',{});bindings[role]=new_binding(a,bindings.get(role));sync_part_tracks(p,[role])
+        elif p.get('voice_parts') and role in ('original','vocal','guide'):p['tracks'][-1]['mute']=True
         if not p['selection']['end']: p['selection']={'start':0,'end':duration}
         if role=='original' and len(p['assets'])==1 and p['name']=='未命名工程': p['name']=Path(a['name']).stem
     return {'project':store.change(pid,mutate),'artifact':a}
@@ -259,7 +320,7 @@ async def upload(file:UploadFile,limit=512*1024*1024):
 @app.post('/api/v1/projects/{pid}/import')
 async def import_file(pid:str,file:UploadFile=File(...),role:str=Form('original')):
     store.get('projects',pid)
-    if role not in ('original','vocal','instrumental','guide'): raise ValueError('不支持的素材角色。')
+    if role not in ('original','vocal','instrumental','guide',*VOICE_PARTS): raise ValueError('不支持的素材角色。')
     path=await upload(file)
     try:
         a=await asyncio.to_thread(media.import_audio,store,path,role);a['name']=Path(file.filename or '音频').name;store.put('artifacts',a)
@@ -269,7 +330,7 @@ async def import_file(pid:str,file:UploadFile=File(...),role:str=Form('original'
 @app.post('/api/v1/projects/{pid}/import-path')
 def import_path(pid:str,body:dict):
     store.get('projects',pid);role=body.get('role','original')
-    if role not in ('original','vocal','instrumental','guide'): raise ValueError('不支持的素材角色。')
+    if role not in ('original','vocal','instrumental','guide',*VOICE_PARTS): raise ValueError('不支持的素材角色。')
     a=media.import_audio(store,scoped_path(body.get('path','')),role)
     return attach_import(pid,a)
 
@@ -295,10 +356,12 @@ def recipe(pid:str):
         p['tracks'] += [{**t,'artifact_id':mapping.get(t['artifact_id'],t['artifact_id'])} for t in source['tracks'] if t['id'] not in track_ids]
         candidate_ids={c['id'] for c in p['candidates']}
         p['candidates'] += [{**c,'artifact_id':mapping.get(c['artifact_id'],c['artifact_id']),'source_artifact_id':mapping.get(c['source_artifact_id'],c['source_artifact_id'])} for c in source['candidates'] if c['id'] not in candidate_ids]
+        for part,binding in source.get('voice_parts',{}).items():
+            if part not in p.get('voice_parts',{}):p.setdefault('voice_parts',{})[part]={**binding,'source_artifact_id':mapping.get(binding['source_artifact_id'],binding['source_artifact_id'])}
     for a in p['assets']:
         for key in ('path','original_uri','original_snapshot'): a.pop(key,None)
     for e in p['exports']: e.pop('path',None)
-    used={c['model_id'] for c in p['candidates']}
+    used={c['model_id'] for c in p['candidates']}|{b.get('parameters',{}).get('model_id') for b in p.get('voice_parts',{}).values()}
     manifests=[{k:v for k,v in m.items() if 'path' not in k} for m in resources().get('models',[]) if m['id'] in used]
     return JSONResponse({'format':'sonora-recipe','schema_version':1,'project':p,'model_manifests':manifests,'media_included':False,'reproducibility':'recipe-rerunnable; cross-device bit equality not promised'},headers={'Content-Disposition':'attachment; filename="sonora-recipe.json"'})
 
@@ -315,7 +378,14 @@ def restored_candidate(candidate,mapping):
     depth=walk(output,set())
     if expected_source not in ancestors: raise ValueError('配方候选来源不符合已提交产物血缘。')
     model=next((m for m in resources().get('models',[]) if m.get('model_hash')==output.get('model_hash')),None)
-    return {**candidate,'artifact_id':output['id'],'source_artifact_id':expected_source,'generation_depth':max(1,depth),'model_id':model['id'] if model else 'unresolved','model_manifest_hash':output.get('model_hash'),'state':'succeeded' if depth else 'unverified_restored_media'}
+    restored={**candidate,'artifact_id':output['id'],'source_artifact_id':expected_source,'generation_depth':max(1,depth),'model_id':model['id'] if model else 'unresolved','model_manifest_hash':output.get('model_hash'),'state':'succeeded' if depth else 'unverified_restored_media'}
+    part=voice_part(output)
+    restored.pop('voice_part',None);restored.pop('part_source_artifact_id',None)
+    if part:
+        bound=mapping.get(candidate.get('part_source_artifact_id',candidate['source_artifact_id']),expected_source)
+        if bound not in ancestors or store.get('artifacts',bound).get('stem_role')!=part:raise ValueError('声部候选的原始绑定不符合实际血缘。')
+        restored.update(voice_part=part,part_source_artifact_id=bound)
+    return restored
 
 @app.post('/api/v1/projects/restore')
 async def restore(file:UploadFile=File(...)):
@@ -327,10 +397,12 @@ async def restore(file:UploadFile=File(...)):
     for c in source.get('candidates',[]):
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',str(c.get('id',''))): raise ValueError('配方候选标识无效。')
     p=store.new_project(str(source.get('name','恢复工程'))[:120],source.get('task','speech'))
-    lookup={a['sha256']:a for a in store.all('artifacts')};mapping={};missing=[]
+    available=store.all('artifacts');by_id={a['id']:a for a in available};mapping={};missing=[]
     assets=[]
     for a in source.get('assets',[]):
-        found=lookup.get(a.get('sha256'))
+        found=by_id.get(a.get('id'))
+        if not found or found['sha256']!=a.get('sha256') or found.get('stem_role')!=a.get('stem_role'):
+            found=next((known for known in available if known['sha256']==a.get('sha256') and known.get('stem_role')==a.get('stem_role')),None)
         if found:
             try: media.validate_artifact(found)
             except (ValueError,OSError): found=None
@@ -346,12 +418,21 @@ async def restore(file:UploadFile=File(...)):
             if c.get('artifact_id') in mapping and c.get('source_artifact_id') in mapping:
                 project['candidates'].append(restored_candidate(c,mapping))
         project['selected_candidate_id']=source.get('selected_candidate_id') if any(c['id']==source.get('selected_candidate_id') for c in project['candidates']) else None
+        project['voice_parts']=remap_parts(source.get('voice_parts',{}),mapping,{c['id'] for c in project['candidates']})
+        project['graph']=[{**node,'artifact_refs':[mapping.get(ref,ref) for ref in node.get('artifact_refs',[])],'input_refs':[mapping.get(ref,ref) for ref in node.get('input_refs',[])]} for node in source.get('graph',[]) if isinstance(node,dict)]
         project['missing_media']=missing
         project['restore_pending']={'source':source,'mapping':mapping}
         model_ids={m['id'] for m in resources().get('models',[])}
-        project['warnings']=[{'code':'missing_media','message':f"缺少素材 {m['name']}，请按哈希重新链接。",**m} for m in missing]
+        project['warnings']=[copy.deepcopy(w) for w in source.get('warnings',[]) if isinstance(w,dict) and w.get('code') not in ('missing_media','missing_model')]
+        project['warnings'] += [{'code':'missing_media','message':f"缺少素材 {m['name']}，请按哈希重新链接。",**m} for m in missing]
+        fallback_parts=[part for part,b in project['voice_parts'].items() if b.get('mode')=='convert' and not b.get('selected_candidate_id') and source.get('voice_parts',{}).get(part,{}).get('selected_candidate_id')]
+        if fallback_parts:
+            sync_part_tracks(project,fallback_parts)
+            project['warnings'] += [{'code':'missing_part_candidate','voice_part':part,'message':PART_NAMES[part]+'转换候选缺失，已保留原声供试听；请重新转换。'} for part in fallback_parts]
         if project['parameters'].get('model_id') and project['parameters']['model_id'] not in model_ids: project['warnings'].append({'code':'missing_model','message':'配方模型缺失，请导入匹配哈希的模型；不会自动替换。'})
-        validate_patch(project,{k:project[k] for k in ('selection','playhead','mode','parameters','pitch_edits','notes','lyrics','tracks')})
+        for part,binding in project['voice_parts'].items():
+            if binding.get('parameters',{}).get('model_id') not in model_ids:project['warnings'].append({'code':'missing_model','voice_part':part,'message':PART_NAMES[part]+'模型需要重新选择或导入匹配模型。'})
+        validate_patch(project,{k:project[k] for k in ('selection','playhead','mode','parameters','pitch_edits','notes','lyrics','tracks','voice_parts')})
     return store.change(p['id'],mutate)
 
 @app.post('/api/v1/projects/{pid}/relink')
@@ -378,9 +459,16 @@ def relink(pid:str,body:dict):
                 try:project['candidates'].append(restored_candidate(c,mapping))
                 except ValueError:project['warnings'].append({'code':'restored_candidate_unverified','message':'重新链接的媒体可播放，但缺少原推理血缘，需重新渲染候选。'})
         project['missing_media']=[m for m in project.get('missing_media',[]) if m['old_id']!=missing['old_id']]
+        for node in project['graph']:
+            node['artifact_refs']=[mapping.get(ref,ref) for ref in node.get('artifact_refs',[])]
+            node['input_refs']=[mapping.get(ref,ref) for ref in node.get('input_refs',[])]
         project['warnings']=[w for w in project['warnings'] if w.get('old_id')!=missing['old_id']]
         wanted=source.get('selected_candidate_id')
         if any(c['id']==wanted for c in project['candidates']):project['selected_candidate_id']=wanted
+        project['voice_parts']=remap_parts(source.get('voice_parts',{}),mapping,{c['id'] for c in project['candidates']})
+        fallback_parts=[part for part,b in project['voice_parts'].items() if b.get('mode')=='convert' and not b.get('selected_candidate_id') and source.get('voice_parts',{}).get(part,{}).get('selected_candidate_id')]
+        if fallback_parts:sync_part_tracks(project,fallback_parts)
+        validate_patch(project,{'voice_parts':project['voice_parts']})
     return {'project':store.change(pid,mutate),'artifact':a}
 
 @app.post('/api/v1/projects/{pid}/jobs')
@@ -445,6 +533,15 @@ def download(eid:str):
 @app.get('/api/v1/diagnostics')
 def diagnostics(): return {'protocol_version':1,'python':sys.version,'data_root':str(DATA),'pending_jobs':[public_job(j) for j in store.all('jobs') if j['state'] not in ('succeeded','cancelled')],'engines':capabilities()['engines']}
 
+@app.post('/api/v1/dev/shutdown')
+def shutdown_development_session():
+    if os.environ.get('SONORA_DEV_SESSION')!='1':raise HTTPException(404,'Not found')
+    if any(j['state'] in ('queued','preparing','running') for j in store.all('jobs')):raise HTTPException(409,'仍有作业运行，不能关闭开发会话。')
+    server=getattr(app.state,'server',None)
+    if server is None:raise HTTPException(409,'会话不由本服务启动器管理。')
+    threading.Timer(.3,lambda:setattr(server,'should_exit',True)).start()
+    return {'status':'shutting_down'}
+
 web=ROOT/'apps/web/dist'
 if web.exists(): app.mount('/',StaticFiles(directory=str(web),html=True),name='editor')
 
@@ -452,5 +549,6 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8765);args=parser.parse_args()
     if not TOKEN: raise SystemExit('SONORA_SESSION_TOKEN is required. Use the SONORA launcher.')
     import uvicorn
-    uvicorn.run(app,host='127.0.0.1',port=args.port,log_level='info',access_log=False)
+    server=uvicorn.Server(uvicorn.Config(app,host='127.0.0.1',port=args.port,log_level='info',access_log=False))
+    app.state.server=server;server.run()
 if __name__=='__main__': main()

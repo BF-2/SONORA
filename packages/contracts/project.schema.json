@@ -25,6 +25,10 @@
     "parameters": {"type": "object"},
     "exports": {"type": "array", "items": {"type": "object"}},
     "graph": {"type": "array", "items": {"type": "object"}}
+    ,"voice_parts": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"lead_vocal": {"$ref": "#/$defs/VoicePart"}, "backing_vocal": {"$ref": "#/$defs/VoicePart"}}
+    }
   },
   "$defs": {
     "Id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$"},
@@ -64,6 +68,14 @@
     "Lyric": {
       "type": "object", "required": ["id", "start", "end", "text"],
       "properties": {"id": {"$ref": "#/$defs/Id"}, "start": {"$ref": "#/$defs/Tick"}, "end": {"$ref": "#/$defs/Tick"}, "text": {"type": "string", "maxLength": 10000}, "language": {"type": "string"}, "pronunciation": {"type": "string"}, "timing_policy": {"enum": ["locked_window"]}}
+    },
+    "VoicePart": {
+      "type": "object", "required": ["source_artifact_id", "mode", "parameters", "pitch_edits", "notes"],
+      "properties": {
+        "source_artifact_id": {"$ref": "#/$defs/Id"}, "mode": {"enum": ["convert", "original", "mute"]},
+        "parameters": {"type": "object"}, "pitch_edits": {"type": "array", "items": {"$ref": "#/$defs/PitchEdit"}},
+        "notes": {"type": "array", "items": {"$ref": "#/$defs/Note"}}, "selected_candidate_id": {"type": ["string", "null"]}
+      }
     },
     "Candidate": {
       "type": "object", "required": ["id", "source_artifact_id", "artifact_id", "generation_depth"],

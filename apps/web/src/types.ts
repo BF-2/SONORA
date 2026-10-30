@@ -39,6 +39,15 @@ export interface Candidate extends Bag {
   parameters: Bag;
   notes: string;
 }
+export type VoicePartKey = "lead_vocal" | "backing_vocal";
+export interface VoicePart extends Bag {
+  source_artifact_id: string;
+  mode: "convert" | "original" | "mute";
+  parameters: Bag;
+  pitch_edits: Bag[];
+  notes: Bag[];
+  selected_candidate_id: string | null;
+}
 export interface Project extends Bag {
   id: string;
   name: string;
@@ -59,6 +68,7 @@ export interface Project extends Bag {
   exports: Bag[];
   warnings: Bag[];
   graph: Bag[];
+  voice_parts?: Partial<Record<VoicePartKey, VoicePart>>;
 }
 export interface Job extends Bag {
   id: string;

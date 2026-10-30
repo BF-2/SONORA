@@ -21,6 +21,8 @@ SONORA 的执行器实际调用本机模型：audio-separator 0.44.2 / MelBand R
 
 分离器只接受解码后的本地 WAV/FLAC/AIFF。它跳过上游在线模型目录，直接使用登记的权重和配置，渲染时没有自动下载。配置由 SafeLoader 读取，只为已知 `python/tuple` 数据结构增加纯数据构造器，不启用任意 Python 对象标签。明确输出 Vocals→人声、Instrumental→伴奏；不把这些结果称为主唱与和声分别分离。中间 stem 为 float WAV，保留立体声及源时长。模型能力目前声明整节点重算，尚无经过验证的任意局部无缝缓存保证。
 
+后续增加了独立的 `lead_backing` 任务和专用Karaoke权重，输入为已经提取的混合人声，输出主唱估计和背景残余；它与上段通用任务的模型、语义和能力分开登记。两种分离都直接取得神经估计，再生成互补残余，恢复共享推理增益，避免上游对每条分轨独立归一化改变原尺度。详情见 `docs/harmony-engine.md`。
+
 PitchService 与 RVC 独立：输出 16 kHz、160 样本 hop、中心对齐的曲线，未知音高用 null，另存 voiced mask。已接入 RMVPE、FCPE、CREPE full/tiny、pYIN、Harvest、DIO+StoneMask。后两个 CPU 算法通过项目专用 pyworld overlay 运行，输入统一重采样到 16 kHz，未把 8 kHz 输入直接交给 WORLD。RMVPE 原生分数为 salience，CREPE 为 periodicity，pYIN 为 voiced probability；WORLD 没有同类原生分数，明确记 unavailable，不混为音准正确率。额外静音 RMS 门控与估计器阈值分开。
 
 Pitch JSON 的 `f0_hz` 是原始检测，`target_layer` 是按作业编辑计算的目标预览；RVC 始终从原始检测应用一次编辑。可编辑区间以 48000 ticks/s 定位，支持区间半音/音分移调、指定 Hz/音符音高和清音。支持带 `snapshot: {sample_rate,hop,frame_center_offset,f0_hz}` 的绝对曲线锁定，锁定快照在其他修改之后应用，重新分析或全局移调不能覆盖它。

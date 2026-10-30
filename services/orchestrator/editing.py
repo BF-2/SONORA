@@ -21,10 +21,10 @@ def note_edits(notes):
         result.append({'id':'note-'+note['id'],'start_tick':int(note['start']),'end_tick':int(note['end']),'operation':'set_hz','hz':440*2**((pitch-69)/12),'locked':False,'preserve_unvoiced':True})
     return result
 
-def freeze_locks(project,patch,store):
+def freeze_locks(project,patch,store,source_id=None):
     edits=copy.deepcopy(patch.get('pitch_edits',project['pitch_edits']))
     if not any(e.get('locked') and not e.get('snapshot') for e in edits): return
-    pitch=next((a for a in reversed(project['assets']) if a.get('stem_role')=='pitch'),None)
+    pitch=next((a for a in reversed(project['assets']) if a.get('stem_role')=='pitch' and (source_id is None and not a.get('voice_part') or source_id in a.get('input_artifact_ids',[]))),None)
     if not pitch: return
     data=json.loads(media.validate_artifact(pitch).read_text(encoding='utf-8'))
     data['frame_center_offset']+=round(pitch.get('timeline_offset_ticks',0)*data['sample_rate']/TIMEBASE)

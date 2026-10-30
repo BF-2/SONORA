@@ -1,0 +1,88 @@
+{
+  "passed": true,
+  "scope": "Real local combined-vocal neural split; technical integrity only, no ground truth lead/back accuracy claim",
+  "input_path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\controlled\\known-two-voice-mixture.wav",
+  "input_sha256_before": "0d2357e1df160cf689604ebc8a4a788dc587a9443b99152f06b89e4b72d99cef",
+  "input_sha256_after": "0d2357e1df160cf689604ebc8a4a788dc587a9443b99152f06b89e4b72d99cef",
+  "input_sample_rate": 44100,
+  "sample_count": 132300,
+  "channels": 2,
+  "model_id": "melband-karaoke-aufr33-viperx-10.1956",
+  "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+  "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+  "elapsed_seconds": 6.08209809998516,
+  "peak_cuda_bytes": 1839783424,
+  "device": "cuda:0",
+  "reconstruction_max_abs": 2.974240942421602e-08,
+  "reconstruction_rms": 3.121771779525242e-09,
+  "stem_rms": {
+    "lead_vocal": 1.0957802476858362e-06,
+    "backing_vocal": 0.12217906210396576
+  },
+  "outputs": [
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\controlled-mixture\\lead_vocal.wav",
+      "role": "lead_vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 132300,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        132300
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "separation_task": "lead_backing",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 96000,
+      "native_stem": "Vocals",
+      "sha256": "c53dffbcc0aeba895f07cf10770208de88593075026ba82c5deaf3d8fb42b52d"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\controlled-mixture\\backing_vocal.wav",
+      "role": "backing_vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 132300,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        132300
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "separation_task": "lead_backing",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 96000,
+      "native_stem": "Instrumental",
+      "sha256": "f72253fcbd275ffd9f40f7c9aef1a0b039cff0160b2b8d2fd4dba5acd3b12791"
+    }
+  ],
+  "warnings": [
+    "仅对合并人声运行第二步分离。输入若有伴奏残留，会进入背景组；结果需试听。",
+    "分组是模型估计，不能保证重唱者、所有和声或混响完全分开。"
+  ]
+}

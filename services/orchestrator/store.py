@@ -68,7 +68,7 @@ class Store:
     def new_project(self, name, task='speech'):
         p = dict(id=uid('project'), name=name, task=task, schema_version=1, revision=1, timebase=TIMEBASE,
                  created_at=now(), updated_at=now(), assets=[], tracks=[], selection={'start':0,'end':0},playhead=0, mode='quick',
-                 parameters={'pitch_algorithm':'rmvpe','transpose':0,'index_rate':0,'protect':0.33}, pitch_edits=[], notes=[],lyrics=[],candidates=[],selected_candidate_id=None,exports=[],graph=[],warnings=[])
+                 parameters={'pitch_algorithm':'rmvpe','transpose':0,'index_rate':0,'protect':0.33}, pitch_edits=[], notes=[],lyrics=[],candidates=[],selected_candidate_id=None,voice_parts={},exports=[],graph=[],warnings=[])
         with self.lock,self.connect() as db:
             db.execute('INSERT INTO projects(id,body) VALUES(?,?)',(p['id'],encode(p)))
             self._checkpoint(db,p)

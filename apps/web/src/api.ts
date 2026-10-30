@@ -1,23 +1,31 @@
 import type { Bag } from "./types";
-let endpoint = "http://127.0.0.1:8765/api/v1";
+let endpoint =
+  sessionStorage.getItem("sonora-endpoint") || "http://127.0.0.1:8765/api/v1";
 let token = sessionStorage.getItem("sonora-token") || "";
 const fragment = new URLSearchParams(location.hash.slice(1));
-if (fragment.has("token")) {
-  token = fragment.get("token") || "";
-  sessionStorage.setItem("sonora-token", token);
+if (fragment.has("token") || fragment.has("endpoint")) {
+  setConnection(
+    fragment.get("token") ?? token,
+    fragment.get("endpoint") || endpoint,
+  );
   history.replaceState({}, "", location.pathname + location.search);
 }
 export function setConnection(value: string, base?: string) {
-  token = value.trim();
-  sessionStorage.setItem("sonora-token", token);
   if (base) {
     const url = new URL(base);
-    if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
+    )
       throw new Error("此版本只连接明确配置的本机服务");
     endpoint = base.replace(/\/$/, "");
     if (!endpoint.endsWith("/api/v1")) endpoint += "/api/v1";
+    sessionStorage.setItem("sonora-endpoint", endpoint);
   }
+  token = value.trim();
+  sessionStorage.setItem("sonora-token", token);
 }
+export const getConnectionEndpoint = () => endpoint.replace(/\/api\/v1$/, "");
 export async function initConnection() {
   if ("__TAURI_INTERNALS__" in window) {
     const { invoke } = await import("@tauri-apps/api/core");

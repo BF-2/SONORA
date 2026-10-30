@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-30",
+  "surface": "Chrome browser only; Vite 127.0.0.1:5173 with explicitly authenticated isolated FastAPI 127.0.0.1:8766",
+  "native_windows_ui_tested": false,
+  "build": {
+    "status": "passed",
+    "javascript": "index-CXR6En9d.js",
+    "stylesheet": "index-Crb9L7OP.css"
+  },
+  "projects": {
+    "scoped_edit_controls": "project_853de04afb734fc78131",
+    "real_26_second_chain": "project_5011f7240e8c46cdb011"
+  },
+  "verified": [
+    "Explicit manual lead_vocal/backing_vocal imports create separate 26-second bindings; unavailable combined-vocal input does not enable a false separation action",
+    "Model and parameter controls remain independent: lead Twilight/+2/pyin and backing Rainbow Dash/-1/rmvpe/original persisted without touching legacy parameters",
+    "Lead-only manual note and target-F0 edit persisted only in lead binding; backing and legacy note/edit arrays stayed empty",
+    "Real production API results show lead Twilight and backing Fluttershy, separate candidates and source/F0 lineage",
+    "Backing original mode retained lead converted audio and accompaniment; backing mute mode removed only backing; restoring convert retained both original full candidate IDs",
+    "Lead fader changed from -3.4 to -4.4 through track_updates delta; backing output and -3.4 gain survived; lead fader restored to -3.4",
+    "UI submitted genuine lead preview for project seconds 1-2; completed preview_only candidate displayed an explicit badge and disabled adoption",
+    "Preview audition changed only local listener selection: candidate local time0/duration1s displayed project1s; source local1s/duration26s displayed same project1s",
+    "Preview audition left both adopted full candidate IDs and exactly accompaniment plus two full converted audible tracks unchanged",
+    "Restored both modes convert, all three audible faders -3.4dB, active lead, selection0-26s and playhead0",
+    "UI regenerated authoritative final mix and exported a new full WAV; actual export measurements displayed -13.7 LUFS and -1.50dBTP",
+    "Short browser window exposed inaccessible fixed sidebar navigation; vertical sidebar scrolling fix verified by successful export navigation"
+  ],
+  "final_export_name": "BREAK FROM THE LINE 89-115 · 双声部最终混音.wav",
+  "screenshots": [
+    "harmony-voices.png",
+    "harmony-export.png"
+  ],
+  "evidence": "harmony-preview-evidence.json",
+  "limitations": [
+    "No native Windows UI interaction or validation was performed, per user steering",
+    "Full-page Chrome screenshot timed out; saved viewport screenshots instead",
+    "An old export invalidation indicator remained visible after a successful final file export; successful file/version and measurements were verified independently",
+    "Subjective stem separation and conversion quality remain listening judgments, not asserted from UI state"
+  ],
+  "post_qa_backend_fix": {
+    "issue": "stale historical export stage badge",
+    "fix": "successful export now records a new succeeded export graph node",
+    "validated": "focused backend regression passed; browser not re-opened",
+    "test_project": "verified latest export node backfilled after checking file checksum"
+  }
+}

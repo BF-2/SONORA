@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipWebBuild)
+param([switch]$SkipWebBuild, [ValidateSet('sonora','sonora-harmony')][string]$BinaryName = 'sonora-harmony')
 
 $ErrorActionPreference = 'Stop'
 $sonoraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $sonoraWeb 'dist\index.html'))) {
 }
 Push-Location $sonoraDesktop
 try {
-    & cargo build --release --locked
+    & cargo build --release --locked --bin $BinaryName
     if ($LASTEXITCODE -ne 0) { throw 'Desktop compilation failed. Verify MSVC and Windows SDK prerequisites.' }
     $sonoraTree = & cargo tree --locked --offline --target x86_64-pc-windows-msvc --prefix none --format '{p}|{l}'
     if ($LASTEXITCODE -ne 0) { throw 'Failed to record actual desktop dependency licenses.' }
@@ -46,7 +46,7 @@ try {
 } finally {
     Pop-Location
 }
-$sonoraBinary = Join-Path $sonoraDesktop 'target\release\sonora.exe'
+$sonoraBinary = Join-Path $sonoraDesktop ('target\release\' + $BinaryName + '.exe')
 $sonoraDigest = (Get-FileHash -LiteralPath $sonoraBinary -Algorithm SHA256).Hash.ToLowerInvariant()
 Write-Host "Built: $sonoraBinary"
 Write-Host "SHA256: $sonoraDigest"
