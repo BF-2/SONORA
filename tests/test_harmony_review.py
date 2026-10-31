@@ -19,6 +19,8 @@ from tests.test_core import AUTH, DATA, client, media, req, scheduler, store
 from tests.test_review_regressions import _job
 from services.orchestrator.store import uid
 from services.orchestrator.voices import resolve_part, sync_part_tracks
+from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash
+from workers.pitch.engine import apply_target_parameters
 
 
 def _import(project, role, frequency=220, payload=None):
@@ -87,7 +89,7 @@ def _with_pitches(project, sources):
             'hop': 160, 'frame_center_offset': 0, 'f0_hz': [220] * 100,
             'voiced': [True] * 100}), encoding='utf-8')
         artifacts.append(media.commit(store, path, kind='dsp', inputs=[sources[part]['id']],
-                                       role='pitch', extra={'voice_part': part}))
+                                       role='pitch', extra={'voice_part': part,'worker_metadata':{'analysis_parameters':pitch_analysis_parameters({})}}))
     return store.change(project['id'], lambda p: p['assets'].extend(artifacts))
 
 
@@ -296,14 +298,16 @@ def test_identical_source_cache_hit_creates_truthful_input_alias(monkeypatch):
         request = json.loads(Path(args[3]).read_text(encoding='utf-8'))
         calls.append(request)
         output = Path(request['output_dir']) / 'pitch.json'
-        output.write_text(json.dumps({'sample_rate': 16000, 'sample_count': 16000,
+        raw={'sample_rate': 16000, 'sample_count': 16000,
             'hop': 160, 'frame_center_offset': 0, 'f0_hz': [220] * 100,
-            'voiced': [True] * 100, 'fixture_kind': 'not_neural_inference'}), encoding='utf-8')
+            'voiced': [True] * 100, 'fixture_kind': 'not_neural_inference','analysis_parameters':pitch_analysis_parameters(request['parameters'])}
+        raw['target_layer']=apply_target_parameters(raw,request['parameters'])
+        output.write_text(json.dumps(raw), encoding='utf-8')
         Path(args[5]).write_text(json.dumps({'ok': True, 'outputs': [{
             'path': str(output), 'role': 'pitch', 'processing_kind': 'dsp',
             'engine': 'unit_pitch_protocol',
-        }], 'metadata': {'fixture_kind': 'not_neural_inference'}}), encoding='utf-8')
-    params = {'voice_part': 'lead_vocal', 'pitch_algorithm': 'unit-fixture'}
+        }], 'metadata': {'fixture_kind': 'not_neural_inference','analysis_parameters':raw['analysis_parameters']}}), encoding='utf-8')
+    params = {'voice_part': 'lead_vocal', 'pitch_algorithm': 'rmvpe'}
     first = _job(project, operation='pitch', parameters=params)
     second = _job(project, operation='pitch', parameters=params)
     with monkeypatch.context() as context:

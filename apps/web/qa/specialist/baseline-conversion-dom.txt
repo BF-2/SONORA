@@ -1,0 +1,212 @@
+- complementary:
+  - button "SONORA 声 序 · 音 频 工 作 台":
+    - text: SONORA
+    - generic: 声 序 · 音 频 工 作 台
+  - button "专项补丁基线 · 干人声 本地工程 · 待保存 ⌄":
+    - strong: 专项补丁基线 · 干人声
+    - generic: 本地工程 · 待保存
+    - generic: ⌄
+  - text: 制作流程
+  - generic: "06"
+  - navigation "制作步骤":
+    - button "导入诊断 ✓":
+      - generic: 导入诊断
+      - generic "已有已完成产物": ✓
+    - button "人声整理 02":
+      - generic: 人声整理
+      - generic "可编辑": "02"
+    - button "音高与歌词 03":
+      - generic: 音高与歌词
+      - generic "可编辑": "03"
+    - button "声音转换 04":
+      - generic: 声音转换
+      - generic "可编辑": "04"
+    - button "混音 05":
+      - generic: 混音
+      - generic "可编辑": "05"
+    - button "导出 06":
+      - generic: 导出
+      - generic "可编辑": "06"
+  - button "声音与模型 29":
+    - text: 声音与模型
+    - generic: "29"
+  - button "候选与版本 0":
+    - text: 候选与版本
+    - generic: "0"
+  - button "任务队列 0":
+    - text: 任务队列
+    - generic: "0"
+  - generic: 文件在本机处理
+  - paragraph:
+    - text: 保留原始素材
+    - text: 每一版都有来源
+  - button "引擎与设置":
+    - text: 引擎与设置
+- banner:
+  - generic: 我的工作室
+  - generic: /
+  - strong: 声音转换
+  - generic "工程修订 3": 待保存
+  - button "撤销":
+  - button "重做":
+  - button "队列":
+    - generic: 队列
+  - group "编辑信息密度":
+    - button "快速完成"
+    - button "精细编辑"
+    - button "专家设置" [active]
+- main:
+  - generic: STEP 04 / VOICE CONVERSION
+  - heading "找到属于这段作品的声音。" [level=1]
+  - paragraph: 每个新候选默认从同一干净源生成。
+  - generic: 本地服务已连接
+  - strong: 当前编辑声部
+  - generic: 模型、音高、音符和候选分别保存
+  - group "当前编辑声部":
+    - button "完整人声"
+    - button "主唱" [disabled]
+    - button "和声" [disabled]
+  - heading "每个候选，都从干净源出发" [level=2]:
+    - text: 每个候选，都从干净源出发
+  - generic: 同源候选
+  - strong: 当前干净人声
+  - generic: original_demo_vocal.wav
+  - generic: →
+  - strong: 已确认的目标音高
+  - generic: 0 项人工调整
+  - generic: →
+  - strong: twilight sparkle pony singing r18m 20260914
+  - generic: 真实 RVC 执行器
+  - heading "候选与版本 0" [level=2]
+  - checkbox "隐藏模型名盲听"
+  - text: 隐藏模型名盲听
+  - heading "第一版声音，值得认真试听" [level=3]
+  - paragraph: 选择模型，先渲染当前选区。候选保留完整来源与参数。
+  - generic: 选区起点（秒）
+  - spinbutton "选区起点（秒）": "0"
+  - generic: 选区终点（秒）
+  - spinbutton "选区终点（秒）": "13.4"
+  - button "循环试听":
+    - text: 循环试听
+  - button "选择整段"
+  - button "生成选区试听":
+    - text: 生成选区试听
+  - button "生成整段候选"
+  - button "查看任务队列"
+  - paragraph: 选区试听包含前后文，并在原时间轴上对齐。短片段结果不保证逐采样等同整段渲染；修改参数后，上一版继续保留。
+  - heading "同一条时间轴" [level=2]:
+    - text: 同一条时间轴
+  - generic: 拖动选择区间 · 单击定位
+  - button "缩小时间轴": −
+  - status: 1×
+  - button "放大时间轴": +
+  - button "original_demo_vocal.wav 解码素材 人声":
+    - strong: original_demo_vocal.wav
+    - generic: 解码素材
+    - generic: 人声
+  - generic: 00:00.0
+  - generic: 00:02.7
+  - generic: 00:05.4
+  - generic: 00:08.0
+  - generic: 00:10.7
+  - generic: 00:13.4
+  - slider "original_demo_vocal.wav 波形；左右键移动播放头，拖动选择区间"
+  - text: 选区
+  - strong: 00:00.0 — 00:13.4
+  - generic: · 13.40 秒
+  - complementary:
+    - strong: 声音转换设置
+    - generic: RVC ADAPTER
+    - generic: 目标声音模型
+    - combobox "目标声音模型 40 kHz · rvc · verified_local_audio_pipeline":
+      - option "选择已注册的兼容模型"
+      - option "apple bloom pony singing v1"
+      - option "applejack pony singing r18m 20260914"
+      - option "applejack pony singing v1"
+      - option "applejack pony speech fim v1"
+      - option "cadance pony singing v1"
+      - option "celestia pony singing v1"
+      - option "fluttershy pony singing r18m 20260914"
+      - option "fluttershy pony singing v1"
+      - option "fluttershy pony speech fim v1"
+      - option "luna pony singing r18m 20260914"
+      - option "luna pony singing v1"
+      - option "luna pony speech fim r18m 20260914"
+      - option "luna pony speech fim v1"
+      - option "pinkie pie pony singing r18m 20260914"
+      - option "pinkie pie pony singing v1"
+      - option "pinkie pie pony speech fim v1"
+      - option "rainbow dash pony singing r18m 20260914"
+      - option "rainbow dash pony singing v1"
+      - option "rainbow dash pony speech fim v1"
+      - option "rarity pony singing r18m 20260914"
+      - option "rarity pony singing v1"
+      - option "rarity pony speech fim v1"
+      - option "scootaloo pony singing v1"
+      - option "sunset shimmer pony singing r18m 20260914"
+      - option "sunset shimmer pony singing v1"
+      - option "sweetie belle pony singing v1"
+      - option "twilight sparkle pony singing r18m 20260914" [selected]
+      - option "twilight sparkle pony singing v1"
+      - option "twilight sparkle pony speech fim v1"
+    - generic: 40 kHz · rvc · verified_local_audio_pipeline
+    - generic: 音高检测算法
+    - combobox "音高检测算法 F0 是连续音高估计；无旋律参考时不评价音准。":
+      - option "rmvpe" [selected]
+      - option "fcpe"
+      - option "crepe"
+      - option "crepe-tiny"
+      - option "pyin"
+      - option "harvest"
+      - option "dio"
+    - generic: F0 是连续音高估计；无旋律参考时不评价音准。
+    - generic: 起点预设
+    - combobox "起点预设":
+      - option "选择一个起点" [disabled]
+      - option "自然对白 · 不使用检索"
+      - option "保留清辅音 · 较强保护" [selected]
+      - option "声音检索 · 需要匹配索引"
+    - generic: 主唱整体移调
+    - slider "主唱整体移调": "0"
+    - spinbutton "主唱整体移调数值": "0"
+    - generic: st
+    - generic: 检索特征比例
+    - slider "检索特征比例": "0"
+    - spinbutton "检索特征比例数值": "0"
+    - generic: 大于零时需要匹配的索引；不会静默忽略缺失索引。
+    - generic: 清辅音保护
+    - slider "清辅音保护": "0.45"
+    - spinbutton "清辅音保护数值": "0.45"
+    - generic: 显式串联会增加转换世代，也可能积累失真。
+    - button "以上一候选为输入，再转换一轮" [disabled]
+    - generic: 固定随机种子
+    - spinbutton "固定随机种子": "42"
+    - strong: 短片段参数实验
+    - generic: 对比移调（半音，用逗号分隔）
+    - textbox "对比移调（半音，用逗号分隔） 最多 8 组，同源输入、固定种子，按队列顺序执行；锁定人工曲线保持优先。":
+      - /placeholder: "-2,0,2"
+      - text: "-2,0,2"
+    - generic: 最多 8 组，同源输入、固定种子，按队列顺序执行；锁定人工曲线保持优先。
+    - button "生成对比候选组"
+    - strong: A/B 要在同一位置。
+    - paragraph: 底部 A 是候选的输入，B 是当前候选，共用播放头与循环范围。响度匹配使用可用的实际 RMS 测量。
+  - text: 编辑自动保存 · 原素材保持不变
+  - button "上一步"
+  - button "混音":
+    - text: 混音
+- contentinfo "音频播放控制":
+  - strong: original_demo_vocal.wav
+  - generic: 解码素材 · 单轨监听
+  - button "循环选区":
+  - button "播放音频":
+  - button "回到选区起点": ↤
+  - text: 00:00.0
+  - emphasis: / 00:13.4
+  - slider "播放位置": "0"
+  - button "原始 A"
+  - button "候选 B" [disabled]
+  - generic "需要同一区间的两份 RMS 测量；片段与整段不混用统计结果":
+    - checkbox "等响" [disabled]
+    - text: 等响
+  - slider "监听音量": "0.75"
+- status: 已应用预设参数；可继续逐项调整。

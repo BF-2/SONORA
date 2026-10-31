@@ -35,6 +35,9 @@ def test_pitch_target_uses_project_offset_raw_detection_stays_local(tmp_path,mon
     root=Path(__file__).resolve().parents[1]
     spec=importlib.util.spec_from_file_location('pitch_worker_offset_test',root/'workers/pitch/run.py');worker=importlib.util.module_from_spec(spec);spec.loader.exec_module(worker)
     raw={'sample_rate':16000,'sample_count':640,'hop':160,'frame_center_offset':0,'f0_hz':[100.,100.,None,100.],'voiced':[True,True,False,True],'estimator':'test-only','model_hash':None,'score_kind':'unavailable','time_map':{'source_rate':16000,'output_rate':16000,'source_offset':0,'output_offset':0}}
+    from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash
+    raw['analysis_parameters']=pitch_analysis_parameters({});raw['analysis_parameters_hash']=parameter_hash(raw['analysis_parameters']);raw['execution_device']='cpu'
+    monkeypatch.setattr(worker,'probe',lambda:{'capabilities':{'algorithms':['rmvpe']}})
     monkeypatch.setattr(worker,'resource_config',lambda _:{});monkeypatch.setattr(worker,'analyze',lambda *args:copy.deepcopy(raw))
     worker.render({'input_path':'not-read-fixture','output_dir':str(tmp_path),'parameters':{'source_timeline_offset_ticks':96000,'pitch_edits':[{'start_tick':96000,'end_tick':96960,'operation':'transpose','semitones':12}]}})
     saved=json.loads((tmp_path/'pitch.json').read_text())

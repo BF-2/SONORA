@@ -11,14 +11,20 @@ from . import media
 from .config import DATA, ROOT, TIMEBASE, resources, binary
 from .store import now, uid, Conflict
 from .editing import note_edits,compose
+from .model_catalog import ModelCatalog
+from .rvc_service import resolve_selection,selection_fields,normalized_job_parameters,render_signature
+from .model_selection import resolve_binding
+from .candidate_assembly import assemble_preview
+from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash,pitch_parameter_subset
+from workers.pitch.engine import apply_target_parameters,shift_pitch_to_project
 from .voices import VOICE_PARTS,PART_NAMES,voice_part,new_binding,sync_part_tracks,resolve_part,part_unchanged,invalidate_mix,mix_signature,covers_source
 
-OPERATIONS={'separate','separate_harmony','pitch','convert','convert_parts','mix','export','pipeline','comp','export_stems','svs'}
+OPERATIONS={'separate','separate_harmony','pitch','convert','compare_versions','adopt_preview','convert_parts','mix','export','pipeline','comp','export_stems','svs'}
 TERMINAL={'succeeded','failed','cancelled','blocked'}
 
 class Scheduler:
-    def __init__(self,store):
-        self.store=store; self.queue=queue.PriorityQueue(); self.tokens={}; self.lock=threading.RLock(); self.serial=0
+    def __init__(self,store,catalog=None):
+        self.store=store;self.catalog=catalog or ModelCatalog(store.path); self.queue=queue.PriorityQueue(); self.tokens={}; self.lock=threading.RLock(); self.serial=0
         for job in store.all('jobs'):
             if job['state'] not in TERMINAL:
                 job.update(state='failed',error={'code':'interrupted','message':'上次会话中断；已提交产物保留，可重试。','recovery':'重试任务'},updated_at=now())
@@ -39,21 +45,30 @@ class Scheduler:
             if source and source not in [a['id'] for a in p['assets']]: raise ValueError('输入产物不属于当前工程。')
             overrides=copy.deepcopy(body.get('parameters',{}))
             part=overrides.get('voice_part')
-            if operation in ('pitch','convert') and source and not part:
+            if operation in ('pitch','convert','compare_versions','adopt_preview') and source and not part:
                 part=voice_part(next(a for a in p['assets'] if a['id']==source))
             if part:
-                if operation not in ('pitch','convert'):raise ValueError('当前操作不能使用单声部转换参数。')
+                if operation not in ('pitch','convert','compare_versions','adopt_preview'):raise ValueError('当前操作不能使用单声部转换参数。')
                 binding,bound,params=resolve_part(p,part,overrides)
                 if source and source!=bound['id']:
                     chosen=next(a for a in p['assets'] if a['id']==source)
                     if operation!='pitch' or voice_part(chosen)!=part:raise ValueError('输入与当前声部绑定不一致。')
                 source=source or bound['id']
-                if operation=='convert' and binding['mode']!='convert':raise ValueError('该声部当前设为保留原声或静音，请先选择转换。')
+                if operation in ('convert','compare_versions') and binding['mode']!='convert':raise ValueError('该声部当前设为保留原声或静音，请先选择转换。')
                 params['pitch_edits']=note_edits(binding.get('notes',[]))+params['pitch_edits']
             else:
                 params=copy.deepcopy(p['parameters']);params.update(overrides)
                 params.setdefault('pitch_edits',copy.deepcopy(p['pitch_edits']))
                 params['pitch_edits']=note_edits(p['notes'])+params['pitch_edits']
+                if operation in ('convert','pitch','compare_versions','adopt_preview'):
+                    source=source or params.get('source_artifact_id')
+                    params,source=resolve_binding(p,params,source)
+                    if source and source not in [a['id'] for a in p['assets']]:raise ValueError('绑定输入不属于当前工程。')
+            if operation=='compare_versions':
+                selected=params.get('model_ids')
+                if not isinstance(selected,list) or not 2<=len(selected)<=8 or len(set(selected))!=len(selected):raise ValueError('请选择同一训练实验的2–8个不同推理版本。')
+                region=params.get('range_ticks')
+                if not isinstance(region,list) or len(region)!=2 or any(type(v) is not int for v in region) or region[0]<0 or not 4800<=region[1]-region[0]<=60*TIMEBASE:raise ValueError('版本对比需要0.1–60秒的明确同源选区，建议8–15秒。')
             if operation=='convert_parts':
                 if params.get('range_ticks'):raise ValueError('双声部批处理采用完整声部；短试听请在对应声部单独运行。')
                 selected=params.get('parts',list(VOICE_PARTS))
@@ -113,14 +128,18 @@ class Scheduler:
         p=job['project_snapshot']
         if job.get('input_artifact_id'):
             return self.store.get('artifacts',job['input_artifact_id'])
+        chosen=job['parameters'].get('source_artifact_id')
+        if chosen and roles is None:
+            if chosen not in {a['id'] for a in p['assets']}:raise ValueError('所选输入不属于当前工程。')
+            return self.store.get('artifacts',chosen)
         for role in roles or ['guide','synthesized','vocal','original']:
             for a in reversed(p['assets']):
                 if a.get('stem_role')==role: return self.store.get('artifacts',a['id'])
         raise ValueError('请先导入音频。')
 
-    def model(self,identifier):
-        model=next((m for m in resources().get('models',[]) if m['id']==identifier),None)
-        if not model: raise ValueError('缺少已注册的兼容模型，请在声音与模型中导入。')
+    def model(self,identifier,index_id=None):
+        if not identifier:raise ValueError('缺少已注册的兼容模型，请选择声音与版本。')
+        model=self.catalog.resolve_model(identifier,index_id)
         if media.sha256(model['path'])!=model['model_hash']: raise ValueError('模型文件哈希已变更，请重新注册。旧缓存不可复用。')
         if model.get('index_path') and model.get('index_hash') and media.sha256(model['index_path'])!=model['index_hash']: raise ValueError('检索索引哈希变化，请重新注册。')
         return model
@@ -167,9 +186,14 @@ class Scheduler:
             if ledger.exists():
                 for item in json.loads(ledger.read_text(encoding='utf-8'))['files']:
                     if media.sha256(item['path'])!=item['sha256']:raise ValueError('推理代码/编码器/音高权重已改变，请重新准备资源；旧缓存不可使用。')
-        model=self.model(requested.get('model_id')) if engine=='rvc' else None
+        if engine=='rvc':
+            model=resolve_selection(self.catalog,requested)
+            parameters,parameter_audit=normalized_job_parameters(requested,model,external=bool(pitch))
+            parameters.update(selection_fields(model,parameters))
+        else:
+            model=None;parameters=copy.deepcopy(requested)
         if model and float(requested.get('index_rate',0))>0 and not model.get('index_path'): raise ValueError('检索率大于零但模型缺少索引，请明确设为 0 或导入索引。')
-        parameters=copy.deepcopy(requested); parameters['algorithm']=parameters.get('pitch_algorithm','rmvpe')
+        parameters['algorithm']=parameters.get('pitch_algorithm','rmvpe')
         if source:
             source_track=next((t for t in job['project_snapshot']['tracks'] if t['artifact_id']==source['id']),None)
             parameters['source_timeline_offset_ticks']=source_track.get('offset_ticks',0) if source_track else source.get('timeline_offset_ticks',0)
@@ -186,9 +210,24 @@ class Scheduler:
             if not model: raise ValueError('缺少兼容的 SVS 声库。')
             for relative,item in model['components'].items():
                 if media.sha256(Path(model['root'])/relative)!=item['sha256']: raise ValueError('SVS 声库文件已变化，请重新注册。')
-        source_files={str(p.relative_to(ROOT)):media.sha256(p) for p in sorted((ROOT/'workers').rglob('*.py'))}
+        source_files={p.relative_to(ROOT).as_posix():media.sha256(p) for p in sorted((ROOT/'workers').rglob('*.py'))}
         model_snapshot=config.get('separation',{}) if engine=='separation' else model
         fingerprint={'source':source['sha256'] if source else None,'engine':engine,'worker_hash':media.hash_json(source_files),'resources':config,'model':model_snapshot,'parameters':parameters,'pitch':pitch['sha256'] if pitch else None}
+        if engine=='pitch':
+            fingerprint={'source':source['sha256'],'engine':'pitch','analysis_parameters':pitch_analysis_parameters(parameters),
+                         'worker_code':{name:digest for name,digest in source_files.items() if name.startswith('workers/pitch/') or name in ('workers/common.py','workers/rvc_parameters.py')},
+                         'runtime':config.get('pitch',config.get('applio',{})),'predictor_bundle':config.get('applio',{}).get('source_hash')}
+        elif engine=='separation':
+            fingerprint={'source':source['sha256'],'engine':'separation','worker_code':{name:digest for name,digest in source_files.items() if name in ('workers/separation/run.py','workers/common.py')},
+                         'model_hash':sep['model_hash'],'config_hash':sep['config_hash'],'runtime':config.get('separation',{}).get('version'),
+                         'parameters':{key:parameters.get(key) for key in ('separation_task','segment_size','overlap','overlap_step_seconds','device','cpu_threads')}}
+        elif engine=='rvc':
+            fingerprint={'source':source['sha256'],'engine':'rvc','worker_code':source_files,'runtime':config.get('applio',{}),
+                         'model_hash':model['model_hash'],'index_hash':model.get('index_hash') if parameters['index_rate']>0 else None,
+                         'architecture':model.get('architecture'),'sample_rate':model.get('sample_rate'),'embedder':model.get('embedder_model'),
+                         'parameters':parameter_audit['effective_parameters'],'pitch':pitch['sha256'] if pitch else None,
+                         'edits':parameters.get('pitch_edits',[]),'range_ticks':parameters.get('range_ticks'),
+                         'source_timeline_offset_ticks':parameters.get('source_timeline_offset_ticks',0)}
         key=media.hash_json(fingerprint)
         cached=self.store.cache_get(key)
         if cached:
@@ -198,12 +237,17 @@ class Scheduler:
                 current_inputs=([source['id']] if source else [])+([pitch['id']] if pitch else [])
                 aliases=[]
                 for a in outputs:
-                    if a.get('input_artifact_ids',[])!=current_inputs:
+                    scope_changed=engine in ('pitch','rvc') and a.get('voice_part')!=parameters.get('voice_part')
+                    if engine in ('pitch','separation'):scope_changed=scope_changed or a.get('timeline_offset_ticks',0)!=parameters.get('source_timeline_offset_ticks',0)
+                    if a.get('input_artifact_ids',[])!=current_inputs or scope_changed:
                         alias=copy.deepcopy(a)
                         alias.update(id=uid('artifact'),input_artifact_ids=current_inputs,cache_source_artifact_id=a['id'],cache_consuming_job_id=job['id'],created_at=now(),updated_at=now())
+                        if engine in ('pitch','rvc'):alias['voice_part']=parameters.get('voice_part')
+                        if engine in ('pitch','separation'):alias['timeline_offset_ticks']=parameters.get('source_timeline_offset_ticks',0)
                         self.store.put('artifacts',alias);aliases.append(alias)
                     else:aliases.append(a)
                 outputs=aliases
+                if engine=='pitch':outputs=[self.refresh_pitch_target(job,a,source,parameters) for a in outputs]
                 self.store.event('cache.hit',job,{'artifact_ids':[a['id'] for a in outputs],'cached_artifact_ids':cached,'key':key})
                 return outputs
             except (KeyError,ValueError,OSError): pass
@@ -236,10 +280,26 @@ class Scheduler:
             if engine=='rvc':
                 if item.get('processing_kind')!='model_inference': raise ValueError('转换执行器没有返回模型推理产物。')
                 if parameters.get('pitch_edits') and not item.get('consumed_f0_hash'): raise ValueError('执行器未证明消费了目标 F0，拒绝标为修音完成。')
+                extra['model_snapshot']={key:model.get(key) for key in ('id','canonical_id','model_artifact_id','model_hash','name','voice_id','run_id','epoch','global_step','version_label','epoch_source','architecture','content_dim','sample_rate','speaker_ids_trained','embedder_model','index_id','index_hash','index_match')}
+                extra['effective_parameters']=result.get('metadata',{}).get('effective_parameters',{})
+                extra['parameter_sources']=result.get('metadata',{}).get('parameter_sources',{})
             outputs.append(media.commit(self.store,p,kind=item.get('processing_kind','dsp'),inputs=([source['id']] if source else [])+([pitch['id']] if pitch else []),job=job,worker=str(script.relative_to(ROOT)),engine=item.get('engine',engine),model_hash=item.get('model_hash') or (model['model_hash'] if model else None),role=item.get('role','pitch' if engine=='pitch' else 'vocal'),name=p.name,extra=extra))
         if not outputs: raise ValueError('执行器未产出有效结果。')
         self.store.cache_put(key,[a['id'] for a in outputs])
         return outputs
+
+    def refresh_pitch_target(self,job,artifact,source,parameters):
+        data=json.loads(media.validate_artifact(artifact).read_text(encoding='utf-8'))
+        raw={k:v for k,v in data.items() if k!='target_layer'}
+        basis=shift_pitch_to_project(raw,parameters.get('source_timeline_offset_ticks',0))
+        target=apply_target_parameters(basis,pitch_parameter_subset(parameters))
+        if data.get('target_layer',{}).get('target_hash')==target.get('target_hash') and data.get('target_layer',{}).get('target_parameters_hash')==target.get('target_parameters_hash'):
+            return artifact
+        folder=DATA/'jobs'/job['id']/'pitch-target';folder.mkdir(parents=True,exist_ok=True)
+        path=folder/(uid('target')+'.json');path.write_text(json.dumps({**raw,'target_layer':target},ensure_ascii=False,allow_nan=False),encoding='utf-8')
+        extra={'worker_metadata':{**artifact.get('worker_metadata',{}),'target_hash':target.get('target_hash'),'target_parameters_hash':target.get('target_parameters_hash'),'cached_analysis_artifact_id':artifact['id']},
+               'voice_part':parameters.get('voice_part'),'timeline_offset_ticks':parameters.get('source_timeline_offset_ticks',0),'analysis_parameters':data.get('analysis_parameters') or artifact.get('analysis_parameters')}
+        return media.commit(self.store,path,kind='dsp',inputs=[source['id'],artifact['id']],job=job,worker='pitch-target-from-cache',engine='sonora-f0-target',role='pitch',name='音高分析与当前目标',extra=extra)
 
     def choose_pitch(self,job,source=None,parameters=None):
         params=parameters or job['parameters'];part=params.get('voice_part')
@@ -248,8 +308,34 @@ class Scheduler:
             pitch=next((a for a in job['project_snapshot']['assets'] if a['id']==specified and a.get('stem_role')=='pitch'),None)
             if not pitch:raise ValueError('所选 F0 产物不属于当前工程或不是音高分析。')
             if source and source['id'] not in pitch.get('input_artifact_ids',[]):raise ValueError('所选 F0 不属于当前声部输入。')
+            if not self.pitch_matches(pitch,params):raise ValueError('音高分析参数已改变，指定曲线是旧分析；请重新检测或清除旧分析绑定后试听。')
             return self.store.get('artifacts',specified)
-        return next((a for a in reversed(job['project_snapshot']['assets']) if a.get('stem_role')=='pitch' and a.get('voice_part')==part and (source is None or source['id'] in a.get('input_artifact_ids',[]))),None)
+        return next((a for a in reversed(job['project_snapshot']['assets']) if a.get('stem_role')=='pitch' and a.get('voice_part')==part and (source is None or source['id'] in a.get('input_artifact_ids',[])) and self.pitch_matches(a,params)),None)
+
+    def pitch_matches(self,pitch,parameters):
+        expected=pitch_analysis_parameters(parameters)
+        recorded=pitch.get('worker_metadata',{}).get('analysis_parameters') or pitch.get('analysis_parameters')
+        if recorded:return recorded==expected
+        producer=pitch.get('job_id')
+        if producer:
+            try:return pitch_analysis_parameters(self.store.get('jobs',producer)['parameters'])==expected
+            except (ValueError,KeyError):return False
+        return False
+
+    def listening_reference(self,job,source,parameters,offset,cancel):
+        region=parameters.get('range_ticks')
+        if not region:return source
+        current=self.store.get('projects',job['project_id'])
+        existing=next((a for a in current['assets'] if a.get('stem_role')=='preview_reference' and a.get('listening_source_id')==source['id'] and a.get('range_ticks')==region),None)
+        if existing:
+            media.validate_artifact(existing);return existing
+        folder=DATA/'jobs'/job['id']/'listening-reference';folder.mkdir(parents=True,exist_ok=True)
+        output=folder/(uid('reference')+'.wav')
+        start,end=media.crop(source,output,region[0]-offset,region[1]-offset,cancel)
+        a=media.commit(self.store,output,kind='dsp',inputs=[source['id']],job=job,worker='ffmpeg-reference-crop',engine='ffmpeg',role='preview_reference',name=source['name']+' · 同区间原声',
+            extra={'listening_source_id':source['id'],'range_ticks':region,'source_offset':start,'source_sample_rate':source['sample_rate'],'timeline_offset_ticks':region[0],
+                   'time_map':{'source_rate':source['sample_rate'],'output_rate':source['sample_rate'],'source_offset':start,'output_offset':0}})
+        self.attach(job,[a],False,parameters);return a
 
     def convert(self,job,source,cancel,pitch=None,parameters=None):
         params=parameters or job['parameters']; depth=1;part=params.get('voice_part')
@@ -269,12 +355,24 @@ class Scheduler:
         if pitch and source['id'] not in pitch.get('input_artifact_ids',[]): pitch=None
         if pitch is None:
             pitches=self.engine('pitch',job,source,cancel,parameters=params); self.attach(job,pitches,False,params); pitch=pitches[0]
+        elif pitch.get('path'):
+            refreshed=self.refresh_pitch_target(job,pitch,source,{**params,'source_timeline_offset_ticks':timeline_offset})
+            if refreshed['id']!=pitch['id']:self.attach(job,[refreshed],False,params)
+            pitch=refreshed
         outputs=self.engine('rvc',job,source,cancel,pitch,parameters=params)
         for a in outputs:
             a['stem_role']='converted';a.setdefault('timeline_offset_ticks',timeline_offset); self.store.put('artifacts',a)
         self.attach(job,outputs,False,params)
+        identity=outputs[0].get('model_snapshot') or self.model(params['model_id'])
+        reference=self.listening_reference(job,source,params,timeline_offset,cancel)
         def mutate(p):
-            candidate={'id':uid('candidate'),'name':f"候选 {len(p['candidates'])+1}",'source_artifact_id':source['id'],'artifact_id':outputs[0]['id'],'model_id':params['model_id'],'model_manifest_hash':self.model(params['model_id'])['model_hash'],'parameters':copy.deepcopy(params),'generation_depth':depth,'state':'succeeded','notes':'','selected':True,'created_at':now(),'project_revision':job['project_revision']}
+            candidate={'id':uid('candidate'),'name':f"候选 {len(p['candidates'])+1}",'source_artifact_id':source['id'],'artifact_id':outputs[0]['id'],'model_id':params['model_id'],'model_manifest_hash':identity['model_hash'],'model_snapshot':copy.deepcopy(identity),'effective_parameters':outputs[0].get('effective_parameters',{}),'index_hash':identity.get('index_hash'),'index_id':identity.get('index_id'),'source_hash':source['sha256'],'parameters':copy.deepcopy(params),'generation_depth':depth,'state':'succeeded','notes':'','selected':True,'created_at':now(),'project_revision':job['project_revision']}
+            candidate['comparison_id']=params.get('comparison_id')
+            candidate['requested_f0_hash']=outputs[0].get('requested_f0_hash');candidate['consumed_f0_hash']=outputs[0].get('consumed_f0_hash')
+            candidate['pitch_artifact_id']=pitch['id'] if pitch else None
+            candidate['source_preview_artifact_id']=reference['id']
+            candidate['render_signature']=render_signature(source,{**params,**selection_fields({**identity,'id':params['model_id']},params),'source_timeline_offset_ticks':timeline_offset})
+            if identity.get('epoch') is not None:candidate['name']+=f" · Epoch {identity['epoch']}"
             before=job['project_snapshot']
             if part:
                 candidate['name']=PART_NAMES[part]+' · '+candidate['name'];candidate['voice_part']=part
@@ -283,7 +381,7 @@ class Scheduler:
                 bound_track=next((t for t in before['tracks'] if t['artifact_id']==bound_source['id']),{})
                 full=covers_source(outputs[0],bound_source,bound_track.get('offset_ticks',0))
                 candidate['preview_only']=not full
-                unchanged=full and part_unchanged(p,before,part)
+                unchanged=full and part_unchanged(p,before,part) and not params.get('comparison_id') and params.get('adopt_result',True)
                 candidate['selected']=unchanged;candidate['render_status']='preview_only' if not full else 'current' if unchanged else 'previous_revision'
                 p['candidates'].append(candidate)
                 source_track=track or {}
@@ -299,8 +397,13 @@ class Scheduler:
                 return
             unchanged=all(p.get(k)==before.get(k) for k in ('parameters','pitch_edits','notes','lyrics','selected_candidate_id'))
             current_tracks={t['id']:t for t in p['tracks']}
-            unchanged=unchanged and all(current_tracks.get(t['id'])==t for t in before['tracks'])
+            if job['operation']=='pipeline':
+                unchanged=unchanged and p.get('last_user_audio_edit')==before.get('last_user_audio_edit') and all(current_tracks.get(t['id'])==t for t in before['tracks'] if t['role'] not in ('vocal','instrumental'))
+            else:unchanged=unchanged and all(current_tracks.get(t['id'])==t for t in before['tracks'])
             unchanged=unchanged and not p.get('voice_parts')
+            full=covers_source(outputs[0],source,timeline_offset)
+            candidate['preview_only']=not full
+            unchanged=unchanged and full and not params.get('comparison_id') and params.get('adopt_result',True)
             candidate['selected']=unchanged
             candidate['render_status']='current' if unchanged else 'previous_revision'
             if unchanged:
@@ -309,7 +412,7 @@ class Scheduler:
                 for t in p['tracks']:
                     if t['role'] in ('vocal','guide','synthesized','converted','original','mix'): t['mute']=True
             p['candidates'].append(candidate)
-            p['tracks'].append(dict(id=uid('track'),name=candidate['name'],role='converted',artifact_id=outputs[0]['id'],gain_db=0,pan=0,mute=not unchanged,solo=False,offset_ticks=outputs[0].get('timeline_offset_ticks',timeline_offset),effects=[]))
+            p['tracks'].append(dict(id=uid('track'),candidate_id=candidate['id'],name=candidate['name'],role='converted',artifact_id=outputs[0]['id'],gain_db=0,pan=0,mute=not unchanged,solo=False,offset_ticks=outputs[0].get('timeline_offset_ticks',timeline_offset),effects=[]))
         self.store.change(job['project_id'],mutate)
         return outputs
 
@@ -329,6 +432,8 @@ class Scheduler:
         if op=='pitch':
             outputs=self.engine('pitch',job,self.source(job),cancel);self.attach(job,outputs,False);return outputs
         if op=='convert': return self.convert(job,self.source(job),cancel)
+        if op=='compare_versions':return self.compare_versions(job,cancel)
+        if op=='adopt_preview':return self.adopt_preview(job,cancel)
         if op=='convert_parts':
             return self.convert_parts(job,cancel)
         if op=='svs':
@@ -341,10 +446,12 @@ class Scheduler:
                 if source is None: raise ValueError('分离执行器没有声明主唱 stem。')
             pitches=self.engine('pitch',job,source,cancel);self.attach(job,pitches,False)
             self.convert(job,source,cancel,pitches[0])
-            job['project_snapshot']=self.store.get('projects',job['project_id'])
-            mixed=self.mix_job(job,cancel)
-            job['parameters']['artifact_id']=mixed[0]['id'];job['parameters']['model_converted']=True
-            self.export(job,cancel)
+            latest=self.store.get('projects',job['project_id'])
+            if latest.get('last_user_audio_edit')!=job['project_snapshot'].get('last_user_audio_edit'):raise ValueError('制作期间工程已修改，已完成结果保留；请确认采用候选后重新混音。')
+            latest['selection']=copy.deepcopy(job['project_snapshot']['selection'])
+            mixed=self.mix_job(job,cancel,project_snapshot=latest)
+            latest=self.store.get('projects',job['project_id']);latest['selection']=copy.deepcopy(job['project_snapshot']['selection'])
+            self.export(job,cancel,parameters={**job['parameters'],'artifact_id':mixed[0]['id'],'model_converted':True},project_snapshot=latest)
             return mixed
         if op=='mix': return self.mix_job(job,cancel)
         if op=='export': return self.export(job,cancel)
@@ -368,6 +475,96 @@ class Scheduler:
             return [a]
         if op=='export_stems': return self.export_stems(job,cancel)
         raise ValueError('未知操作。')
+
+    def compare_versions(self,job,cancel):
+        params=copy.deepcopy(job['parameters'])
+        if params.get('chain_candidate_id'):raise ValueError('Epoch对比必须从同一原始输入开始，串联请另行操作。')
+        source=self.source(job)
+        if source.get('stem_role')=='converted':raise ValueError('Epoch对比不能把上一轮转换结果作为默认输入。')
+        region=params['range_ticks'];track=next((t for t in job['project_snapshot']['tracks'] if t['artifact_id']==source['id']),{})
+        offset=track.get('offset_ticks',0);end=offset+round(source['sample_count']*TIMEBASE/source['sample_rate'])
+        if region[0]<max(offset,0) or region[1]>end:raise ValueError('版本对比选区超出输入音频。')
+        models=[];chosen_index=params.get('index_id')
+        for identifier in params['model_ids']:
+            if cancel.is_set():raise media.Cancelled()
+            self.update(job,state='preparing',stage='校验比较版本',message=f'验证 {identifier} 的权重、说话人与索引')
+            selected_index=chosen_index if chosen_index else '' if float(params.get('index_rate',0))==0 or 'index_id' in params else None
+            model=self.catalog.resolve_model(identifier,selected_index)
+            if chosen_index is None and model.get('index_id'):chosen_index=model['index_id']
+            models.append(model)
+        if len({m['model_hash'] for m in models})!=len(models):raise ValueError('所选文件包含相同权重的复制品，不能冒充不同Epoch进行比较。')
+        if len({m['run_id'] for m in models})!=1:raise ValueError('批量Epoch对比只接受同一训练实验，跨实验请建立普通候选。')
+        for field in ('architecture','sample_rate','content_dim','embedder_model','f0_conditioned'):
+            if len({str(m.get(field)) for m in models})!=1:raise ValueError('所选版本的 '+field+' 不兼容，不能使用同一对比配置。')
+        base={**params,**selection_fields(models[0],params),'source_timeline_offset_ticks':offset,'adopt_result':False}
+        base,accepted=normalized_job_parameters(base,models[0])
+        for model in models[1:]:normalized_job_parameters({**base,**selection_fields(model,base)},model)
+        comparison_id=uid('comparison');base['comparison_id']=comparison_id
+        snapshot={'id':comparison_id,'schema_version':1,'job_id':job['id'],'state':'preparing','source_artifact_id':source['id'],'source_hash':source['sha256'],
+                  'range_ticks':region,'model_ids':[m['id'] for m in models],'model_hashes':[m['model_hash'] for m in models],
+                  'run_id':models[0]['run_id'],'parameter_snapshot':copy.deepcopy(base),'candidate_ids':[],'created_at':now(),'generation_depth':1}
+        self.store.change(job['project_id'],lambda p:p.setdefault('comparisons',[]).append(snapshot))
+        def update_comparison(**changes):
+            def change(p):
+                item=next(c for c in p['comparisons'] if c['id']==comparison_id);item.update(changes,updated_at=now())
+            self.store.change(job['project_id'],change,history=False)
+        outputs=[]
+        try:
+            pitch=self.choose_pitch(job,source,base)
+            if pitch is None:
+                pitch=self.engine('pitch',job,source,cancel,parameters=base)[0];self.attach(job,[pitch],False,base)
+            else:
+                pitch=self.refresh_pitch_target(job,pitch,source,base)
+                self.attach(job,[pitch],False,base)
+            update_comparison(state='running',pitch_artifact_id=pitch['id'],pitch_hash=pitch['sha256'])
+            expected_f0=None;expected_consumed=None
+            for index,model in enumerate(models):
+                if cancel.is_set():raise media.Cancelled()
+                variant={**base,**selection_fields(model,base)}
+                rendered=self.convert(job,source,cancel,pitch=pitch,parameters=variant)
+                actual=rendered[0]
+                if expected_f0 is None:expected_f0=actual.get('requested_f0_hash');expected_consumed=actual.get('consumed_f0_hash')
+                elif actual.get('requested_f0_hash')!=expected_f0 or actual.get('consumed_f0_hash')!=expected_consumed:raise ValueError('版本对比的实际F0条件不一致，拒绝标为同条件比较。')
+                if not expected_f0 or not expected_consumed:raise ValueError('对比结果缺少实际消费F0证据。')
+                outputs.extend(rendered)
+                p=self.store.get('projects',job['project_id']);ids=[c['id'] for c in p['candidates'] if c.get('comparison_id')==comparison_id]
+                update_comparison(candidate_ids=ids,completed_versions=index+1,requested_f0_hash=expected_f0,consumed_f0_hash=expected_consumed)
+                self.store.event('comparison.version_completed',job,{'comparison_id':comparison_id,'model_id':model['id'],'completed':index+1,'total':len(models)})
+            update_comparison(state='succeeded')
+            return outputs
+        except media.Cancelled:
+            update_comparison(state='cancelled');raise
+        except Exception as error:
+            update_comparison(state='failed',error=str(error));raise
+
+    def adopt_preview(self,job,cancel):
+        params=job['parameters'];before=job['project_snapshot']
+        folder=DATA/'jobs'/job['id']/'assembly'
+        path,base,preview,assembly,offset=assemble_preview(self.store,before,params.get('candidate_id'),params.get('base_candidate_id'),folder,cancel,params.get('fade_ms',20))
+        part=base.get('voice_part')
+        if params.get('voice_part')!=part:raise ValueError('局部采用的候选不属于当前编辑声部。')
+        artifact=media.commit(self.store,path,kind='dsp',inputs=[base['artifact_id'],preview['artifact_id']],job=job,worker='candidate-assembly',engine='ffmpeg/numpy',role='converted',name='局部采用 · '+preview['name'],
+            extra={'assembly':assembly,'voice_part':part,'timeline_offset_ticks':offset,'bus_export_semantics':'same-source version preview inserted into full converted base; linear edge crossfade'})
+        self.attach(job,[artifact],False)
+        def mutate(project):
+            c={**copy.deepcopy(preview),'id':uid('candidate'),'artifact_id':artifact['id'],'name':'局部采用 · '+preview['name'],'preview_only':False,'assembly':assembly,'comparison_id':None,
+               'generation_depth':max(base['generation_depth'],preview['generation_depth']),'created_at':now(),'notes':'选区内采用试听版本，其余使用完整基础候选；请检查接缝。','selected':False}
+            c['parameters'].pop('range_ticks',None)
+            unchanged=part_unchanged(project,before,part) if part else all(project.get(k)==before.get(k) for k in ('parameters','pitch_edits','notes','selected_candidate_id')) and all(next((t for t in project['tracks'] if t['id']==old['id']),None)==old for old in before['tracks']) and not project.get('voice_parts')
+            c['selected']=unchanged;project['candidates'].append(c)
+            base_track=next((t for t in project['tracks'] if t['artifact_id']==base['artifact_id']),{})
+            project['tracks'].append({'id':uid('track'),'name':c['name'],'role':'converted','voice_part':part,'candidate_id':c['id'],'artifact_id':artifact['id'],'gain_db':base_track.get('gain_db',0),'pan':base_track.get('pan',0),'effects':copy.deepcopy(base_track.get('effects',[])),'offset_ticks':offset,'mute':not unchanged,'solo':False})
+            if unchanged:
+                if part:
+                    project['voice_parts'][part]['selected_candidate_id']=c['id'];sync_part_tracks(project,[part])
+                else:
+                    project['selected_candidate_id']=c['id']
+                    for candidate in project['candidates']:candidate['selected']=candidate['id']==c['id']
+                    for track in project['tracks']:
+                        if track['role'] in ('original','vocal','guide','synthesized','converted','mix'):track['mute']=track['artifact_id']!=artifact['id']
+                invalidate_mix(project,'已局部采用指定Epoch试听版本')
+        self.store.change(job['project_id'],mutate)
+        return [artifact]
 
     def convert_parts(self,job,cancel):
         snapshot=job['project_snapshot'];outputs=[]
@@ -443,9 +640,9 @@ class Scheduler:
             return artifact['commit_state']=='committed' and (artifact.get('inference_stage_committed') or artifact['id'] in producing['artifact_ids'])
         return any(self.has_conversion(self.store.get('artifacts',i),visited) for i in artifact.get('input_artifact_ids',[]))
 
-    def export(self,job,cancel):
-        p=job['project_snapshot']; params=job['parameters']
-        if job['operation'] in ('pipeline','export_stems'): p=self.store.get('projects',job['project_id'])
+    def export(self,job,cancel,parameters=None,project_snapshot=None):
+        p=project_snapshot or job['project_snapshot']; params=job['parameters'] if parameters is None else parameters
+        if project_snapshot is None and job['operation']=='export_stems': p=self.store.get('projects',job['project_id'])
         selected=params.get('artifact_id') or job.get('input_artifact_id')
         a=self.store.get('artifacts',selected) if selected else next((x for x in reversed(p['assets']) if x.get('stem_role') in ('mix','converted','synthesized','original')),None)
         if not a or a['id'] not in [x['id'] for x in p['assets']]: raise ValueError('请先选择可导出的音频产物。')

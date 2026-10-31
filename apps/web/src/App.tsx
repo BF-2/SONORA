@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
+import { ModelSelector, CatalogManager, versionLabel } from "./ModelSelector";
+import { RvcParameterPanel } from "./RvcParameterPanel";
+import type { RvcCatalog } from "./RvcParameterPanel";
+import { WorkflowStrip } from "./WorkflowStrip";
 import {
   ApiError,
   download,
@@ -151,7 +155,146 @@ function mergeEditorPatch(base: Bag, delta: Bag): Bag {
         delta.track_updates[t.id] ? { ...t, ...delta.track_updates[t.id] } : t,
       );
   }
+  if (delta.view_preferences)
+    merged.view_preferences = {
+      ...base.view_preferences,
+      ...delta.view_preferences,
+    };
+  if (delta.model_parameter_updates) {
+    merged.model_parameter_updates = { ...base.model_parameter_updates };
+    merged.model_bindings = { ...base.model_bindings };
+    for (const scope of ["tracks", "clips"])
+      if (delta.model_parameter_updates[scope]) {
+        merged.model_parameter_updates[scope] = {
+          ...base.model_parameter_updates?.[scope],
+        };
+        merged.model_bindings[scope] = { ...base.model_bindings?.[scope] };
+        for (const [id, raw] of Object.entries(
+          delta.model_parameter_updates[scope],
+        )) {
+          const changes = raw as Bag,
+            oldDelta = base.model_parameter_updates?.[scope]?.[id] || {},
+            entry = base.model_bindings?.[scope]?.[id] || {};
+          merged.model_parameter_updates[scope][id] = {
+            ...oldDelta,
+            ...changes,
+            parameter_sources: {
+              ...oldDelta.parameter_sources,
+              ...changes.parameter_sources,
+            },
+          };
+          merged.model_bindings[scope][id] = {
+            ...entry,
+            parameters: {
+              ...entry.parameters,
+              ...changes,
+              parameter_sources: {
+                ...entry.parameters?.parameter_sources,
+                ...changes.parameter_sources,
+              },
+            },
+          };
+        }
+      }
+  }
   return merged;
+}
+function sourceForProject(p: Project): Artifact | undefined {
+  if (p.parameters.source_artifact_id)
+    return p.assets.find(
+      (a) => a.id === p.parameters.source_artifact_id && isAudio(a),
+    );
+  const roles =
+    p.task === "rewrite"
+      ? ["guide", "synthesized"]
+      : ["vocal", "vocals", "guide", "synthesized"];
+  return (
+    p.assets
+      .slice()
+      .reverse()
+      .find((a) => roles.includes(a.stem_role || "") && isAudio(a)) ||
+    (p.task === "speech" ||
+    (p.task !== "rewrite" && p.parameters.skip_separation)
+      ? p.assets.find((a) => a.stem_role === "original" && isAudio(a))
+      : undefined)
+  );
+}
+function runtimePins(value: Bag = {}) {
+  return Object.fromEntries(
+    [
+      "model_id",
+      "model_artifact_id",
+      "model_hash",
+      "voice_id",
+      "run_id",
+      "index_id",
+      "index_hash",
+      "speaker_id",
+      "preset_id",
+    ]
+      .filter((k) => value[k] !== undefined)
+      .map((k) => [k, value[k]]),
+  );
+}
+function editorContext(
+  p: Project | null,
+  part: string,
+  ignoreClips = false,
+): {
+  parameters: Bag;
+  scope: string;
+  targetId?: string;
+  track?: Track;
+  source?: Artifact;
+  clip?: Bag;
+} {
+  if (!p) return { parameters: {}, scope: "project" };
+  if (part !== "vocal") {
+    const b = p.voice_parts?.[part as VoicePartKey];
+    return {
+      parameters: b?.parameters || {},
+      scope: "voice_part",
+      targetId: part,
+      source: p.assets.find((a) => a.id === b?.source_artifact_id),
+    };
+  }
+  const source = sourceForProject(p);
+  const track =
+    p.tracks.find(
+      (t) => t.id === p.parameters.track_id && t.artifact_id === source?.id,
+    ) || p.tracks.find((t) => t.artifact_id === source?.id);
+  let parameters = { ...p.parameters },
+    scope = "project",
+    targetId: string | undefined;
+  const trackBinding = track ? p.model_bindings?.tracks?.[track.id] : null;
+  if (trackBinding) {
+    parameters = {
+      ...parameters,
+      ...trackBinding.parameters,
+      ...runtimePins(trackBinding.selection),
+    };
+    scope = "track";
+    targetId = track!.id;
+  }
+  const clip = p.parameters.clip_id
+    ? p.model_bindings?.clips?.[p.parameters.clip_id]
+    : undefined;
+  if (
+    clip &&
+    !ignoreClips &&
+    !p.parameters.ignore_clip_bindings &&
+    clip.source_artifact_id === source?.id
+  ) {
+    parameters = {
+      ...parameters,
+      ...clip.parameters,
+      ...runtimePins(clip.selection),
+      range_ticks: clip.range_ticks,
+    };
+    scope = "clip";
+    targetId = p.parameters.clip_id;
+  }
+  return { parameters, scope, targetId, track, source, clip };
 }
 function isAudio(a: Artifact) {
   return (
@@ -169,7 +312,13 @@ export default function App() {
   const [engines, setEngines] = useState<Engine[]>([]);
   const [device, setDevice] = useState<Bag>({});
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [step, setStep] = useState(0);
+  const [step, setStepState] = useState(0);
+  const [catalogRevision, setCatalogRevision] = useState(0);
+  const [rvcCatalog, setRvcCatalog] = useState<RvcCatalog | null>(null);
+  const [workflow, setWorkflow] = useState<Bag | null>(null);
+  const [managerScope, setManagerScope] = useState<VoicePartKey | "vocal">(
+    "vocal",
+  );
   const [modal, setModal] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -185,7 +334,7 @@ export default function App() {
     Record<string, string>
   >({});
   const [matched, setMatched] = useState(true);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoomState] = useState(1);
   const [pitchTab, setPitchTab] = useState("pitch");
   const [pitchData, setPitchData] = useState<PitchData | null>(null);
   const [outputPitchData, setOutputPitchData] = useState<PitchData | null>(
@@ -198,6 +347,7 @@ export default function App() {
   const [lock, setLock] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState("");
   const [blind, setBlind] = useState(false);
+  const [blindOrder,setBlindOrder] = useState<string[]>([]);
   const [format, setFormat] = useState("wav");
   const [stemSemantics, setStemSemantics] = useState("post_fader_fx");
   const [experimentShifts, setExperimentShifts] = useState("-2,0,2");
@@ -209,9 +359,7 @@ export default function App() {
   const [harmonySourceId, setHarmonySourceId] = useState("");
   const [harmonyModelId, setHarmonyModelId] = useState("");
   const [pathDraft, setPathDraft] = useState("");
-  const [modelPath, setModelPath] = useState("");
   const [newName, setNewName] = useState("新的声音作品");
-  const [search, setSearch] = useState("");
   const [recording, setRecording] = useState(false);
   const pRef = useRef<Project | null>(null);
   const pending = useRef<Bag>({});
@@ -234,6 +382,11 @@ export default function App() {
   const objectUrl = useRef("");
   const applyProject = useCallback((p: Project) => {
     const n = normal(p);
+    if (pRef.current?.id !== n.id) {
+      setStepState(n.view_preferences?.stage ?? 0);
+      setZoomState(n.view_preferences?.zoom ?? 1);
+      setWorkflow(null);
+    }
     pRef.current = n;
     setProject(n);
     localStorage.setItem("sonora-project", n.id);
@@ -323,15 +476,72 @@ export default function App() {
   );
   const globalParam = (changes: Bag) =>
     update({ parameters: { ...pRef.current?.parameters, ...changes } });
+  const updateView = (changes: Bag) => {
+    if (pRef.current)
+      update({
+        view_preferences: { ...pRef.current.view_preferences, ...changes },
+      });
+  };
+  const setStep = (value: number) => {
+    setStepState(value);
+    updateView({ stage: value });
+  };
+  const setZoom = (value: number | ((old: number) => number)) => {
+    const next = typeof value === "function" ? value(zoom) : value;
+    setZoomState(next);
+    updateView({ zoom: next });
+  };
   const patchPart = (part: VoicePartKey, changes: Bag) => {
     if (pRef.current?.voice_parts?.[part])
       update({ voice_parts: { [part]: changes } });
   };
-  const param = (changes: Bag) => {
+  const param = (changes: Bag, source = "user_override", presetId?: string) => {
     const part = pRef.current?.parameters.active_voice_part as VoicePartKey,
       binding = pRef.current?.voice_parts?.[part];
-    if (binding) patchPart(part, { parameters: changes });
-    else globalParam(changes);
+    const context = editorContext(pRef.current, binding ? part : "vocal");
+    const sources = {
+      ...context.parameters.parameter_sources,
+      ...Object.fromEntries(Object.keys(changes).map((k) => [k, source])),
+    };
+    const patchValues = {
+      ...changes,
+      parameter_sources: sources,
+      ...(presetId ? { preset_id: presetId } : {}),
+    };
+    if (binding) patchPart(part, { parameters: patchValues });
+    else if (
+      context.scope !== "project" &&
+      context.targetId &&
+      Object.keys(changes).every(
+        (k) =>
+          ![
+            "active_voice_part",
+            "source_artifact_id",
+            "track_id",
+            "clip_id",
+            "ignore_clip_bindings",
+            "model_id",
+            "model_hash",
+            "model_artifact_id",
+            "index_id",
+            "index_hash",
+            "voice_id",
+            "run_id",
+            "comp_segments",
+            "comp_base_candidate_id",
+            "timeline_duration_ticks",
+            "svs_model_id",
+          ].includes(k),
+      )
+    )
+      update({
+        model_parameter_updates: {
+          [context.scope === "clip" ? "clips" : "tracks"]: {
+            [context.targetId]: patchValues,
+          },
+        },
+      });
+    else globalParam(patchValues);
   };
   const refresh = useCallback(async () => {
     const [caps, list, ps] = await Promise.all([
@@ -441,16 +651,7 @@ export default function App() {
   const source =
     project?.assets.find((a) => a.stem_role === "original" && isAudio(a)) ||
     project?.assets.find(isAudio);
-  const legacyVocal =
-    project?.assets
-      .slice()
-      .reverse()
-      .find(
-        (a) =>
-          ["guide", "vocal", "vocals", "synthesized"].includes(
-            a.stem_role || "",
-          ) && isAudio(a),
-      ) || source;
+  const legacyVocal = project ? sourceForProject(project) : undefined;
   const activePart: VoicePartKey | "vocal" = [
     "lead_vocal",
     "backing_vocal",
@@ -460,10 +661,8 @@ export default function App() {
   const partBinding =
     activePart === "vocal" ? undefined : project?.voice_parts?.[activePart];
   const hasVoiceParts = Object.keys(project?.voice_parts || {}).length > 0;
-  const editorParameters =
-    activePart === "vocal"
-      ? project?.parameters || {}
-      : partBinding?.parameters || {};
+  const currentContext = editorContext(project, activePart);
+  const editorParameters = currentContext.parameters;
   const editorPitchEdits =
     activePart === "vocal"
       ? project?.pitch_edits || []
@@ -482,6 +681,7 @@ export default function App() {
     activePart === "vocal"
       ? project?.selected_candidate_id
       : partBinding?.selected_candidate_id;
+  const renderedCandidates=blind?[...candidates].sort((a,b)=>blindOrder.indexOf(a.id)-blindOrder.indexOf(b.id)):candidates;
   const auditionScope = `${project?.id || ""}:${activePart}`;
   const adoptedCandidate = candidates.find((c) => c.id === selectedCandidateId);
   const candidate =
@@ -494,22 +694,23 @@ export default function App() {
           .find((c) => c.artifact_id)
       : undefined);
   const candidateCompatible = (c: Bag) =>
-    activePart === "vocal" ||
+    (activePart === "vocal" && c.source_artifact_id === vocal?.id) ||
     (!!vocal?.sha256 &&
       c.voice_part === activePart &&
       project?.assets.find(
         (a) => a.id === (c.part_source_artifact_id || c.source_artifact_id),
       )?.sha256 === vocal?.sha256);
-  const comparisonA =
-    project?.assets.find((a) => a.id === candidate?.source_artifact_id) ||
-    (activePart === "vocal" ? source : vocal);
+  const referenceCandidate = candidates.find(c=>c.id===project?.view_preferences?.ab_reference_candidate_id && c.id!==candidate?.id && c.source_artifact_id===candidate?.source_artifact_id);
+  const comparisonA = referenceCandidate ? project?.assets.find(a=>a.id===referenceCandidate.artifact_id) : candidate
+    ? project?.assets.find((a) => a.id === (candidate.source_preview_artifact_id || candidate.source_artifact_id))
+    : vocal || source;
   const comparisonB = project?.assets.find(
     (a) => a.id === candidate?.artifact_id,
   );
   const listen =
     project?.assets.find((a) => a.id === listenId) ||
     (ab === "B" ? comparisonB : comparisonA) ||
-    (activePart === "vocal" ? source : vocal);
+    (!candidate ? vocal || source : undefined);
   const artifactOffset = (a?: Artifact) =>
     a
       ? seconds(
@@ -548,21 +749,10 @@ export default function App() {
     );
   const activeCount = jobs.filter(activeJob).length;
   const mode = project?.mode || "quick";
-  const defaultParameters: Bag = {
-    transpose: 0,
-    index_rate: 0,
-    protect: 0.33,
-    volume_envelope: 1,
-    seed: 42,
-  };
   const dirty =
-    editorPitchEdits.length +
-    Object.keys(editorParameters).filter(
-      (k) =>
-        !["model_id", "pitch_algorithm", "active_voice_part"].includes(k) &&
-        JSON.stringify(editorParameters[k]) !==
-          JSON.stringify(defaultParameters[k]),
-    ).length;
+    editorPitchEdits.length + editorNotes.length +
+    (rvcCatalog?.parameters || []).filter(p=>p.group==='advanced' && p.supported && !p.read_only &&
+      JSON.stringify(editorParameters[p.id] ?? p.current_value ?? p.default)!==JSON.stringify(p.default)).length;
   const svsEngine = engines.find((e) => e.id === "svs");
   const svsModelId =
     project?.parameters.svs_model_id ||
@@ -696,6 +886,10 @@ export default function App() {
     } else a.pause();
   };
   const selectAB = (which: "A" | "B") => {
+    if (which === "A" && !comparisonA) {
+      tell("候选的源音频缺失，请先重新链接。");
+      return;
+    }
     if (which === "B" && !comparisonB) {
       tell("生成并选择候选后即可对齐 A/B 试听。");
       return;
@@ -809,17 +1003,21 @@ export default function App() {
         )
       )
         throw new Error("改词转换需要唱着新歌词的导唱。请先导入或录制导唱。");
-      await job(
-        "convert",
-        {
-          ...editorParameters,
-          pitch_artifact_id: lastPitch?.id,
-          pitch_edits: editorPitchEdits,
-          ...(short ? { range_ticks: [selection.start, selection.end] } : {}),
-          ...(chain && candidate ? { chain_candidate_id: candidate.id } : {}),
-        },
-        vocal?.id,
-      );
+      const renderValues = editorContext(
+        pRef.current,
+        activePart,
+        !short && !!project.parameters.ignore_clip_bindings,
+      ).parameters;
+      const parameters: Bag = {
+        ...renderValues,
+        pitch_artifact_id: lastPitch?.id,
+        pitch_edits: editorPitchEdits,
+        ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
+      };
+      delete parameters.range_ticks;
+      if (short) parameters.range_ticks = [selection.start, selection.end];
+      if (chain && candidate) parameters.chain_candidate_id = candidate.id;
+      await job("convert", parameters, vocal?.id);
     }, "提交转换任务");
   const historyAction = (direction: "undo" | "redo") =>
     guard(async () => {
@@ -834,6 +1032,455 @@ export default function App() {
       );
       tell(direction === "undo" ? "已撤销上一步编辑。" : "已重做。");
     });
+  const openModelManager = (scope: VoicePartKey | "vocal" = activePart) => {
+    setManagerScope(scope);
+    setModal("models");
+  };
+  const usedModelIds = [
+    ...new Set(
+      [
+        ...(project?.candidates.map((c) => c.model_id) || []),
+        project?.parameters.model_id,
+        ...Object.values(project?.voice_parts || {}).map(
+          (b) => b?.parameters.model_id,
+        ),
+      ].filter(Boolean),
+    ),
+  ] as string[];
+  const bindVersion = async (
+    model: Bag,
+    indexId: string | null | undefined,
+    scope?: "project" | "track" | "clip",
+    speakerId?: number,
+  ) => {
+    await flush();
+    const p = pRef.current;
+    if (!p) throw new Error("先创建或导入工程。");
+    const ctx = editorContext(p, "vocal");
+    const chosenScope =
+      scope ||
+      (ctx.scope === "clip"
+        ? "clip"
+        : ctx.scope === "track"
+          ? "track"
+          : "project");
+    const body: Bag = {
+      revision: p.revision,
+      idempotency_key: uid(),
+      scope: chosenScope,
+      model_id: model.id,
+      index_id: indexId,
+      speaker_id: speakerId ?? ctx.parameters.speaker_id ?? 0,
+      preset_id: ctx.parameters.preset_id,
+      policy:
+        ctx.parameters.switch_policy === "reset_defaults"
+          ? "reset_defaults"
+          : "preserve_overrides",
+    };
+    if (chosenScope !== "project") {
+      if (!ctx.track) throw new Error("先选择有效的人声输入轨。");
+      body.track_id = ctx.track.id;
+    }
+    if (chosenScope === "clip") {
+      body.range_ticks = scope
+        ? [p.selection.start, p.selection.end]
+        : ctx.clip?.range_ticks || [p.selection.start, p.selection.end];
+      if (!scope && ctx.targetId) body.clip_id = ctx.targetId;
+    }
+    const result = await post<Bag>(`/projects/${p.id}/model-selection`, body);
+    if (pRef.current?.id !== p.id)
+      throw new Error("工程已切换，原工程的选择已保存。");
+    applyProject(result.project);
+    if (
+      chosenScope === "clip" &&
+      result.project.parameters.ignore_clip_bindings
+    ) {
+      globalParam({ ignore_clip_bindings: false });
+      await flush();
+    }
+    setModels((ms) => [
+      ...ms.filter((x) => x.id !== model.id),
+      { ...model, engine_id: model.engine_id || "rvc" } as Model,
+    ]);
+    setCatalogRevision((n) => n + 1);
+    return result;
+  };
+  const selectScopedModel = async (
+    scope: VoicePartKey | "vocal",
+    model: Bag,
+    indexInfo: Bag,
+    options: Bag = {},
+  ) => {
+    const p = pRef.current;
+    if (!p) throw new Error("先创建或导入工程。");
+    const current = editorContext(p, scope).parameters;
+    const matching = indexInfo.indices || [];
+    const targetIndex =
+      options.index_id !== undefined
+        ? matching.find((i: Bag) => i.id === options.index_id)
+        : current.index_id === null
+          ? null
+          : matching.find(
+              (i: Bag) =>
+                i.id === current.index_id &&
+                i.compatibility?.status === "verified",
+            ) ||
+            matching.find(
+              (i: Bag) =>
+                i.id === indexInfo.selected_index_id &&
+                i.compatibility?.status === "verified",
+            );
+    const indexId = options.index_id === null ? null : targetIndex?.id || null;
+    if (Number(current.index_rate || 0) > 0 && !targetIndex)
+      throw new Error(
+        "该版本没有已验证匹配的索引。请先明确将检索率设为0，再切换版本。",
+      );
+    const speakerIds = model.speaker_ids_trained || model.speaker_ids || [0];
+    const speaker =
+      options.speaker_id ??
+      (speakerIds.includes(current.speaker_id)
+        ? current.speaker_id
+        : (speakerIds[0] ?? 0));
+    if (scope === "vocal")
+      await bindVersion(model, indexId, options.binding_scope, speaker);
+    else {
+      let defaults: Bag = {};
+      if (current.switch_policy === "reset_defaults") {
+        const s = await post<RvcCatalog>("/rvc/parameters", {
+          model_id: model.id,
+          task: p.task,
+          values: {},
+          has_external_f0: true,
+        });
+        defaults = Object.fromEntries(
+          s.parameters
+            .filter((f) => f.supported && !f.read_only)
+            .map((f) => [f.id, f.default]),
+        );
+      }
+      const changes = {
+        ...defaults,
+        model_id: model.id,
+        model_artifact_id: model.id,
+        model_hash: model.model_hash,
+        voice_id: model.voice_id,
+        run_id: model.run_id,
+        index_id: indexId,
+        index_hash: targetIndex?.index_hash || targetIndex?.sha256 || null,
+        speaker_id: speaker,
+      };
+      if (pRef.current?.id !== p.id)
+        throw new Error("工程已切换，请重新选择版本。");
+      patchPart(scope, {
+        parameters: {
+          ...changes,
+          parameter_sources: {
+            ...current.parameter_sources,
+            ...Object.fromEntries(
+              Object.keys(changes).map((k) => [k, "user_override"]),
+            ),
+          },
+        },
+      });
+      await flush();
+      setModels((ms) => [
+        ...ms.filter((x) => x.id !== model.id),
+        { ...model, engine_id: model.engine_id || "rvc" } as Model,
+      ]);
+    }
+    tell(`已固定 ${versionLabel(model)}。人工音高与原有候选保留。`);
+  };
+  const changeIndex = (scope: VoicePartKey | "vocal", id: string | null) =>
+    void guard(async () => {
+      const ctx = editorContext(pRef.current, scope);
+      if (!ctx.parameters.model_id) throw new Error("先选择模型版本。");
+      if (!id) {
+        if (scope === "vocal" && ctx.scope !== "project")
+          update({
+            model_parameter_updates: {
+              [ctx.scope === "clip" ? "clips" : "tracks"]: {
+                [ctx.targetId!]: {
+                  index_rate: 0,
+                  parameter_sources: { index_rate: "user_override" },
+                },
+              },
+            },
+          });
+        else if (scope === "vocal") globalParam({ index_rate: 0 });
+        else patchPart(scope, { parameters: { index_rate: 0 } });
+        await flush();
+      }
+      const model = await request<Bag>(
+        `/catalog/models/${encodeURIComponent(ctx.parameters.model_id)}`,
+      );
+      const indices = await request<Bag>(
+        `/catalog/models/${encodeURIComponent(model.id)}/indices`,
+      );
+      await selectScopedModel(scope, model, indices, { index_id: id });
+    }, "更新索引绑定");
+  const applyRvcChanges = (changes: Bag, source: string, presetId?: string) =>
+    void guard(async () => {
+      const { speaker_id, ...rest } = changes;
+      if (
+        speaker_id !== undefined &&
+        speaker_id !== editorParameters.speaker_id &&
+        activePart === "vocal" &&
+        currentContext.scope !== "project"
+      ) {
+        const m = await request<Bag>(
+            `/catalog/models/${encodeURIComponent(editorParameters.model_id)}`,
+          ),
+          ix = await request<Bag>(
+            `/catalog/models/${encodeURIComponent(editorParameters.model_id)}/indices`,
+          );
+        await selectScopedModel(activePart, m, ix, { speaker_id });
+      } else if (speaker_id !== undefined) rest.speaker_id = speaker_id;
+      if (Object.keys(rest).length) param(rest, source, presetId);
+    });
+  const compareVersions = async (selected: Bag[]) => {
+    if (!vocal) throw new Error("先选择已准备的人声输入。");
+    if (selection.end <= selection.start)
+      throw new Error("先设置代表片段选区。");
+    await job(
+      "compare_versions",
+      {
+        ...editorContext(pRef.current, activePart).parameters,
+        model_ids: selected.map((m) => m.id),
+        range_ticks: [selection.start, selection.end],
+        ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
+        pitch_artifact_id: lastPitch?.id,
+      },
+      vocal.id,
+    );
+  };
+  const selectorFor = (
+    scope: VoicePartKey | "vocal",
+    compact = false,
+    label = "目标声音",
+  ) => {
+    const context = editorContext(project, scope),
+      values = context.parameters;
+    return (
+      <ModelSelector
+        label={label}
+        compact={compact}
+        preferences={project?.view_preferences?.model_selector?.[scope] || {}}
+        onPreferences={(changes)=>updateView({model_selector:{...pRef.current?.view_preferences?.model_selector,[scope]:{...pRef.current?.view_preferences?.model_selector?.[scope],...changes}}})}
+        value={values}
+        fallback={models.find((m) => m.id === values.model_id)}
+        usedModelIds={usedModelIds}
+        revision={catalogRevision}
+        disabled={!!busy}
+        onSelect={(m, ix) => selectScopedModel(scope, m, ix)}
+        onIndex={(id) => changeIndex(scope, id)}
+        onNoRetrieval={() => changeIndex(scope, null)}
+        onCompare={!compact ? compareVersions : undefined}
+        onManage={() => openModelManager(scope)}
+        onChanged={() => setCatalogRevision((v) => v + 1)}
+        onError={setError}
+        switchPolicy={
+          values.switch_policy === "reset_defaults"
+            ? "reset_defaults"
+            : "keep_compatible"
+        }
+        onSwitchPolicy={(policy) => {
+          if (scope === "vocal") param({ switch_policy: policy });
+          else patchPart(scope, { parameters: { switch_policy: policy } });
+        }}
+      />
+    );
+  };
+  const adoptSettings = async (c: Bag) => {
+    const intended = c.parameters || c.effective_parameters || {};
+    if (intended.index_rate === 0) {
+      param({ index_rate: 0 }, "user_override");
+      await flush();
+    }
+    const m = await post<Bag>(
+        `/catalog/models/${encodeURIComponent(c.model_id)}/validate`,
+      ),
+      ix = await request<Bag>(
+        `/catalog/models/${encodeURIComponent(c.model_id)}/indices`,
+      );
+    await selectScopedModel(activePart, m, ix, {
+      index_id: c.parameters?.index_id ?? null,
+    });
+    const schema = await post<RvcCatalog>("/rvc/parameters", {
+      model_id: m.id,
+      task: project?.task,
+      values: c.parameters || c.effective_parameters,
+      has_external_f0: true,
+    });
+    const from = c.parameters || c.effective_parameters || {};
+    const settings = Object.fromEntries(
+      schema.parameters
+        .filter((p) => p.supported && !p.read_only)
+        .map((p) => [p.id, from[p.id] ?? p.current_value ?? p.default]),
+    );
+    param({ ...settings, accepted_preview_id: c.id }, "user_override");
+    await flush();
+    tell("已采用这次试听的版本与参数；整段音频尚未替换。");
+  };
+  const fullBaseFor = (c: Bag) =>
+    adoptedCandidate &&
+    !adoptedCandidate.preview_only &&
+    adoptedCandidate.source_artifact_id === c.source_artifact_id
+      ? adoptedCandidate
+      : undefined;
+  const localAdopt = (c: Bag) =>
+    guard(async () => {
+      const base = fullBaseFor(c);
+      if (!base)
+        throw new Error("先生成并采用一个同源完整版本，再把该试听区间拼入。");
+      await job("adopt_preview", {
+        candidate_id: c.id,
+        base_candidate_id: base.id,
+        fade_ms: 20,
+        ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
+      });
+    }, "采用当前试听区间");
+  const currentStage =
+    workflow && project && workflow.project_id === project.id
+      ? workflow.stages?.find((s: Bag) => s.id === step)
+      : undefined;
+  const candidateState = (c: Bag) =>
+    workflow?.stages
+      ?.find((s: Bag) => s.id === 3)
+      ?.outputs?.find((o: Bag) => o.id === c.id || o.candidate_id === c.id);
+  const candidateDiff = (c: Bag) =>
+    (rvcCatalog?.parameters || [])
+      .filter(
+        (p) =>
+          p.supported &&
+          !p.read_only &&
+          (c.effective_parameters || c.parameters)?.[p.id] !== undefined &&
+          JSON.stringify((c.effective_parameters || c.parameters)[p.id]) !==
+            JSON.stringify(editorParameters[p.id] ?? p.default),
+      )
+      .map((p) => p.label)
+      .slice(0, 4);
+  const focusControl = (id: string) =>
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      element?.scrollIntoView({ block: "center", behavior: "smooth" });
+      element?.querySelector<HTMLElement>("input,select,button")?.focus();
+    }, 0);
+  const workflowAction = (action: Bag) => {
+    const id = action.id;
+    if (["import", "import_audio"].includes(id)) {
+      chooseImport();
+      return;
+    }
+    if (["choose_model", "fix_index"].includes(id)) {
+      setStep(3);
+      focusControl("conversion-model");
+      return;
+    }
+    if (["models", "manage_models"].includes(id)) {
+      openModelManager();
+      return;
+    }
+    if (id === "validate_model") {
+      void guard(async () => {
+        const m = await post<Bag>(
+            `/catalog/models/${encodeURIComponent(action.model_id || editorParameters.model_id)}/validate`,
+          ),
+          ix = await request<Bag>(
+            `/catalog/models/${encodeURIComponent(m.id)}/indices`,
+          );
+        await selectScopedModel(activePart, m, ix);
+      }, "校验当前版本");
+      return;
+    }
+    if (["preview", "render_preview"].includes(id)) {
+      void renderCandidate(true);
+      return;
+    }
+    if (["render_full", "full_render"].includes(id)) {
+      void renderCandidate(false);
+      return;
+    }
+    if (id === "adopt_settings") {
+      const c =
+        candidates.find((c) => c.id === action.candidate_id) || candidate;
+      if (c) void guard(() => adoptSettings(c), "采用试听设置");
+      return;
+    }
+    if (id === "adopt_preview") {
+      const c =
+        candidates.find((c) => c.id === action.candidate_id) || candidate;
+      if (c) void localAdopt(c);
+      return;
+    }
+    if (id === "audition") {
+      setStep(3);
+      const c =
+        candidates.find((c) => c.id === action.candidate_id) || candidate;
+      if (c) {
+        setAuditionCandidateIds((previous) => ({
+          ...previous,
+          [auditionScope]: c.id,
+        }));
+        setListenId("");
+        setAB("B");
+      }
+      focusControl("candidate-list");
+      return;
+    }
+    if (action.operation === "pitch") {
+      setStep(2);
+      void guard(
+        () =>
+          job(
+            "pitch",
+            {
+              ...editorParameters,
+              pitch_algorithm: editorParameters.pitch_algorithm || "rmvpe",
+            },
+            vocal?.id,
+          ),
+        "提交音高分析",
+      );
+      return;
+    }
+    if (action.operation === "separate") {
+      setStep(1);
+      void guard(() => job("separate", {}, source?.id), "提交分离");
+      return;
+    }
+    if (action.operation === "mix") {
+      setStep(4);
+      void guard(() => job("mix", { sample_rate: 48000 }), "提交混音");
+      return;
+    }
+    if (action.operation === "export") {
+      setStep(5);
+      const a =
+        project?.assets
+          .slice()
+          .reverse()
+          .find((a) => a.stem_role === "mix") ||
+        comparisonB ||
+        source;
+      void guard(
+        () =>
+          job(
+            "export",
+            {
+              artifact_id: a?.id,
+              format,
+              name: exportName || project?.name,
+              selection_only: exportSelection,
+              model_converted: !!a?.model_hash,
+            },
+            a?.id,
+          ),
+        "提交导出",
+      );
+      return;
+    }
+    if (action.target_stage != null) setStep(action.target_stage);
+  };
   const savePlayhead = () => {
     if (pRef.current) update({ playhead: ticks(playRef.current) });
   };
@@ -1241,29 +1888,7 @@ export default function App() {
                   </div>
                   {binding ? (
                     <>
-                      <Field label={`${roleNames[part]}目标声音模型`}>
-                        <select
-                          value={binding.parameters.model_id || ""}
-                          onChange={(e) =>
-                            patchPart(part, {
-                              parameters: { model_id: e.target.value },
-                            })
-                          }
-                        >
-                          <option value="">选择独立的 RVC 模型</option>
-                          {models
-                            .filter(
-                              (m) =>
-                                m.engine_id?.includes("rvc") ||
-                                m.capabilities?.voice_conversion,
-                            )
-                            .map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name}
-                              </option>
-                            ))}
-                        </select>
-                      </Field>
+                      {selectorFor(part, true, `${roleNames[part]}声音与版本`)}
                       <Field label={`${roleNames[part]}处理方式`}>
                         <select
                           value={binding.mode}
@@ -1435,30 +2060,206 @@ export default function App() {
     );
   };
   const modelField = (
-    <Field label="目标声音模型">
-      <select
-        value={editorParameters.model_id || ""}
-        onChange={(e) => param({ model_id: e.target.value })}
-      >
-        <option value="">选择已注册的兼容模型</option>
-        {models
-          .filter(
-            (m) =>
-              m.engine_id?.includes("rvc") || m.capabilities?.voice_conversion,
-          )
-          .map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-      </select>
-      {currentModel && (
-        <span className="model-sub">
-          {currentModel.sample_rate / 1000} kHz · {currentModel.engine_id} ·{" "}
-          {stateLabel[currentModel.test_status] || currentModel.test_status}
-        </span>
+    <div id="conversion-model">
+      {selectorFor(activePart, false, "目标声音与版本")}
+    </div>
+  );
+  const inputChoices =
+    project?.assets.filter(
+      (a) =>
+        isAudio(a) &&
+        (["vocal", "vocals", "guide", "synthesized"].includes(
+          a.stem_role || "",
+        ) ||
+          (a.stem_role === "original" &&
+            (project.task === "speech" || project.parameters.skip_separation))),
+    ) || [];
+  const sourceSelector = (
+    <Card title="1 · 选择输入与音高" icon="wave">
+      <div className="card-pad">
+        <Field
+          label="本次转换输入"
+          hint={
+            activePart === "vocal"
+              ? "从不可变原始/整理后素材开始；旧候选不会自动成为下一轮输入。"
+              : "此声部沿用已经绑定的分轨；另一声部不受影响。"
+          }
+        >
+          {activePart === "vocal" ? (
+            <select
+              id="conversion-source"
+              value={project?.parameters.source_artifact_id || vocal?.id || ""}
+              onChange={(e) =>
+                globalParam({
+                  source_artifact_id: e.target.value,
+                  track_id: null,
+                  clip_id: null,
+                  ignore_clip_bindings: false,
+                })
+              }
+            >
+              <option value="">先导入干人声、分离产物或新导唱</option>
+              {project?.parameters.source_artifact_id &&
+                !inputChoices.some(
+                  (a) => a.id === project.parameters.source_artifact_id,
+                ) && (
+                  <option value={project.parameters.source_artifact_id}>
+                    所选输入缺失或当前任务不适用
+                  </option>
+                )}
+              {inputChoices.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} · {roleNames[a.stem_role || ""] || "音频"} ·{" "}
+                  {clock(duration(a))}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <output className="bound-input">
+              {vocal?.name || "当前声部还没有有效分轨"}
+            </output>
+          )}
+        </Field>
+        <div className="input-facts">
+          <span>
+            范围 {clock(seconds(selection.start))} —{" "}
+            {clock(seconds(selection.end))}
+          </span>
+          <span>
+            {lastPitch
+              ? `${pitchData?.estimator || "已检测"} · ${editorPitchEdits.filter((e) => e.locked).length} 个锁定区`
+              : "尚无检测曲线；生成试听会先执行独立音高分析"}
+          </span>
+        </div>
+        {activePart === "vocal" && !vocal && (
+          <div className="row wrap">
+            <button
+              className="button"
+              onClick={() =>
+                chooseImport(project?.task === "rewrite" ? "guide" : "vocal")
+              }
+            >
+              导入{project?.task === "rewrite" ? "新导唱" : "干人声"}
+            </button>
+            <button className="text-button" onClick={() => setStep(1)}>
+              先整理素材
+            </button>
+          </div>
+        )}
+        {editorPitchEdits.length > 0 && (
+          <p className="info-inline">
+            更换输入会保留手工编辑。请先核对时间位置与锁定曲线，旧候选继续保留。
+          </p>
+        )}
+      </div>
+    </Card>
+  );
+  const scopeSummary =
+    activePart === "vocal"
+      ? currentContext.scope === "clip"
+        ? "选区覆盖"
+        : currentContext.scope === "track"
+          ? "轨道覆盖"
+          : "工程默认"
+      : `${roleNames[activePart]}独立绑定`;
+  const scopeControls = (
+    <div className="binding-scope">
+      <div className="parameter-row">
+        <span>当前生效范围</span>
+        <strong>{scopeSummary}</strong>
+      </div>
+      {activePart === "vocal" && (
+        <details open={!!project?.view_preferences?.scope_details}>
+          <summary
+            onClick={(e) => {
+              e.preventDefault();
+              updateView({
+                scope_details: !project?.view_preferences?.scope_details,
+              });
+            }}
+          >
+            工程 → 轨道 → 选区覆盖
+          </summary>
+          <p className="info-inline">
+            覆盖只影响对应输入与范围。恢复继承不会删除原始模型或旧候选。
+          </p>
+          <div className="row wrap">
+            {(["project", "track", "clip"] as const).map((scope) => (
+              <button
+                key={scope}
+                className="quiet-button"
+                disabled={
+                  !editorParameters.model_id ||
+                  (scope !== "project" && !currentContext.track) ||
+                  !!busy
+                }
+                onClick={() =>
+                  void guard(async () => {
+                    const m = await request<Bag>(
+                      `/catalog/models/${encodeURIComponent(editorParameters.model_id)}`,
+                    );
+                    await bindVersion(m, editorParameters.index_id, scope);
+                    tell("模型版本与适用范围已固定。");
+                  }, "保存模型覆盖")
+                }
+              >
+                {scope === "project"
+                  ? "设为工程默认"
+                  : scope === "track"
+                    ? "覆盖当前轨道"
+                    : "绑定到当前选区"}
+              </button>
+            ))}
+          </div>
+          {currentContext.scope !== "project" && (
+            <button
+              className="text-button space-top"
+              onClick={() =>
+                void guard(async () => {
+                  await flush();
+                  const p = pRef.current!;
+                  const ctx = editorContext(p, "vocal");
+                  const r = await post<Bag>(
+                    `/projects/${p.id}/model-selection/clear`,
+                    {
+                      revision: p.revision,
+                      idempotency_key: uid(),
+                      scope: ctx.scope,
+                      ...(ctx.scope === "clip"
+                        ? { clip_id: ctx.targetId }
+                        : { track_id: ctx.targetId }),
+                    },
+                  );
+                  applyProject(r.project);
+                  tell("已清除这一层覆盖，恢复上层版本。");
+                })
+              }
+            >
+              清除此{currentContext.scope === "clip" ? "选区" : "轨道"}
+              覆盖，恢复继承
+            </button>
+          )}
+        </details>
       )}
-    </Field>
+      {activePart === "vocal" &&
+        Object.values(project?.model_bindings?.clips || {}).some(
+          (c: unknown) => (c as Bag).source_artifact_id === vocal?.id,
+        ) && (
+          <label className="toggle-row">
+            <span>
+              整段生成时明确忽略选区覆盖
+              <small>使用轨道 / 工程版本；原选区绑定仍保存。</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={!!project?.parameters.ignore_clip_bindings}
+              onChange={(e) =>
+                globalParam({ ignore_clip_bindings: e.target.checked })
+              }
+            />
+          </label>
+        )}
+    </div>
   );
   const algorithms = engines.find((e) => e.id === "pitch")?.capabilities
     ?.algorithms;
@@ -1691,8 +2492,13 @@ export default function App() {
                 <button
                   className={`task-card ${project?.task === id ? "active" : ""}`}
                   key={id}
-                  disabled={!project}
-                  onClick={() => update({ task: id })}
+                  disabled={connection !== "ready" || !!busy}
+                  onClick={() =>
+                    void guard(async () => {
+                      await ensureProject();
+                      update({ task: id });
+                    })
+                  }
                 >
                   <Icon name={icon} />
                   <strong>{title}</strong>
@@ -1812,7 +2618,7 @@ export default function App() {
             {modelField}
             <button
               className="button full ghost"
-              onClick={() => setModal("models")}
+              onClick={() => openModelManager(activePart)}
             >
               <Icon name="box" />
               管理声音与模型
@@ -1853,7 +2659,9 @@ export default function App() {
                           "pipeline",
                           {
                             ...project?.parameters,
-                            skip_separation: project?.task === "speech",
+                            skip_separation:
+                              project?.task === "speech" ||
+                              !!project?.parameters.skip_separation,
                           },
                           project?.task === "rewrite" ? vocal?.id : source?.id,
                         ),
@@ -1910,8 +2718,18 @@ export default function App() {
               >
                 导入伴奏
               </button>
-              <button className="text-button" onClick={() => setStep(2)}>
-                已有干声，跳过分离 <Icon name="arrow" />
+              <button
+                className="text-button"
+                disabled={!source}
+                onClick={() => {
+                  globalParam({
+                    skip_separation: true,
+                    source_artifact_id: (vocal || source)?.id,
+                  });
+                  setStep(2);
+                }}
+              >
+                确认输入是干人声，跳过分离 <Icon name="arrow" />
               </button>
             </div>
           </Card>
@@ -2070,7 +2888,7 @@ export default function App() {
                             job(
                               "pitch",
                               {
-                                algorithm:
+                                pitch_algorithm:
                                   editorParameters.pitch_algorithm || "rmvpe",
                               },
                               vocal?.id,
@@ -2156,7 +2974,7 @@ export default function App() {
                         job(
                           "pitch",
                           {
-                            algorithm:
+                            pitch_algorithm:
                               editorParameters.pitch_algorithm || "rmvpe",
                           },
                           vocal?.id,
@@ -2856,6 +3674,13 @@ export default function App() {
         <div className="layout-split">
           <div className="stack">
             {partVoicesPanel}
+            {sourceSelector}
+            <Card title="2 · 选择声音、实验与版本" icon="box">
+              <div className="card-pad">
+                {modelField}
+                {scopeControls}
+              </div>
+            </Card>
             <Card
               title="每个候选，都从干净源出发"
               icon="branch"
@@ -2874,7 +3699,9 @@ export default function App() {
                 </div>
                 <span>→</span>
                 <div className="pipeline-node">
-                  <strong>已确认的目标音高</strong>
+                  <strong>
+                    {lastPitch ? "已检测 / 目标编辑" : "等待独立音高分析"}
+                  </strong>
                   <small>{editorPitchEdits.length || 0} 项人工调整</small>
                 </div>
                 <span>→</span>
@@ -2892,13 +3719,19 @@ export default function App() {
                 <input
                   type="checkbox"
                   checked={blind}
-                  onChange={(e) => setBlind(e.target.checked)}
+                  onChange={(e) => {if(e.target.checked){const order=candidates.map(c=>c.id);for(let i=order.length-1;i>0;i--){const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1);[order[i],order[j]]=[order[j],order[i]];}setBlindOrder(order);}setBlind(e.target.checked);}}
                 />
                 隐藏模型名盲听
               </label>
             </div>
-            <div className="version-grid">
-              {candidates.map((c, i) => (
+            <Field label="A 通道对照" hint="可直接比较两个同源 Epoch；切换保持同一播放头，等响采用各自实际 RMS。">
+              <select value={referenceCandidate?.id||""} onChange={e=>{update({view_preferences:{...pRef.current?.view_preferences,ab_reference_candidate_id:e.target.value}});setListenId("");}}>
+                <option value="">当前试听的同区间原声</option>
+                {renderedCandidates.filter(c=>c.id!==candidate?.id && c.source_artifact_id===candidate?.source_artifact_id).map(c=><option key={c.id} value={c.id}>{blind?`盲听候选 ${String.fromCharCode(65+renderedCandidates.indexOf(c))}`:c.name}</option>)}
+              </select>
+            </Field>
+            <div className="version-grid" id="candidate-list">
+              {renderedCandidates.map((c, i) => (
                 <div
                   className={`version-card ${candidate?.id === c.id ? "selected" : ""}`}
                   key={c.id}
@@ -2924,6 +3757,23 @@ export default function App() {
                         : "从干净源生成 · 第 1 代"}
                   </p>
                   <div className="chip-row">
+                    {c.model_snapshot && !blind && (
+                      <span className="chip">
+                        {versionLabel(c.model_snapshot)}
+                        {c.model_snapshot.epoch_source === "filename_inferred"
+                          ? " · 编号待核验"
+                          : ""}
+                      </span>
+                    )}
+                    {c.comparison_id && (
+                      <Badge tone="blue">
+                        同源版本对比 · {c.comparison_id.slice(-6)}
+                      </Badge>
+                    )}
+                    {(typeof candidateState(c)?.current==='boolean' ? !candidateState(c)?.current : candidateState(c)?.stale ||
+                      candidateDiff(c).length > 0) && (
+                      <Badge tone="orange">旧参数预览</Badge>
+                    )}
                     {c.preview_only && (
                       <Badge tone="orange">片段试听 · 不改变混音</Badge>
                     )}
@@ -2938,6 +3788,31 @@ export default function App() {
                     </span>
                   </div>
                   <div className="version-actions space-top">
+                    {c.preview_only && (
+                      <>
+                        <button
+                          className="button small"
+                          disabled={!candidateCompatible(c) || !!busy}
+                          onClick={() =>
+                            void guard(() => adoptSettings(c), "采用试听设置")
+                          }
+                        >
+                          采用此试听设置
+                        </button>
+                        <button
+                          className="button small ghost"
+                          disabled={!fullBaseFor(c) || !!busy}
+                          title={
+                            fullBaseFor(c)
+                              ? "仅替换该试听区间，保留完整基础候选的其它位置"
+                              : "先生成并采用一个同源完整版本"
+                          }
+                          onClick={() => void localAdopt(c)}
+                        >
+                          局部采用到完整版
+                        </button>
+                      </>
+                    )}
                     <button
                       className={`button small ${adoptedCandidate?.id === c.id ? "primary" : ""}`}
                       disabled={
@@ -3034,6 +3909,74 @@ export default function App() {
                       })
                     }
                   />
+                  {!blind && (
+                    <details className="candidate-provenance">
+                      <summary>版本、输入与生效参数</summary>
+                      <p>
+                        实验：
+                        {c.model_snapshot?.run_name ||
+                          c.model_snapshot?.run_id ||
+                          c.model_snapshot?.training_run_id ||
+                          "旧候选未记录实验标识"}
+                        <br />
+                        模型哈希：
+                        {c.model_snapshot?.model_hash ||
+                          c.model_manifest_hash ||
+                          "未记录"}
+                        <br />
+                        输入：
+                        {project?.assets.find(
+                          (a) => a.id === c.source_artifact_id,
+                        )?.sha256 || "源素材待重新链接"}
+                        <br />
+                        索引：
+                        {Number(
+                          (c.effective_parameters || c.parameters)
+                            ?.index_rate || 0,
+                        ) > 0
+                          ? c.model_snapshot?.index_hash ||
+                            c.parameters?.index_hash ||
+                            "旧版本未记录索引哈希"
+                          : "未使用检索"}
+                        <br />
+                        请求 F0：
+                        {c.requested_f0_hash ||
+                          project?.assets.find((a) => a.id === c.artifact_id)
+                            ?.requested_f0_hash ||
+                          "未记录"}
+                        <br />
+                        消费 F0：
+                        {c.consumed_f0_hash ||
+                          project?.assets.find((a) => a.id === c.artifact_id)
+                            ?.consumed_f0_hash ||
+                          "未记录"}
+                      </p>
+                      {candidateDiff(c).length > 0 && (
+                        <p>
+                          与当前设置不同：{candidateDiff(c).join("、")}
+                          。旧音频保持原版本。
+                        </p>
+                      )}
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          void guard(async () => {
+                            const m = await request<Bag>(
+                              `/catalog/models/${encodeURIComponent(c.model_id)}`,
+                            );
+                            await post(
+                              `/catalog/voices/${encodeURIComponent(m.voice_id)}/default`,
+                              { model_id: m.id },
+                            );
+                            setCatalogRevision((n) => n + 1);
+                            tell("已设为此声音的默认版本；现有工程绑定保留。");
+                          })
+                        }
+                      >
+                        设为此声音默认版本
+                      </button>
+                    </details>
+                  )}
                 </div>
               ))}
             </div>
@@ -3247,69 +4190,42 @@ export default function App() {
           </div>
           <aside className="inspector stack">
             <Card className="card-pad">
-              <div className="inspector-heading">
-                <strong>声音转换设置</strong>
-                <span>RVC ADAPTER</span>
-              </div>
-              {modelField}
               {partModeControls}
-              {algorithmField}
-              <Field label="起点预设">
-                <select
-                  defaultValue=""
-                  onChange={(e) => {
-                    const presets: Record<string, Bag> = {
-                      natural: { transpose: 0, index_rate: 0, protect: 0.33 },
-                      soft: { transpose: 0, index_rate: 0, protect: 0.45 },
-                      retrieve: {
-                        transpose: 0,
-                        index_rate: 0.5,
-                        protect: 0.33,
-                      },
-                    };
-                    param({
-                      ...presets[e.target.value],
-                      preset_id: e.target.value,
-                    });
-                    tell("已应用预设参数；可继续逐项调整。");
-                  }}
-                >
-                  <option value="" disabled>
-                    选择一个起点
-                  </option>
-                  <option value="natural">自然对白 · 不使用检索</option>
-                  <option value="soft">保留清辅音 · 较强保护</option>
-                  <option value="retrieve">声音检索 · 需要匹配索引</option>
-                </select>
-              </Field>
-              <Slider
-                label={
-                  activePart === "vocal"
-                    ? "主唱整体移调"
-                    : `${roleNames[activePart]}整体移调`
+              <RvcParameterPanel
+                modelId={editorParameters.model_id}
+                task={project?.task || "speech"}
+                values={{
+                  ...editorParameters,
+                  range_ticks: [selection.start, selection.end],
+                }}
+                mode={mode}
+                preferences={
+                  project?.view_preferences?.expanded_panels?.[activePart] || {}
                 }
-                value={editorParameters.transpose || 0}
-                min={-24}
-                max={24}
-                suffix="st"
-                onChange={(v) => param({ transpose: v })}
-              />
-              <Slider
-                label="检索特征比例"
-                value={editorParameters.index_rate || 0}
-                min={0}
-                max={1}
-                step={0.01}
-                onChange={(v) => param({ index_rate: v })}
-                hint="大于零时需要匹配的索引；不会静默忽略缺失索引。"
-              />
-              <Slider
-                label="清辅音保护"
-                value={editorParameters.protect ?? 0.33}
-                min={0}
-                max={0.5}
-                step={0.01}
-                onChange={(v) => param({ protect: v })}
+                onPreferences={(changes) => {
+                  const p = pRef.current;
+                  updateView({
+                    expanded_panels: {
+                      ...p?.view_preferences?.expanded_panels,
+                      [activePart]: {
+                        ...p?.view_preferences?.expanded_panels?.[activePart],
+                        ...changes,
+                      },
+                    },
+                  });
+                }}
+                onChange={applyRvcChanges}
+                onError={setError}
+                busy={!!busy}
+                onSchema={setRvcCatalog}
+                pitchInfo={{
+                  artifact_id: lastPitch?.id,
+                  estimator: pitchData?.estimator,
+                  locked_count: editorPitchEdits.filter((e) => e.locked).length,
+                  edits_count: editorPitchEdits.length,
+                  requested_f0_hash: comparisonB?.requested_f0_hash,
+                  consumed_f0_hash: comparisonB?.consumed_f0_hash,
+                }}
               />
               {activePart === "vocal" &&
                 !hasVoiceParts &&
@@ -4020,7 +4936,10 @@ export default function App() {
           })}
         </nav>
         <div className="nav-divider" />
-        <button className="nav-secondary" onClick={() => setModal("models")}>
+        <button
+          className="nav-secondary"
+          onClick={() => openModelManager(activePart)}
+        >
           <Icon name="box" />
           声音与模型<span className="side-count">{models.length}</span>
         </button>
@@ -4049,7 +4968,7 @@ export default function App() {
           </button>
         </div>
       </aside>
-      <div className="workspace">
+      <div className="workspace has-workflow">
         <header className="topbar">
           <div className="breadcrumb">
             <span>我的工作室</span>
@@ -4169,7 +5088,7 @@ export default function App() {
                       setRelinkHash(w.hash);
                       setPathDraft("");
                       setModal("relink");
-                    } else setModal("models");
+                    } else openModelManager(activePart);
                   }}
                 >
                   {w.code === "missing_media" ? "重新链接素材" : "导入匹配模型"}
@@ -4208,6 +5127,21 @@ export default function App() {
               )}
             </div>
           </div>
+          <WorkflowStrip
+            projectId={project?.id}
+            revision={project?.revision || 0}
+            stage={step}
+            voicePart={activePart}
+            catalogRevision={catalogRevision}
+            disabled={!!busy || saveState !== "已保存"}
+            onAction={workflowAction}
+            onLoaded={setWorkflow}
+          />
+          {currentStage?.input?.stale && (
+            <div className="pending-strip">
+              当前输入已受上游修改影响，请按推荐动作更新。
+            </div>
+          )}
           {step >= 2 &&
             [3, 4, 5].some((i) => latestStageNode(i)?.state === "stale") &&
             project?.warnings.some((w) => w.code === "pending_render") && (
@@ -4302,9 +5236,10 @@ export default function App() {
             <div className="segmented ab-switch">
               <button
                 className={ab === "A" && !listenId ? "active" : ""}
+                disabled={!comparisonA}
                 onClick={() => selectAB("A")}
               >
-                原始 A
+                {referenceCandidate ? "候选 A" : "原始 A"}
               </button>
               <button
                 className={ab === "B" && !listenId ? "active" : ""}
@@ -4562,98 +5497,20 @@ export default function App() {
               </button>
             </>
           ) : modal === "models" ? (
-            <>
-              <Field label="查找模型">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="名称、架构…"
-                />
-              </Field>
-              <div className="models-list">
-                {models
-                  .filter((m) =>
-                    `${m.name} ${m.engine_id}`
-                      .toLowerCase()
-                      .includes(search.toLowerCase()),
-                  )
-                  .map((m) => (
-                    <div className="model-card" key={m.id}>
-                      <div className="row">
-                        <span className="avatar">
-                          <Icon name="wave" />
-                        </span>
-                        <div className="model-text">
-                          <strong>{m.name}</strong>
-                          <small>
-                            {m.engine_id} · {m.sample_rate / 1000} kHz ·{" "}
-                            {stateLabel[m.test_status] || m.test_status}
-                          </small>
-                        </div>
-                        <button
-                          className="button small"
-                          disabled={!project}
-                          onClick={() => {
-                            param({ model_id: m.id });
-                            setModal("");
-                            tell(`已选择 ${m.name}`);
-                          }}
-                        >
-                          选择
-                        </button>
-                      </div>
-                      <div className="model-meta">
-                        <span>SHA-256 {m.model_hash?.slice(0, 20)}…</span>
-                        <span>
-                          权重许可：
-                          {typeof m.license === "string"
-                            ? m.license
-                            : m.weights_license || "未确认"}
-                        </span>
-                        <span>
-                          外部 F0：
-                          {m.capabilities?.external_f0
-                            ? "支持"
-                            : "按执行器验证状态"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-              <div className="line" />
-              <Field
-                label="导入已有模型的本机路径"
-                hint="仅从已授权资源目录读取；先安全校验，不执行任意模型代码。"
-              >
-                <input
-                  value={modelPath}
-                  onChange={(e) => setModelPath(e.target.value)}
-                  placeholder="E:\voice\…\model.pth"
-                />
-              </Field>
-              <div className="row">
-                <button
-                  className="button primary"
-                  disabled={!modelPath || !!busy}
-                  onClick={() =>
-                    void guard(async () => {
-                      await post("/models/import", { path: modelPath });
-                      await refresh();
-                      setModelPath("");
-                      tell("模型已校验并注册。");
-                    }, "校验模型")
-                  }
-                >
-                  校验并导入
-                </button>
-                <button
-                  className="button ghost"
-                  onClick={() => void guard(refresh)}
-                >
-                  刷新
-                </button>
-              </div>
-            </>
+            <CatalogManager
+              onChanged={() => {
+                setCatalogRevision((n) => n + 1);
+                void refresh().catch(() => {});
+              }}
+              onError={setError}
+              onSelect={async (m) => {
+                const ix = await request<Bag>(
+                  `/catalog/models/${encodeURIComponent(m.id)}/indices`,
+                );
+                await selectScopedModel(managerScope, m, ix);
+                setModal("");
+              }}
+            />
           ) : modal === "queue" ? (
             <>
               <p className="info-inline">
@@ -4687,6 +5544,8 @@ export default function App() {
                             convert_parts: "两声部独立转换与混音",
                             pitch: "音高分析",
                             convert: "声音转换",
+                            compare_versions: "多 Epoch 同源对比",
+                            adopt_preview: "局部采用试听版本",
                             mix: "混音渲染",
                             export: "音频导出",
                             pipeline: "完整制作流程",

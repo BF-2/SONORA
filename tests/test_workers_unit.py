@@ -54,7 +54,7 @@ class SecurityContracts(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stderr)
             response=json.loads(result.stdout)[0]
             self.assertFalse(response['ok'])
-            self.assertIn('unsupported globals',response['error'])
+            self.assertRegex(response['error'].lower(),r'unsupported.*global')
             self.assertFalse(marker.exists())
 
     def test_explicit_unsafe_load_cannot_override_guard(self):

@@ -1,5 +1,28 @@
 # 本机验收与范围
 
+## 2026-10-31 专项补丁统一验收
+
+本轮按用户最后要求，以网页操作代替 Windows 桌面点击；EXE 只进行统一 CLI 构建，不将旧版原生窗口记录当成本轮桌面点击通过。保留原导航与视觉，未修改主唱/和声分离执行器、声部分配核心或其契约。
+
+- 自动发现219个既有资源：180份推理导出、29份索引、10份训练checkpoint。旧29个模型ID和哈希保留，训练文件不当作推理导出；只读增量扫描和惰性校验分别执行。
+- 实际 Epoch200/225 使用同一8秒输入、同一原始F0/目标/种子生成不同声音结果。模型哈希不同，requested/consumed F0哈希相同；完整版本和局部采用均生成真实音频。
+- 真实参数对照包括移调、索引、protect、包络、平滑、自动靠近半音、输出降噪与分析范围。+12半音输出独立测得约1200.60 cents；无检索时改变protect的输出差异为0，已启用索引时保护变化确实影响结果。绝对锁定目标在自动处理组合下保持。
+- 轨道→区间覆盖的真实推理消费 Epoch225、transpose12、volume_envelope0.2、protect0.15和已验证索引；不兼容索引明确失败，没有回退到检索率0。
+- 干人声的浏览器操作完成版本选择、两版本对比、A/B等响、试听设置采纳、完整生成、局部采用、混音与WAV导出。实际歌曲26秒链路也完成；超满幅整数导出被阻断后，降低推子重混可导出，无需重跑模型。
+- 实际运行中取消独立worker通过；旧项目数据库快照迁移后工程文本保持不变，旧模型ID不指向“最新版本”。
+
+统一证据：`tests/results/specialist/acceptance.json`、`tests/results/rvc-parameters/verification.json`、`tests/results/catalog/verification.json`、`apps/web/qa/specialist/`。交互路径与未测范围集中于 `docs/ux-audit.md`，参数与模型设计集中于 `docs/models-rvc.md`。
+
+修复的集成反例包括：无索引的None路径传入原生API、流水线把自身上游刷新误认作用户编辑、轨道/区间选择记录混入推理参数、重复缓存引用和F0目标层失效、采纳试听误存运行时设备值、模型选择器异步加载丢失实验层次，以及备注更新覆盖后台新增候选。原有音频产物和旧候选保持可回听。
+
+最终统一自动回归 **124/124通过**：核心/工程/安全/和声/目录/API/专项集成85项，RVC参数21项，音高与受限加载7项，SVS契约5项，分离契约6项。运行命令为核心环境 `python -m pytest tests/test_core.py tests/test_domain.py tests/test_review_regressions.py tests/test_harmony_review.py tests/test_harmony_delivery.py tests/test_model_catalog.py tests/test_model_catalog_api.py tests/test_specialist_integration.py -q --tb=short`，以及各自既有执行器环境运行 `test_rvc_parameters_unit.py`、`test_workers_unit.py`、`test_workers_svs.py`、`test_harmony_worker_unit.py`。现有依赖的3条弃用警告保留，不进行无关升级。
+
+真实推理与自动单元检查分开记账：`test_rvc_parameters_real.py --run-real --model-manifest tests/results/specialist/verified-model.json --device cuda`、`test_specialist_real.py --run-real --resume`、`test_model_catalog_real.py --run-real-metadata`均有成功证据。服务实际重启后模型哈希、4个候选及工程9类状态逐项一致，个人预设恢复通过，见 `tests/results/specialist/restart.json`。
+
+统一构建：`scripts/build-desktop.ps1 -BinaryName sonora-specialist` 执行TypeScript检查、Vite生产构建和 `cargo build --release --locked --offline`。最终产物 `apps/desktop/target/release/sonora-specialist.exe`，4,641,792字节，SHA-256 `f91419bd65ea4f94e23aaa40c69522c4685ac2297489b08b5ff519ab046ac029`。`启动声序.bat`已优先指向该版本，依赖本项目核心环境和现有模型资源，不是捆绑全部权重的独立安装包。
+
+专项通过项无剩余失败；原生点击按用户要求未执行。当前执行器不支持的参数明确禁用，全部180版本的听感评估未执行。分离worker、声部分配核心及HARMONY契约与基线哈希相同；本轮没有模型下载、重新训练或依赖升级。以下保留既有基础版本验收范围，不能将历史桌面记录当成本轮原生点击证据。
+
 验证日期：2026-10-30。以下对应完整构建提示的 25 项验收，状态描述的是已保存证据，不能当作全部需求已完成。
 
 ## 已运行的真实路径

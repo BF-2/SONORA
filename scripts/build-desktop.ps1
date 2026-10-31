@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipWebBuild, [ValidateSet('sonora','sonora-harmony')][string]$BinaryName = 'sonora-harmony')
+param([switch]$SkipWebBuild, [ValidateSet('sonora','sonora-harmony','sonora-specialist')][string]$BinaryName = 'sonora-specialist')
 
 $ErrorActionPreference = 'Stop'
 $sonoraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $sonoraWeb 'dist\index.html'))) {
 }
 Push-Location $sonoraDesktop
 try {
-    & cargo build --release --locked --bin $BinaryName
+    & cargo build --release --locked --offline --bin $BinaryName
     if ($LASTEXITCODE -ne 0) { throw 'Desktop compilation failed. Verify MSVC and Windows SDK prerequisites.' }
     $sonoraTree = & cargo tree --locked --offline --target x86_64-pc-windows-msvc --prefix none --format '{p}|{l}'
     if ($LASTEXITCODE -ne 0) { throw 'Failed to record actual desktop dependency licenses.' }

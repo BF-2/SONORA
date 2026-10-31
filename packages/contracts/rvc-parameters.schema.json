@@ -1,0 +1,887 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sonora://contracts/rvc-parameters/1.1.0",
+  "title": "SONORA RVC actual inference parameters",
+  "schema_version": 1,
+  "parameter_schema_version": "1.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "cpu_threads": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 8,
+      "x-sonora": {
+        "id": "cpu_threads",
+        "label": "CPU计算线程",
+        "label_en": "CPU threads",
+        "group": "advanced",
+        "unit": "线程",
+        "step": 1,
+        "help": "限制本次RVC执行进程的PyTorch CPU线程数，不改变系统或其他程序的设置。",
+        "direction": "线程增加不保证更快。",
+        "conditions": "只作用当前worker进程。",
+        "risk": "过多线程可能与其他工作负载竞争。",
+        "recommendation": {
+          "value": 4,
+          "basis": "本机既有适配器默认",
+          "source_type": "通用保守起点",
+          "reason": "保持4，性能调优应以实测为准。"
+        },
+        "dependencies": [],
+        "native_mapping": "torch.set_num_threads",
+        "recompute_scope": "本次执行配置",
+        "supported": true,
+        "support_reason": "当前RVC worker已实际调用",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "transpose": {
+      "type": "number",
+      "default": 0,
+      "minimum": -36,
+      "maximum": 36,
+      "x-sonora": {
+        "id": "transpose",
+        "label": "整体移调",
+        "label_en": "Transpose",
+        "group": "basic",
+        "unit": "半音",
+        "step": 0.1,
+        "help": "整体改变目标F0，0保持原音高。不会根据性别标签自动移调。",
+        "direction": "正值升高、负值降低。",
+        "conditions": "模型音域和已确认旋律。",
+        "risk": "过大偏移可能超出训练音域。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "先用0，再按参考旋律做同片段比较。"
+        },
+        "dependencies": [],
+        "native_mapping": "SONORA target F0 / 2^(semitones/12)",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "index_rate": {
+      "type": "number",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "x-sonora": {
+        "id": "index_rate",
+        "label": "检索比例",
+        "label_en": "Index rate",
+        "group": "basic",
+        "unit": "比例",
+        "step": 0.05,
+        "help": "混入已验证匹配索引中的训练特征；不是音色相似度评分。",
+        "direction": "越高混入的检索特征越多。",
+        "conditions": "索引已验证匹配当前训练实验、维度及编码器。",
+        "risk": "过高可能掩盖细节或引入索引偏差。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "有匹配索引时比较0与0.5；未验证索引只选0。"
+        },
+        "dependencies": [],
+        "native_mapping": "Pipeline.pipeline(index_rate) / feature retrieval blend",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "protect": {
+      "type": "number",
+      "default": 0.33,
+      "minimum": 0,
+      "maximum": 0.5,
+      "x-sonora": {
+        "id": "protect",
+        "label": "清辅音保护",
+        "label_en": "Protect",
+        "group": "basic",
+        "unit": "",
+        "step": 0.01,
+        "help": "0.5为关闭，数值越小，对清辅音、气声保留的原始内容特征越多。",
+        "direction": "仅在清音帧降低检索特征混合；无检索时不会改变输出。",
+        "conditions": "index_rate>0，输入含清音帧。",
+        "risk": "过强会保留更多原声特征。",
+        "recommendation": {
+          "value": 0.33,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "从0.33起，对齿音/气声区间与0.5对照。"
+        },
+        "dependencies": [
+          {
+            "parameter": "index_rate",
+            "condition": ">0",
+            "reason": "无检索时feats与原内容特征相同，protect是无效操作"
+          }
+        ],
+        "native_mapping": "Pipeline.voice_conversion: feats*protect+feats0*(1-protect) on unvoiced frames",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "volume_envelope": {
+      "type": "number",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1,
+      "x-sonora": {
+        "id": "volume_envelope",
+        "label": "音量包络",
+        "label_en": "Volume envelope",
+        "group": "basic",
+        "unit": "",
+        "step": 0.05,
+        "help": "0偏向原始人声动态，1保留转换输出动态；中间值混合两者RMS包络。",
+        "direction": "往0靠近可更多保留源动态。",
+        "conditions": "输入存在可测动态变化。",
+        "risk": "源录音过大动态或噪声会影响包络。",
+        "recommendation": {
+          "value": 1,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保留既有默认1；歌声可比较0.5，口播可比较0。"
+        },
+        "dependencies": [],
+        "native_mapping": "Pipeline.pipeline(volume_envelope) / AudioProcessor.change_rms",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "speaker_id": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 65535,
+      "x-sonora": {
+        "id": "speaker_id",
+        "label": "模型内说话人",
+        "label_en": "Speaker ID",
+        "group": "diagnostic",
+        "unit": "ID",
+        "step": 1,
+        "help": "只列出训练元数据确认的说话人ID。Embedding容量不等于实际训练人数。",
+        "direction": "选择同一模型内已训练的说话人。",
+        "conditions": "模型已验证的speaker_ids_trained。",
+        "risk": "未训练的embedding行不能作为可用声音。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "单说话人模型锁定其唯一ID。"
+        },
+        "dependencies": [],
+        "native_mapping": "Synthesizer.infer(..., sid)",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "pitch_algorithm": {
+      "type": "string",
+      "default": "rmvpe",
+      "enum": [
+        "auto",
+        "rmvpe",
+        "fcpe",
+        "crepe",
+        "crepe-tiny",
+        "pyin",
+        "harvest",
+        "dio"
+      ],
+      "x-sonora": {
+        "id": "pitch_algorithm",
+        "label": "音高算法",
+        "label_en": "F0 estimator",
+        "group": "basic",
+        "unit": "",
+        "step": null,
+        "help": "独立分析输入F0；换算法会重新分析源曲线，绝不覆盖已锁定的目标快照。",
+        "direction": "不同算法使用各自的原生分数。",
+        "conditions": "干净单声部优先，重叠声部先分离。",
+        "risk": "多算法一致不代表音高一定正确。",
+        "recommendation": {
+          "value": "rmvpe",
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "RMVPE是保守起点；疑难区间可用CREPE、pYIN或WORLD复核。"
+        },
+        "dependencies": [],
+        "native_mapping": "PitchService.analyze",
+        "recompute_scope": "音高分析、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "f0_min": {
+      "type": "number",
+      "default": 50,
+      "minimum": 20,
+      "maximum": 1999,
+      "x-sonora": {
+        "id": "f0_min",
+        "label": "最低检测音高",
+        "label_en": "F0 min",
+        "group": "advanced",
+        "unit": "Hz",
+        "step": 1,
+        "help": "限定保留的检测音域；RMVPE/FCPE用检测后门控，不会扩展模型训练音域。",
+        "direction": "低于范围的检测帧被标记为未知。",
+        "conditions": "需小于f0_max。",
+        "risk": "过窄可能丢失低音。",
+        "recommendation": {
+          "value": 50,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "初始50Hz，只有已知音域时收窄。"
+        },
+        "dependencies": [],
+        "native_mapping": "PitchService native search where available + post-detection range gate",
+        "recompute_scope": "音高分析、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "f0_max": {
+      "type": "number",
+      "default": 1100,
+      "minimum": 21,
+      "maximum": 2000,
+      "x-sonora": {
+        "id": "f0_max",
+        "label": "最高检测音高",
+        "label_en": "F0 max",
+        "group": "advanced",
+        "unit": "Hz",
+        "step": 1,
+        "help": "限定保留的最高检测音高；不保证任何算法都能可靠识别上限。",
+        "direction": "高于范围的检测帧被标记为未知。",
+        "conditions": "需大于f0_min。",
+        "risk": "过低会截掉高音，过宽可能保留倍频错误。",
+        "recommendation": {
+          "value": 1100,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "初始1100Hz；根据确认过的歌声范围调整。"
+        },
+        "dependencies": [],
+        "native_mapping": "PitchService native search where available + post-detection range gate",
+        "recompute_scope": "音高分析、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "threshold": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null,
+      "minimum": 0,
+      "maximum": 1,
+      "x-sonora": {
+        "id": "threshold",
+        "label": "算法门限",
+        "label_en": "Estimator threshold",
+        "group": "advanced",
+        "unit": "原生量纲",
+        "step": 0.001,
+        "help": "RMVPE使用salience，FCPE使用解码阈值，CREPE使用periodicity，pYIN使用有声概率门控。",
+        "direction": "更高通常排除更多低分帧；它不是统一正确率。",
+        "conditions": "算法有对应原生分数；WORLD不支持。",
+        "risk": "门限过高会丢失弱音和气声。",
+        "recommendation": {
+          "value": null,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "null使用该算法已记录默认门限。"
+        },
+        "dependencies": [],
+        "native_mapping": "PitchService estimator-specific threshold",
+        "recompute_scope": "音高分析、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "silence_db": {
+      "type": "number",
+      "default": -60,
+      "minimum": -100,
+      "maximum": -20,
+      "x-sonora": {
+        "id": "silence_db",
+        "label": "静音门控",
+        "label_en": "Silence gate",
+        "group": "advanced",
+        "unit": "dBFS",
+        "step": 1,
+        "help": "独立RMS静音门控，将过弱帧保持为清音/未知，不跨静音插值。",
+        "direction": "数值越大越容易判为静音。",
+        "conditions": "16kHz输入、1024采样RMS窗、160采样hop。",
+        "risk": "过高会削掉轻声尾音。",
+        "recommendation": {
+          "value": -60,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "-60dBFS为保守起点，先检查源噪声。"
+        },
+        "dependencies": [],
+        "native_mapping": "PitchService RMS gate",
+        "recompute_scope": "音高分析、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "filter_radius": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 7,
+      "x-sonora": {
+        "id": "filter_radius",
+        "label": "目标F0中值平滑",
+        "label_en": "F0 median radius",
+        "group": "advanced",
+        "unit": "帧",
+        "step": 1,
+        "help": "SONORA在每段连续有声F0内做2r+1帧中值平滑，0关闭。不是Harvest专用参数。",
+        "direction": "半径增大会削弱短时抖动，也可能削弱颤音。",
+        "conditions": "在自动靠近半音、移调及手修之前执行。",
+        "risk": "过强会磨平转音。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "从0开始；问题段可试1–3帧。"
+        },
+        "dependencies": [],
+        "native_mapping": "SONORA voiced-run target median filter",
+        "recompute_scope": "目标F0、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "f0_autotune": {
+      "type": "boolean",
+      "default": false,
+      "x-sonora": {
+        "id": "f0_autotune",
+        "label": "自动靠近半音",
+        "label_en": "Target F0 autotune",
+        "group": "advanced",
+        "unit": "",
+        "step": null,
+        "help": "将有声目标F0向A4=440Hz的最近十二平均律半音靠拢，保留静音。",
+        "direction": "不是旋律识别；不会自动纠正唱错的音符。",
+        "conditions": "平滑后、整体移调前；手修和锁定快照最后生效。",
+        "risk": "可能削弱滑音和装饰音。",
+        "recommendation": {
+          "value": false,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "默认关闭，只有音乐音高需要时启用。"
+        },
+        "dependencies": [],
+        "native_mapping": "SONORA target log-F0 chromatic attraction; native Applio autotune disabled",
+        "recompute_scope": "目标F0、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "f0_autotune_strength": {
+      "type": "number",
+      "default": 0.5,
+      "minimum": 0,
+      "maximum": 1,
+      "x-sonora": {
+        "id": "f0_autotune_strength",
+        "label": "靠近半音强度",
+        "label_en": "Autotune strength",
+        "group": "advanced",
+        "unit": "比例",
+        "step": 0.05,
+        "help": "在音分域混合原检测与最近半音，0不改变，1完全吸附。",
+        "direction": "越大越靠近最近半音。",
+        "conditions": "f0_autotune=true。",
+        "risk": "无法判断所选半音是否符合实际旋律。",
+        "recommendation": {
+          "value": 0.5,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "先比较0.25–0.5，保留表情。"
+        },
+        "dependencies": [
+          {
+            "parameter": "f0_autotune",
+            "condition": "==true",
+            "reason": "自动靠近半音未启用"
+          }
+        ],
+        "native_mapping": "SONORA target MIDI interpolation",
+        "recompute_scope": "目标F0、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "context_seconds": {
+      "type": "number",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 5,
+      "x-sonora": {
+        "id": "context_seconds",
+        "label": "短预览上下文",
+        "label_en": "Preview context",
+        "group": "advanced",
+        "unit": "秒",
+        "step": 0.25,
+        "help": "短预览前后额外渲染的源上下文，再裁回选区。",
+        "direction": "更多上下文增加耗时并可能改变边界表现。",
+        "conditions": "仅range_ticks短预览。",
+        "risk": "不保证短片段与整段输出逐样本一致。",
+        "recommendation": {
+          "value": 1,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "初始前后各1秒；接缝问题可比较2–3秒。"
+        },
+        "dependencies": [
+          {
+            "parameter": "range_ticks",
+            "condition": "present",
+            "reason": "全曲渲染不使用预览上下文范围"
+          }
+        ],
+        "native_mapping": "RVC adapter context extraction + valid-range crop",
+        "recompute_scope": "本次短预览、相关下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "device": {
+      "type": "string",
+      "default": "auto",
+      "enum": [
+        "auto",
+        "cpu",
+        "cuda",
+        "cuda:0"
+      ],
+      "x-sonora": {
+        "id": "device",
+        "label": "推理设备",
+        "label_en": "Device",
+        "group": "advanced",
+        "unit": "",
+        "step": null,
+        "help": "auto选择可用CUDA，否则CPU；显式选择不可用CUDA会报错。",
+        "direction": "CPU较慢；设备选择不代表音质评分。",
+        "conditions": "锁定环境实际运行库支持。",
+        "risk": "显存不足时减小预览范围或显式选CPU。",
+        "recommendation": {
+          "value": "auto",
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "auto为保守起点。"
+        },
+        "dependencies": [],
+        "native_mapping": "torch device + independent PitchService device",
+        "recompute_scope": "RVC及上游设备配置",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "precision": {
+      "type": "string",
+      "default": "float32",
+      "enum": [
+        "float32"
+      ],
+      "x-sonora": {
+        "id": "precision",
+        "label": "推理精度",
+        "label_en": "Precision",
+        "group": "diagnostic",
+        "unit": "",
+        "step": null,
+        "help": "当前适配器只验证并使用float32。",
+        "direction": "不会把未验证的float16显示为可用。",
+        "conditions": "当前锁定RVC/ContentVec路线。",
+        "risk": "切换精度需要独立兼容和音频验证。",
+        "recommendation": {
+          "value": "float32",
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持float32。"
+        },
+        "dependencies": [],
+        "native_mapping": "Generator/ContentVec.float()",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": true,
+        "default_source": "executor_default"
+      }
+    },
+    "seed": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2147483647,
+      "x-sonora": {
+        "id": "seed",
+        "label": "随机种子",
+        "label_en": "Seed",
+        "group": "advanced",
+        "unit": "",
+        "step": 1,
+        "help": "固定PyTorch和NumPy随机状态用于同条件比较。",
+        "direction": "固定种子不保证跨驱动/设备逐样本一致。",
+        "conditions": "同模型、源、F0、设备及精度。",
+        "risk": "不要把跨硬件差异当作模型版本音质结论。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "对比候选保持0或同一个明确种子。"
+        },
+        "dependencies": [],
+        "native_mapping": "torch.manual_seed / numpy.random.seed",
+        "recompute_scope": "RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "hop_length": {
+      "type": "integer",
+      "default": 160,
+      "minimum": 160,
+      "maximum": 160,
+      "x-sonora": {
+        "id": "hop_length",
+        "label": "F0帧步长",
+        "label_en": "F0 hop",
+        "group": "diagnostic",
+        "unit": "采样",
+        "step": 1,
+        "help": "当前PitchService固定16kHz、160采样步长，即10ms。",
+        "direction": "仅展示真实时间网格。",
+        "conditions": "固定适配器接口。",
+        "risk": "不能只改UI帧长而忽略生成器网格。",
+        "recommendation": {
+          "value": 160,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持160，变更需要适配器验证。"
+        },
+        "dependencies": [],
+        "native_mapping": "PitchService fixed hop160",
+        "recompute_scope": "只读",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": true,
+        "default_source": "executor_default"
+      }
+    },
+    "embedder_model": {
+      "type": "string",
+      "default": "contentvec",
+      "enum": [
+        "contentvec"
+      ],
+      "x-sonora": {
+        "id": "embedder_model",
+        "label": "内容编码器",
+        "label_en": "Content encoder",
+        "group": "diagnostic",
+        "unit": "",
+        "step": null,
+        "help": "必须与训练时已验证的内容编码器一致，当前仅支持本地ContentVec。",
+        "direction": "不是可随意更换的音色选项。",
+        "conditions": "注册清单embedder_verified=true。",
+        "risk": "未知编码器不能用维度相同作为兼容证据。",
+        "recommendation": {
+          "value": "contentvec",
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持模型训练元数据中的已知编码器。"
+        },
+        "dependencies": [],
+        "native_mapping": "HubertModelWithFinalProj local ContentVec",
+        "recompute_scope": "模型重新验证、RVC及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": true,
+        "default_source": "executor_default"
+      }
+    },
+    "clean_audio": {
+      "type": "boolean",
+      "default": false,
+      "x-sonora": {
+        "id": "clean_audio",
+        "label": "转换后降噪",
+        "label_en": "Clean audio",
+        "group": "advanced",
+        "unit": "",
+        "step": null,
+        "help": "在RVC之后使用已有noisereduce做非平稳谱门控；是后处理DSP，不是原生音色控制。",
+        "direction": "启用后按clean_strength衰减估计噪声。",
+        "conditions": "本机已有且可工作的noisereduce。",
+        "risk": "可能损伤气声、齿音及尾音。",
+        "recommendation": {
+          "value": false,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "默认关闭，先用同片段旁路对照。"
+        },
+        "dependencies": [],
+        "native_mapping": "Post-RVC noisereduce.reduce_noise(use_torch=False,stationary=False)",
+        "recompute_scope": "转换后DSP及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "clean_strength": {
+      "type": "number",
+      "default": 0.5,
+      "minimum": 0,
+      "maximum": 1,
+      "x-sonora": {
+        "id": "clean_strength",
+        "label": "转换后降噪强度",
+        "label_en": "Clean strength",
+        "group": "advanced",
+        "unit": "比例",
+        "step": 0.05,
+        "help": "noisereduce prop_decrease，0不降噪，1使用完整估计衰减。",
+        "direction": "越大降噪越强。",
+        "conditions": "clean_audio=true且依赖可用。",
+        "risk": "不是分离或去混响强度。",
+        "recommendation": {
+          "value": 0.5,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "从0.5短试听；干净输入保持关闭。"
+        },
+        "dependencies": [
+          {
+            "parameter": "clean_audio",
+            "condition": "==true",
+            "reason": "转换后降噪未启用"
+          }
+        ],
+        "native_mapping": "noisereduce.reduce_noise(prop_decrease)",
+        "recompute_scope": "转换后DSP及下游",
+        "supported": true,
+        "support_reason": "已接入当前执行路径，仍需满足适用条件",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "split_audio": {
+      "type": "boolean",
+      "default": false,
+      "x-sonora": {
+        "id": "split_audio",
+        "label": "自动按静音拆分",
+        "label_en": "Split audio",
+        "group": "advanced",
+        "unit": "",
+        "step": null,
+        "help": "此适配器保留原时间轴，不启用Applio按静音拆分/拼接路线。",
+        "direction": "不可用。",
+        "conditions": "可使用已验证的短预览或工程片段编排。",
+        "risk": "未验证的拼接可能改变停顿和接缝。",
+        "recommendation": {
+          "value": false,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持关闭。"
+        },
+        "dependencies": [],
+        "native_mapping": "unsupported: native split/merge not integrated",
+        "recompute_scope": "不支持",
+        "supported": false,
+        "support_reason": "此适配器保留原时间轴，不启用Applio按静音拆分/拼接路线。",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "crossfade_ms": {
+      "type": "number",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 0,
+      "x-sonora": {
+        "id": "crossfade_ms",
+        "label": "原生分块交叉淡化",
+        "label_en": "Chunk crossfade",
+        "group": "advanced",
+        "unit": "ms",
+        "step": 1,
+        "help": "当前RVC分块没有可独立调整的交叉淡化参数；工程片段拼选另有淡化。",
+        "direction": "不可用。",
+        "conditions": "使用片段拼选的明确淡化操作。",
+        "risk": "不得把未执行的淡化标记为生效。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持0。"
+        },
+        "dependencies": [],
+        "native_mapping": "unsupported: use separate comp DSP",
+        "recompute_scope": "不支持",
+        "supported": false,
+        "support_reason": "当前RVC分块没有可独立调整的交叉淡化参数；工程片段拼选另有淡化。",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "formant_shifting": {
+      "type": "boolean",
+      "default": false,
+      "x-sonora": {
+        "id": "formant_shifting",
+        "label": "输入共振峰处理",
+        "label_en": "Formant shifting",
+        "group": "advanced",
+        "unit": "",
+        "step": null,
+        "help": "尚未在当前外部F0路线验证输入共振峰变换。",
+        "direction": "不可用，不映射成移调。",
+        "conditions": "需要独立输入DSP与时间/F0回归。",
+        "risk": "可能改变清辅音及音色；不能冒充原生RVC控制。",
+        "recommendation": {
+          "value": false,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持关闭。"
+        },
+        "dependencies": [],
+        "native_mapping": "unsupported: no validated input formant node",
+        "recompute_scope": "不支持",
+        "supported": false,
+        "support_reason": "尚未在当前外部F0路线验证输入共振峰变换。",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "proposed_pitch": {
+      "type": "boolean",
+      "default": false,
+      "x-sonora": {
+        "id": "proposed_pitch",
+        "label": "自动提议移调",
+        "label_en": "Proposed pitch",
+        "group": "advanced",
+        "unit": "",
+        "step": null,
+        "help": "当前不启用按检测中位数自动提议移调，以免与外部目标F0重复叠加。",
+        "direction": "不可用。",
+        "conditions": "通过参考音符/整体移调明确编辑目标。",
+        "risk": "自动建议不能按性别标签固定变调。",
+        "recommendation": {
+          "value": false,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持关闭。"
+        },
+        "dependencies": [],
+        "native_mapping": "unsupported: explicit target F0 route only",
+        "recompute_scope": "不支持",
+        "supported": false,
+        "support_reason": "当前不启用按检测中位数自动提议移调，以免与外部目标F0重复叠加。",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    },
+    "resample_sr": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 0,
+      "x-sonora": {
+        "id": "resample_sr",
+        "label": "推理后重采样",
+        "label_en": "RVC resample rate",
+        "group": "diagnostic",
+        "unit": "Hz",
+        "step": 1,
+        "help": "RVC产物保留模型原生采样率；混音/导出阶段可明确选择输出采样率。",
+        "direction": "0表示保留模型原生采样率。",
+        "conditions": "输出编码由单独导出节点负责。",
+        "risk": "升采样不会增加原本不存在的细节。",
+        "recommendation": {
+          "value": 0,
+          "basis": "当前适配器定义及通用保守起点；并非音质评分",
+          "source_type": "通用保守起点",
+          "reason": "保持0，在导出阶段选择目标格式。"
+        },
+        "dependencies": [],
+        "native_mapping": "unsupported in RVC: separate export resampler",
+        "recompute_scope": "不支持",
+        "supported": false,
+        "support_reason": "RVC产物保留模型原生采样率；混音/导出阶段可明确选择输出采样率。",
+        "read_only": false,
+        "default_source": "executor_default"
+      }
+    }
+  },
+  "x-f0-order": [
+    "raw_detection",
+    "voiced_run_median",
+    "chromatic_autotune",
+    "global_transpose",
+    "manual_edits",
+    "locked_absolute_snapshots"
+  ]
+}

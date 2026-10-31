@@ -68,7 +68,7 @@ class Store:
     def new_project(self, name, task='speech'):
         p = dict(id=uid('project'), name=name, task=task, schema_version=1, revision=1, timebase=TIMEBASE,
                  created_at=now(), updated_at=now(), assets=[], tracks=[], selection={'start':0,'end':0},playhead=0, mode='quick',
-                 parameters={'pitch_algorithm':'rmvpe','transpose':0,'index_rate':0,'protect':0.33}, pitch_edits=[], notes=[],lyrics=[],candidates=[],selected_candidate_id=None,voice_parts={},exports=[],graph=[],warnings=[])
+                 parameters={'pitch_algorithm':'rmvpe','transpose':0,'index_rate':0,'protect':0.33}, pitch_edits=[], notes=[],lyrics=[],candidates=[],selected_candidate_id=None,voice_parts={},view_preferences={},model_bindings={'tracks':{},'clips':{}},comparisons=[],exports=[],graph=[],warnings=[])
         with self.lock,self.connect() as db:
             db.execute('INSERT INTO projects(id,body) VALUES(?,?)',(p['id'],encode(p)))
             self._checkpoint(db,p)
@@ -108,7 +108,7 @@ class Store:
             target = pos + (-1 if direction=='undo' else 1)
             row = db.execute('SELECT body FROM history WHERE project_id=? AND position=?',(identifier,target)).fetchone()
             if not row: return current
-            value = json.loads(row[0]); value['revision'] = current['revision']+1; value['updated_at']=now()
+            value = json.loads(row[0]); value['revision'] = current['revision']+1; value['updated_at']=now();value['last_user_audio_edit']=uid('edit')
             db.execute('UPDATE projects SET body=? WHERE id=?',(encode(value),identifier))
             db.execute('UPDATE cursors SET position=? WHERE project_id=?',(target,identifier))
             return value

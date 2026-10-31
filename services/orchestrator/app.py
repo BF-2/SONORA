@@ -24,11 +24,23 @@ from .scheduler import Scheduler
 from .store import Store, Conflict, now, uid
 from .editing import freeze_locks
 from .midi import read_midi,write_midi
+from .catalog_api import make_catalog_router
+from .rvc_service import make_rvc_router,quick_manifest,resolve_selection,selection_fields,pin_parameter_delta,builtin_presets,PARAMETER_KEYS,ANALYSIS_KEYS,VIEW_PARAMETER_KEYS
+from .workflow import describe_workflow,scoped_context
+from .model_selection import select_model,clear_selection,resolve_binding
+from workers.rvc_parameters import validate_rvc_parameters
+from .rvc_service import clean_audio_available
 from .voices import VOICE_PARTS,PART_NAMES,voice_part,new_binding,sync_part_tracks,resolve_part,remap_parts,invalidate_mix,covers_source
 
 app=FastAPI(title='声序 SONORA',version='1.0.0',docs_url=None,redoc_url=None,openapi_url=None)
-store=Store(); scheduler=Scheduler(store)
+store=Store();catalog_router=make_catalog_router(store);catalog=catalog_router.catalog;scheduler=Scheduler(store,catalog)
+app.include_router(catalog_router)
+app.include_router(make_rvc_router(store,catalog))
 registry_lock=threading.RLock()
+
+@app.on_event('startup')
+def discover_model_versions():
+    if os.environ.get('SONORA_SKIP_CATALOG_SCAN')!='1':catalog.ensure_initial_scan(max_files=5000,max_seconds=30)
 
 @app.middleware('http')
 async def guard(request:Request,call_next):
@@ -82,37 +94,18 @@ def capabilities():
              {'id':'rvc','name':'Applio / RVC','status':'ready' if installed and os.environ.get('SONORA_DISABLE_MODEL_WORKERS')!='1' else 'unavailable','reason':'真实外部 F0 条件；模型音质仍需人工试听','capabilities':{'voice_conversion':True,'singing_conversion':True,'external_f0':True,'streaming':False,'svs':False,'local_segment_render':False},'test_status':'see per-model manifest'},
              {'id':'svs','name':'DiffSinger · Nishiren Gard AI','status':'ready' if config.get('svs',{}).get('models') else 'unavailable','reason':'已接入日语假名/显式音素 + 音符的锁定窗口合成。其他语言请使用新导唱路线。','default_model':config.get('svs',{}).get('default_model'),'models':[{k:v for k,v in m.items() if k!='components'} for m in config.get('svs',{}).get('models',[])],'capabilities':{'svs':bool(config.get('svs',{}).get('models')),'languages':['ja'],'notes':True,'phoneme_timing':True,'timing_policy':['locked_window'],'max_phrase_seconds':60}},
              {'id':'realtime','name':'实时会话','status':'unavailable','reason':'尚未配置与验证流式执行器和音频设备路由。','capabilities':{'streaming':False}}]
-    return {'protocol_version':1,'engines':engines,'device':{'name':'本地执行器','inference':'CPU / CUDA 按执行器实测','max_parallel_gpu_jobs':1},'verification':tested}
+    return {'protocol_version':1,'engines':engines,'device':{'name':'本地执行器','inference':'CPU / CUDA 按执行器实测','max_parallel_gpu_jobs':1},'verification':tested,'catalog_scan':catalog.latest_scan()}
 
 @app.get('/api/v1/models')
-def models(): return {'models':resources().get('models',[])}
+def models(): return catalog.list_models(limit=250,include_aliases=True)
 
 @app.post('/api/v1/models/import')
 def import_model(body:dict):
-    path=scoped_path(body.get('path',''))
-    if path.suffix.lower()!='.pth' or path.stat().st_size>2*1024**3: raise ValueError('首发支持不超过 2 GiB 的 RVC .pth；压缩包和任意代码不直接加载。')
-    config=resources(); python=config.get('applio',{}).get('python')
-    if not python: raise ValueError('缺少 RVC 安全探测环境。')
-    result=subprocess.run([python,str(ROOT/'workers/rvc/probe_model.py'),str(path)],capture_output=True,text=True,encoding='utf-8',timeout=90,creationflags=media.NO_WINDOW,env={**os.environ,'PYTHONUTF8':'1','PYTHONDONTWRITEBYTECODE':'1','TORCH_FORCE_WEIGHTS_ONLY_LOAD':'1'})
-    if result.returncode: raise ValueError('安全模型探测失败：'+result.stderr[-500:])
-    probe=json.loads(result.stdout)[0]
-    if not probe.get('ok'): raise ValueError('模型不兼容或无法受限加载：'+str(probe.get('error','unknown')))
-    digest=probe['model_hash'];dest=ROOT/'resources/models/imported'/digest[:16]/path.name; dest.parent.mkdir(parents=True,exist_ok=True)
-    if not dest.exists():
-        try: os.link(path,dest)
-        except OSError: shutil.copyfile(path,dest)
-    manifest={**probe,'id':'imported_'+digest[:16],'name':path.stem,'path':str(dest),'origin_path':str(path),'license':'unconfirmed','code_license':'MIT (Applio)','engine_revision':config['applio']['revision']}
-    index=scoped_path(body['index_path']) if body.get('index_path') else path.with_suffix('.index')
-    if index and index.is_file():
-        scoped_path(index);index_dest=dest.parent/index.name
-        if not index_dest.exists():
-            try: os.link(index,index_dest)
-            except OSError: shutil.copyfile(index,index_dest)
-        manifest.update(index_path=str(index_dest),index_hash=media.sha256(index_dest))
-    with registry_lock:
-        config=resources();config['models']=[m for m in config['models'] if m['id']!=manifest['id']]+[manifest]
-        cfg=ROOT/'engine-envs/resources.json';tmp=cfg.with_suffix('.tmp');tmp.write_text(json.dumps(config,ensure_ascii=False,indent=2),encoding='utf-8');os.replace(tmp,cfg)
-    return manifest
+    results=catalog.import_batch([body.get('path','')]+([body['index_path']] if body.get('index_path') else []))['results']
+    if not all(r['ok'] for r in results):raise ValueError('；'.join(r.get('error','') for r in results if not r['ok']))
+    identifier=results[0]['model']['id'];catalog.validate(identifier)
+    if len(results)>1:return catalog.bind_index(identifier,results[1]['model']['id'])
+    return catalog.resolve_model(identifier)
 
 @app.get('/api/v1/presets')
 def presets(): return {'presets':[{'id':'natural','name':'自然对白','version':1,'parameters':{'transpose':0,'index_rate':0,'protect':0.33,'pitch_algorithm':'rmvpe'},'explanation':'保留原始音高，不默认吸附音阶。'},{'id':'singing','name':'贴近原唱','version':1,'parameters':{'transpose':0,'index_rate':0.5,'protect':0.33,'pitch_algorithm':'rmvpe'},'explanation':'需要检索索引；先检查分离后主唱。'},{'id':'quick','name':'快速试听','version':1,'parameters':{'transpose':0,'index_rate':0,'protect':0.33,'pitch_algorithm':'fcpe'},'explanation':'短选区试听，实际速度以本机记录为准。'}]}
@@ -129,6 +122,27 @@ def create_project(body:dict):
 @app.get('/api/v1/projects/{pid}')
 def project(pid:str): return store.get('projects',pid)
 
+@app.get('/api/v1/projects/{pid}/workflow')
+def workflow(pid:str,voice_part:str|None=None):
+    p=store.get('projects',pid);_,parameters,_=scoped_context(p,voice_part)
+    source,_,binding=scoped_context(p,voice_part)
+    try:effective,_=resolve_binding(p,{**parameters,**({'voice_part':voice_part} if binding else {})},source['id'] if source else None)
+    except ValueError as error:effective=parameters;binding_error=str(error)
+    else:binding_error=None
+    view=copy.deepcopy(p)
+    if not binding:view['parameters']=effective
+    result=describe_workflow(view,quick_manifest(catalog,effective),voice_part)
+    result.update(effective_parameters=effective,binding_origin=effective.get('model_binding_scope','voice_part' if binding else 'project'),binding_error=binding_error)
+    return result
+
+@app.post('/api/v1/projects/{pid}/model-selection')
+def project_model_selection(pid:str,body:dict):
+    check_structure(body);return select_model(store,catalog,pid,body)
+
+@app.post('/api/v1/projects/{pid}/model-selection/clear')
+def clear_project_model_selection(pid:str,body:dict):
+    check_structure(body);return clear_selection(store,pid,body)
+
 def check_structure(value,depth=0):
     if depth>16: raise ValueError('工程结构嵌套过深。')
     if isinstance(value,dict):
@@ -143,7 +157,7 @@ def check_structure(value,depth=0):
     elif isinstance(value,str) and len(value)>100000: raise ValueError('文本超长。')
 
 def validate_patch(p,patch):
-    allowed={'name','task','selection','playhead','mode','parameters','pitch_edits','notes','lyrics','tracks','candidates','selected_candidate_id','voice_parts','warnings'}
+    allowed={'name','task','selection','playhead','mode','parameters','pitch_edits','notes','lyrics','tracks','candidates','selected_candidate_id','voice_parts','view_preferences','model_bindings','warnings'}
     if set(patch)-allowed: raise ValueError('不可直接修改产物、图结构或工程身份。')
     check_structure(patch)
     if patch.get('mode',p['mode']) not in ('quick','detail','expert'): raise ValueError('无效编辑模式。')
@@ -168,6 +182,12 @@ def validate_patch(p,patch):
         media.bounded(t.get('gain_db',0),-96,24);media.bounded(t.get('pan',0),-1,1);media.effects_filter(t.get('effects',[]))
         if not isinstance(t.get('offset_ticks',0),int): raise ValueError('轨道偏移必须为整数 tick。')
     params=patch.get('parameters',{})
+    validate_rvc_parameters({k:v for k,v in params.items() if k in PARAMETER_KEYS or k in ('range_ticks','source_timeline_offset_ticks')},clean_audio_available=clean_audio_available())
+    if params.get('source_artifact_id') and params['source_artifact_id'] not in owned:raise ValueError('所选输入不属于当前工程。')
+    if 'view_preferences' in patch:
+        if not isinstance(patch['view_preferences'],dict):raise ValueError('视图偏好必须为对象。')
+        stage=patch['view_preferences'].get('stage',0)
+        if type(stage) is not int or not 0<=stage<=5:raise ValueError('无效阶段偏好。')
     if params.get('active_voice_part','vocal') not in ('vocal',*VOICE_PARTS):raise ValueError('未知的编辑声部。')
     for key,lo,hi in [('transpose',-36,36),('index_rate',0,1),('protect',0,.5),('volume_envelope',0,1),('segment_size',32,2048),('overlap',1,16)]:
         if key in params: media.bounded(params[key],lo,hi)
@@ -200,8 +220,41 @@ def validate_patch(p,patch):
 @app.patch('/api/v1/projects/{pid}')
 def patch_project(pid:str,body:dict):
     if not isinstance(body.get('revision'),int): raise ValueError('保存需要工程版本号。')
-    patch=body.get('patch',{})
+    patch=copy.deepcopy(body.get('patch',{}));current=store.get('projects',pid)
+    if 'model_bindings' in patch:raise ValueError('请通过模型选择接口或参数增量更新覆盖，不能直接替换版本绑定。')
+    if current['revision']!=body['revision']:raise Conflict('工程已更新，请刷新后重试。')
+    if 'parameters' in patch:patch['parameters']=pin_parameter_delta(catalog,current['parameters'],patch['parameters'])
+    for part,delta in patch.get('voice_parts',{}).items():
+        if isinstance(delta,dict) and 'parameters' in delta:
+            delta['parameters']=pin_parameter_delta(catalog,current.get('voice_parts',{}).get(part,{}).get('parameters',{}),delta['parameters'])
     def mutate(p):
+        if 'candidates' in patch:
+            if not isinstance(patch['candidates'],list):raise ValueError('候选更新必须为列表。')
+            current_candidates={c['id']:c for c in p['candidates']};seen=set()
+            for incoming in patch['candidates']:
+                identifier=incoming.get('id')
+                if identifier not in current_candidates or identifier in seen:raise ValueError('候选只能由成功推理创建，更新不能重复标识。')
+                seen.add(identifier);current_candidate=current_candidates[identifier]
+                for key in ('source_artifact_id','artifact_id','model_id','generation_depth','voice_part','part_source_artifact_id'):
+                    if key in incoming and incoming[key]!=current_candidate.get(key):raise ValueError('候选推理来源不可编辑。')
+                current_candidates[identifier]={**current_candidate,**{key:incoming[key] for key in ('name','notes','favorite') if key in incoming}}
+            patch['candidates']=[current_candidates[c['id']] for c in p['candidates']]
+        scoped_parameter_changes=[]
+        if 'model_parameter_updates' in patch:
+            updates=patch.pop('model_parameter_updates')
+            if not isinstance(updates,dict) or set(updates)-{'tracks','clips'}:raise ValueError('模型参数覆盖范围无效。')
+            bindings=copy.deepcopy(p.get('model_bindings',{}))
+            for scope,entries in updates.items():
+                if not isinstance(entries,dict):raise ValueError('模型参数覆盖必须为对象。')
+                for identifier,delta in entries.items():
+                    if identifier not in bindings.get(scope,{}) or not isinstance(delta,dict):raise ValueError('模型覆盖不存在。')
+                    if set(delta)-PARAMETER_KEYS-{'parameter_sources','preset_id','switch_policy','accepted_preview_id'}:raise ValueError('通过版本选择器改变模型/索引绑定，参数覆盖不能改变身份。')
+                    entry=bindings[scope][identifier];old=entry.get('parameters',{})
+                    merged={**old,**delta}
+                    if 'parameter_sources' in delta:merged['parameter_sources']={**old.get('parameter_sources',{}),**delta['parameter_sources']}
+                    validate_patch(p,{'parameters':merged});entry['parameters']=merged
+                    scoped_parameter_changes.append((entry.get('source_artifact_id'),identifier,set(delta)))
+            patch['model_bindings']=bindings
         if 'track_updates' in patch:
             updates=patch.pop('track_updates')
             if not isinstance(updates,dict) or set(updates)-{t['id'] for t in p['tracks']}:raise ValueError('轨道更新引用未知轨道。')
@@ -231,8 +284,17 @@ def patch_project(pid:str,body:dict):
             freeze_locks(view,binding,store,binding['source_artifact_id'])
         changed=set(patch)&{'parameters','pitch_edits','notes','lyrics','tracks'}
         # Switching editor focus is not an audio parameter change.
-        if changed=={'parameters'} and {k:v for k,v in patch['parameters'].items() if k!='active_voice_part'}=={k:v for k,v in p['parameters'].items() if k!='active_voice_part'}:changed=set()
+        parameter_changes={key for key in set(p['parameters'])|set(patch.get('parameters',p['parameters'])) if p['parameters'].get(key)!=patch.get('parameters',p['parameters']).get(key)}
+        if changed=={'parameters'} and not (parameter_changes-VIEW_PARAMETER_KEYS-{'accepted_preview_id'}):changed=set()
         p.update(copy.deepcopy(patch))
+        if changed or changed_parts or routing_parts or scoped_parameter_changes:p['last_user_audio_edit']=uid('edit')
+        for source_id,identifier,keys in scoped_parameter_changes:
+            for node in p['graph']:
+                if node.get('voice_part'):continue
+                affected=source_id in node.get('input_refs',[]) or node.get('parameters',{}).get('model_binding_target')==identifier
+                if affected and (node['type'] in ('convert','pipeline') or node['type']=='pitch' and keys&ANALYSIS_KEYS) or node['type'] in ('mix','export','export_stems'):
+                    node.update(state='stale',reason='轨道/区间参数变更，旧结果保留供比较')
+            p['warnings']=[w for w in p['warnings'] if w.get('code')!='pending_model_parameters']+[{'code':'pending_model_parameters','message':'当前覆盖参数已更新，请重新生成同区间试听。'}]
         if changed_parts:
             for node in p['graph']:
                 if node.get('voice_part') in changed_parts or node['type'] in ('mix','export','export_stems'):
@@ -248,13 +310,23 @@ def patch_project(pid:str,body:dict):
                 if affected=='conversion_mix_export' and node['type'] in ('convert','pipeline','mix','export') or affected=='mix_export' and node['type'] in ('mix','export'):
                     node['state']='stale';node['invalidation_scope']='whole_node_context_unknown';node['reason']='编辑变更，保留旧版本试听，新版本待渲染'
             p['warnings']=[w for w in p['warnings'] if w.get('code')!='pending_render']+[{'code':'pending_render','message':'新版本待试听：旧产物仍可播放；重新运行受影响节点。','scope':affected}]
+            if parameter_changes&ANALYSIS_KEYS:
+                for node in p['graph']:
+                    if node['type']=='pitch' and not node.get('voice_part'):node.update(state='stale',reason='音高分析参数已改变，请重新检测')
         if 'selected_candidate_id' in patch and patch['selected_candidate_id']:
             if p.get('voice_parts'):raise ValueError('主唱/和声模式请在对应声部采用候选，不能将完整混合人声重新叠入。')
             selected=next((c for c in p['candidates'] if c['id']==patch['selected_candidate_id']),None)
             if not selected: raise ValueError('候选不存在。')
+            source=next(a for a in p['assets'] if a['id']==selected['source_artifact_id']);output=next(a for a in p['assets'] if a['id']==selected['artifact_id'])
+            source_track=next((t for t in p['tracks'] if t['artifact_id']==source['id']),{})
+            if not covers_source(output,source,source_track.get('offset_ticks',0)):raise ValueError('短试听不能替换整条人声；可采用试听设置、局部采用到完整候选，或生成完整版本。')
+            matching=[t for t in p['tracks'] if t['artifact_id']==selected['artifact_id']]
+            preferred=[t for t in matching if t.get('candidate_id')==selected['id']]
+            selected_track=(preferred or matching)[-1]['id'] if matching else None
             for c in p['candidates']: c['selected']=c['id']==selected['id']
             for t in p['tracks']:
-                if t['role'] in ('converted','vocal','guide','original','mix'): t['mute']=t['artifact_id']!=selected['artifact_id']
+                if t['role'] in ('converted','vocal','guide','original','mix'): t['mute']=t['id']!=selected_track
+            invalidate_mix(p,'已采用不同的人声候选')
     return store.change(pid,mutate,revision=body.get('revision'))
 
 @app.post('/api/v1/projects/{pid}/history')
@@ -295,6 +367,7 @@ def experiments(pid:str,body:dict):
 def attach_import(pid,a):
     def mutate(p):
         p['assets'].append(a)
+        p['last_user_audio_edit']=uid('edit')
         role=a['stem_role'];duration=round(a['sample_count']*TIMEBASE/a['sample_rate'])
         p['tracks'].append({'id':uid('track'),'name':a['name'],'role':role,'voice_part':voice_part(a),'artifact_id':a['id'],'gain_db':0,'pan':0,'mute':False,'solo':False,'offset_ticks':a.get('timeline_offset_ticks',0),'effects':[]})
         if role in VOICE_PARTS:
@@ -361,8 +434,13 @@ def recipe(pid:str):
     for a in p['assets']:
         for key in ('path','original_uri','original_snapshot'): a.pop(key,None)
     for e in p['exports']: e.pop('path',None)
-    used={c['model_id'] for c in p['candidates']}|{b.get('parameters',{}).get('model_id') for b in p.get('voice_parts',{}).values()}
-    manifests=[{k:v for k,v in m.items() if 'path' not in k} for m in resources().get('models',[]) if m['id'] in used]
+    used={c['model_id'] for c in p['candidates']}|{b.get('parameters',{}).get('model_id') for b in p.get('voice_parts',{}).values()}|{p['parameters'].get('model_id')}
+    manifests=[]
+    for identifier in used:
+        if not identifier:continue
+        try:m=catalog.get_model(identifier)
+        except KeyError:continue
+        manifests.append({k:v for k,v in m.items() if 'path' not in k})
     return JSONResponse({'format':'sonora-recipe','schema_version':1,'project':p,'model_manifests':manifests,'media_included':False,'reproducibility':'recipe-rerunnable; cross-device bit equality not promised'},headers={'Content-Disposition':'attachment; filename="sonora-recipe.json"'})
 
 def restored_candidate(candidate,mapping):
@@ -377,8 +455,19 @@ def restored_candidate(candidate,mapping):
         return depth+(1 if a.get('engine')=='rvc' and a.get('processing_kind')=='model_inference' else 0)
     depth=walk(output,set())
     if expected_source not in ancestors: raise ValueError('配方候选来源不符合已提交产物血缘。')
-    model=next((m for m in resources().get('models',[]) if m.get('model_hash')==output.get('model_hash')),None)
-    restored={**candidate,'artifact_id':output['id'],'source_artifact_id':expected_source,'generation_depth':max(1,depth),'model_id':model['id'] if model else 'unresolved','model_manifest_hash':output.get('model_hash'),'state':'succeeded' if depth else 'unverified_restored_media'}
+    try:model=catalog.get_model(candidate.get('model_id'))
+    except KeyError:model=None
+    if not model or model.get('model_hash')!=output.get('model_hash'):
+        model=next((m for m in catalog.list_models(q=output.get('model_hash') or 'unmatchable-hash',limit=250,include_aliases=True)['models'] if m.get('model_hash')==output.get('model_hash')),None)
+    model_hash=output.get('model_hash')
+    if output.get('assembly'):
+        assembly=output['assembly'];model_hash=assembly.get('preview_model_hash')
+        try:model=catalog.get_model(assembly['preview_model_id'])
+        except KeyError:model=None
+        if model and model.get('model_hash')!=model_hash:model=None
+    restored={**candidate,'artifact_id':output['id'],'source_artifact_id':expected_source,'generation_depth':max(1,depth),'model_id':model['id'] if model else 'unresolved','model_manifest_hash':model_hash,'state':'succeeded' if depth else 'unverified_restored_media'}
+    if candidate.get('source_preview_artifact_id') in mapping:restored['source_preview_artifact_id']=mapping[candidate['source_preview_artifact_id']]
+    if output.get('assembly'):restored['assembly']=copy.deepcopy(output['assembly'])
     part=voice_part(output)
     restored.pop('voice_part',None);restored.pop('part_source_artifact_id',None)
     if part:
@@ -409,8 +498,14 @@ async def restore(file:UploadFile=File(...)):
         if found: assets.append(found);mapping[a['id']]=found['id']
         else: missing.append({'hash':a.get('sha256'),'original_hash':a.get('original_hash'),'name':a.get('name'),'old_id':a.get('id')})
     def mutate(project):
-        for key in ('selection','playhead','mode','parameters','pitch_edits','notes','lyrics'):
+        for key in ('selection','playhead','mode','parameters','pitch_edits','notes','lyrics','view_preferences','model_bindings','comparisons'):
             if key in source: project[key]=source[key]
+        for scope in ('tracks','clips'):
+            for entry in project.get('model_bindings',{}).get(scope,{}).values():
+                if entry.get('source_artifact_id') in mapping:entry['source_artifact_id']=mapping[entry['source_artifact_id']]
+        for comparison in project.get('comparisons',[]):
+            for key in ('source_artifact_id','pitch_artifact_id'):
+                if comparison.get(key) in mapping:comparison[key]=mapping[comparison[key]]
         project['assets']=assets
         project['tracks']=[{**t,'artifact_id':mapping[t['artifact_id']]} for t in source.get('tracks',[]) if t.get('artifact_id') in mapping]
         project['candidates']=[]
@@ -422,7 +517,7 @@ async def restore(file:UploadFile=File(...)):
         project['graph']=[{**node,'artifact_refs':[mapping.get(ref,ref) for ref in node.get('artifact_refs',[])],'input_refs':[mapping.get(ref,ref) for ref in node.get('input_refs',[])]} for node in source.get('graph',[]) if isinstance(node,dict)]
         project['missing_media']=missing
         project['restore_pending']={'source':source,'mapping':mapping}
-        model_ids={m['id'] for m in resources().get('models',[])}
+        model_ids={m['id'] for m in catalog.list_models(limit=250,include_aliases=True)['models']}
         project['warnings']=[copy.deepcopy(w) for w in source.get('warnings',[]) if isinstance(w,dict) and w.get('code') not in ('missing_media','missing_model')]
         project['warnings'] += [{'code':'missing_media','message':f"缺少素材 {m['name']}，请按哈希重新链接。",**m} for m in missing]
         fallback_parts=[part for part,b in project['voice_parts'].items() if b.get('mode')=='convert' and not b.get('selected_candidate_id') and source.get('voice_parts',{}).get(part,{}).get('selected_candidate_id')]

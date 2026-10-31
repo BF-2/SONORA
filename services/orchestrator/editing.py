@@ -11,7 +11,7 @@ from .config import ROOT,TIMEBASE,DATA,binary
 
 # Pure numerical editor shared with worker; importing does not load a model.
 sys.path.insert(0,str(ROOT/'workers'))
-from pitch.engine import apply_edits
+from pitch.engine import apply_edits,apply_target_parameters,shift_pitch_to_project
 
 def note_edits(notes):
     result=[]
@@ -27,9 +27,9 @@ def freeze_locks(project,patch,store,source_id=None):
     pitch=next((a for a in reversed(project['assets']) if a.get('stem_role')=='pitch' and (source_id is None and not a.get('voice_part') or source_id in a.get('input_artifact_ids',[]))),None)
     if not pitch: return
     data=json.loads(media.validate_artifact(pitch).read_text(encoding='utf-8'))
-    data['frame_center_offset']+=round(pitch.get('timeline_offset_ticks',0)*data['sample_rate']/TIMEBASE)
+    data=shift_pitch_to_project(data,pitch.get('timeline_offset_ticks',0))
     params=patch.get('parameters',project['parameters'])
-    target=apply_edits(data,note_edits(patch.get('notes',project['notes']))+edits,params.get('transpose',0))
+    target=apply_target_parameters(data,{**params,'pitch_edits':note_edits(patch.get('notes',project['notes']))+edits})
     for edit in edits:
         if not edit.get('locked') or edit.get('snapshot'): continue
         first=max(0,math.ceil((edit['start_tick']*data['sample_rate']/TIMEBASE-data['frame_center_offset'])/data['hop']))

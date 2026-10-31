@@ -11,6 +11,8 @@ $sonoraPython = Join-Path $sonoraRoot '.venv\Scripts\python.exe'
 $sonoraExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora.exe'
 $sonoraHarmonyExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-harmony.exe'
 if (Test-Path -LiteralPath $sonoraHarmonyExe) { $sonoraExe = $sonoraHarmonyExe }
+$sonoraSpecialistExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-specialist.exe'
+if (Test-Path -LiteralPath $sonoraSpecialistExe) { $sonoraExe = $sonoraSpecialistExe }
 $sonoraPort = 8765
 
 if (-not $Browser -and (Test-Path -LiteralPath $sonoraExe)) {

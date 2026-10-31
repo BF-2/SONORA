@@ -23,6 +23,9 @@
     "lyrics": {"type": "array", "items": {"$ref": "#/$defs/Lyric"}},
     "candidates": {"type": "array", "items": {"$ref": "#/$defs/Candidate"}},
     "parameters": {"type": "object"},
+    "view_preferences": {"type":"object","properties":{"stage":{"type":"integer","minimum":0,"maximum":5},"expanded_panels":{"type":"object"}}},
+    "model_bindings": {"type":"object","properties":{"project":{"type":"object"},"tracks":{"type":"object"},"clips":{"type":"object"}}},
+    "comparisons": {"type":"array","items":{"type":"object"}},
     "exports": {"type": "array", "items": {"type": "object"}},
     "graph": {"type": "array", "items": {"type": "object"}}
     ,"voice_parts": {

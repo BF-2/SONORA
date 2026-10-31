@@ -1,0 +1,149 @@
+- complementary:
+  - button "SONORA 声 序 · 音 频 工 作 台":
+    - text: SONORA
+    - generic: 声 序 · 音 频 工 作 台
+  - button "专项补丁基线 · 歌曲流程 本地工程 · 已保存 ⌄":
+    - strong: 专项补丁基线 · 歌曲流程
+    - generic: 本地工程 · 已保存
+    - generic: ⌄
+  - text: 制作流程
+  - generic: "06"
+  - navigation "制作步骤":
+    - button "导入诊断 ✓":
+      - generic: 导入诊断
+      - generic "已有已完成产物": ✓
+    - button "人声整理 02" [active]:
+      - generic: 人声整理
+      - generic "可编辑": "02"
+    - button "音高与歌词 03":
+      - generic: 音高与歌词
+      - generic "可编辑": "03"
+    - button "声音转换 04":
+      - generic: 声音转换
+      - generic "可编辑": "04"
+    - button "混音 05":
+      - generic: 混音
+      - generic "可编辑": "05"
+    - button "导出 06":
+      - generic: 导出
+      - generic "可编辑": "06"
+  - button "声音与模型 29":
+    - text: 声音与模型
+    - generic: "29"
+  - button "候选与版本 0":
+    - text: 候选与版本
+    - generic: "0"
+  - button "任务队列 0":
+    - text: 任务队列
+    - generic: "0"
+  - generic: 文件在本机处理
+  - paragraph:
+    - text: 保留原始素材
+    - text: 每一版都有来源
+  - button "引擎与设置":
+    - text: 引擎与设置
+- banner:
+  - generic: 我的工作室
+  - generic: /
+  - strong: 人声整理
+  - generic "工程修订 3": ✓ 已保存
+  - button "撤销":
+  - button "重做":
+  - button "队列":
+    - generic: 队列
+  - group "编辑信息密度":
+    - button "快速完成"
+    - button "精细编辑"
+    - button "专家设置"
+- main:
+  - generic: STEP 02 / PREPARE YOUR VOICE
+  - heading "分开处理，保留每一层。" [level=1]
+  - paragraph: 先确认素材与声部，再让模型专注于声音。
+  - generic: 本地服务已连接
+  - heading "同一条时间轴" [level=2]:
+    - text: 同一条时间轴
+  - generic: 拖动选择区间 · 单击定位
+  - button "缩小时间轴": −
+  - status: 1×
+  - button "放大时间轴": +
+  - button "source.wav 解码素材 原始素材":
+    - strong: source.wav
+    - generic: 解码素材
+    - generic: 原始素材
+  - generic: 00:00.0
+  - generic: 00:05.2
+  - generic: 00:10.4
+  - generic: 00:15.6
+  - generic: 00:20.8
+  - generic: 00:26.0
+  - slider "source.wav 波形；左右键移动播放头，拖动选择区间"
+  - text: 选区
+  - strong: 00:00.0 — 00:26.0
+  - generic: · 26.00 秒
+  - generic: 选区起点（秒）
+  - spinbutton "选区起点（秒）": "0"
+  - generic: 选区终点（秒）
+  - spinbutton "选区终点（秒）": "26"
+  - button "循环试听":
+    - text: 循环试听
+  - button "选择整段"
+  - button "分离人声与伴奏":
+    - text: 分离人声与伴奏
+  - button "导入干人声"
+  - button "导入伴奏"
+  - button "已有干声，跳过分离":
+    - text: 已有干声，跳过分离
+  - heading "第二步 · 拆分主唱与和声" [level=2]:
+    - text: 第二步 · 拆分主唱与和声
+  - generic: 专用执行器可用
+  - paragraph: 输入是一条已去伴奏的混合人声。分离结果代表主唱组与和声组，不等于识别了每一个演唱者；串音与残留需要独听确认。
+  - generic: 包含主唱与和声的干人声
+  - combobox "包含主唱与和声的干人声":
+    - option "先分离原曲或导入混合干人声" [selected]
+  - generic: 主唱 / 和声分离模型
+  - combobox "主唱 / 和声分离模型":
+    - option "尚无可用专用模型"
+    - option "MelBand RoFormer Karaoke · aufr33 & viperx · 就绪" [selected]
+  - paragraph: 按模型清单映射声部，不根据 Karaoke 名称猜测输出。
+  - button "分离主唱与和声" [disabled]:
+    - text: 分离主唱与和声
+  - button "导入主唱分轨"
+  - button "导入和声分轨"
+  - strong: 主唱
+  - generic: 尚未产生
+  - paragraph: 完成真实分离，或显式导入此声部。
+  - strong: 和声
+  - generic: 尚未产生
+  - paragraph: 完成真实分离，或显式导入此声部。
+  - generic: i
+  - heading "和声也是一条独立的旋律。" [level=3]
+  - paragraph: 人声 / 伴奏分离不会自动分出主唱与和声。出现音高争夺时，先独听人声、确认声部，再比较算法或修曲线。
+  - complementary:
+    - strong: 处理策略
+    - generic: SEPARATION
+    - paragraph: 当前分离执行器：audio-separator / MelBand RoFormer。实际权重与输出语义记录在产物中。
+    - generic: 分离执行器已准备
+    - button "旁路处理，监听原音"
+    - button "监听当前人声"
+    - strong: 处理更少，也是一种选择。
+    - paragraph: 不要默认串联最强降噪与去混响。保留气声、齿音与句尾，逐步比较实际听感。
+  - text: 编辑自动保存 · 原素材保持不变
+  - button "上一步"
+  - button "音高与歌词":
+    - text: 音高与歌词
+- contentinfo "音频播放控制":
+  - strong: source.wav
+  - generic: 解码素材 · 单轨监听
+  - button "循环选区":
+  - button "播放音频":
+  - button "回到选区起点": ↤
+  - text: 00:00.0
+  - emphasis: / 00:26.0
+  - slider "播放位置": "0"
+  - button "原始 A"
+  - button "候选 B" [disabled]
+  - generic "需要同一区间的两份 RMS 测量；片段与整段不混用统计结果":
+    - checkbox "等响" [disabled]
+    - text: 等响
+  - slider "监听音量": "0.75"
+- status: 素材已导入。
