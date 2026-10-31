@@ -8,9 +8,11 @@ Windows 优先的本地音频制作应用。以用户提供的 `reference/sonora
 
 ## 在本机启动
 
-双击 **`启动声序.bat`**。它优先启动交互与混音修复版 `apps/desktop/target/release/sonora-recovery.exe`，不存在时依次回退 `sonora-specialist.exe`、`sonora-harmony.exe`、`sonora.exe`。桌面端管理本地 Python 服务和当前会话凭据。关闭桌面应用会回收自己启动的服务与 worker；不会结束其他工作台。本轮按用户要求用网页实际操作代替 Windows 桌面点击验收；EXE 已统一构建，请关闭旧版后再启动新版。
+双击 **`启动声序.bat`**，默认启动浏览器版：开启本地服务并在默认浏览器打开同一套制作界面。请保留启动终端，结束后在终端按回车关闭本次服务。`启动声序-浏览器.bat`是同模式的独立入口。
 
 本项目监听 `127.0.0.1:8765`。如果端口被占用，会明确报错；请关闭另一个 SONORA 会话后再打开。已有 `E:/voice` 旧工作台的端口和配置没有修改。
+
+需要原来的桌面壳时，使用 **`启动声序-桌面.bat`**；它仍优先选择 `apps/desktop/target/release/sonora-recovery.exe`。默认入口不再尝试启动该EXE，不更改Windows安全设置。
 
 需要浏览器模式时，从 PowerShell 运行：
 
