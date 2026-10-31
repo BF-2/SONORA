@@ -18,6 +18,7 @@ POST /projects/{id}/demo {} -> {project,artifact} (explicitly synthetic technica
 GET /projects/{id}/recipe -> JSON recipe
 POST /projects/restore multipart file -> Project (references relink by hash; never arbitrary paths)
 POST /projects/{id}/jobs {revision,idempotency_key,operation:"separate"|"pitch"|"convert"|"mix"|"export"|"pipeline",input_artifact_id?,parameters:{...}} -> Job
+Additional `mix_preview` job: `{range_ticks:[start,end],monitor_track_id?:id|null}`. Uses the same routing, faders, pan, offsets and FX chain as full mix, renders from the source start to retain stateful effect history, then crops to the selection. Range must be at least 50 ms and within project audio duration. All-muted monitoring returns silence. Result artifact has role `mix_preview`, timeline offset, actual per-track/master 50ms peak envelopes, measurements and an immutable cache key; it stays in the job/cache ledger rather than project assets, tracks or undo history. Changing controls never adopts an obsolete result.
 GET /jobs?project_id=... -> {jobs:[Job]}
 GET /jobs/{id} -> Job
 POST /jobs/{id}/cancel {} -> Job
@@ -28,6 +29,7 @@ GET /artifacts/{id} -> Artifact
 GET /artifacts/{id}/audio -> media with Range, auth; frontend fetches blob using bearer
 GET /artifacts/{id}/waveform -> {sample_rate,sample_count,channels,peaks:[[min,max],...],levels:[...]}
 GET /artifacts/{id}/data -> pitch JSON
+POST /artifacts/{id}/measure {range_ticks?:[start,end]} -> {artifact_id,artifact_hash,range_ticks,sample_range,duration,sample_peak_dbfs,rms_dbfs,integrated_lufs,true_peak_dbfs,measurement_engine,measurement_succeeded}; exact registered audio only, cached by content/window. Range uses artifact timeline coordinates. When an A/B track has a manual placement offset, the client maps the shared global interval back to each artifact's coordinates.
 GET /exports/{id}/download -> file, auth
 POST /projects/{id}/midi multipart file+revision -> Project (PPQ MIDI type0/1)
 GET /projects/{id}/midi -> standard MIDI reference notes
@@ -53,6 +55,7 @@ Canonical machine schemas: `model-catalog.schema.json`, `rvc-parameters.schema.j
 - `POST /catalog/models/{id}/validate`, `/bind-index {index_id}`, `/relink {path}`: restricted lazy validation, explicit index binding and exact-original-hash relocation. `PATCH /catalog/voices/{id}` updates alias/tags/favorite metadata; `POST /catalog/voices/{id}/default {model_id}` changes only the voice's suggestion for future selections.
 - `GET /rvc/parameters?model_id=...&task=...` or `POST /rvc/parameters {model_id?,task?,values?,has_external_f0?}` returns supported controls, current values, sources, recommendations, dependencies and disabled reasons. `GET /rvc/presets` and `POST /rvc/presets {name,model_id?,parameters}` retrieve/create actual executor presets.
 - `GET /projects/{id}/workflow?voice_part=...` derives each stage's inputs, blockers, sequence, outputs and one recommended action from current artifacts and selections.
+- Recommendations explicitly declare `kind:navigate|execute`; stage `continuation` is navigation-only and includes `disabled/reason`. Stage completion, sidebar marks and bottom continue use this contract. Active job feedback updates even when project revision is unchanged.
 - Workflow `pitch_analysis` reports ready/stale/missing, automatic/fixed binding, usable artifact ID and recovery message using the scheduler's analysis-parameter matcher. `pitch_artifact_id:null` clears the fixed curve in project, voice-part or model_parameter_updates track/clip settings; manual F0 edits and absolute locks remain separate.
 - `PATCH /projects/{id} {revision,patch:{candidates:[{id,archived:true|false}]}}` merges a reversible candidate-list removal/restoration by ID without deleting media or provenance. Rejects removal of adopted/unmuted candidates; undo restores the list. Archived results are excluded from new stage suggestions.
 - `POST /projects/{id}/model-selection {revision,idempotency_key,model_id,index_id?,speaker_id?,scope:project|track|clip,track_id?,clip_id?,range_ticks?,policy:preserve_overrides|reset_defaults}` returns `{project,selection}` with immutable hashes. `/model-selection/clear {revision,idempotency_key,scope:track|clip,track_id?,clip_id?}` restores inheritance. Track/clip parameter deltas use `PATCH /projects/{id}` with `model_parameter_updates`; view preferences persist without invalidating audio.
@@ -60,6 +63,8 @@ Canonical machine schemas: `model-catalog.schema.json`, `rvc-parameters.schema.j
 - Job `adopt_preview {candidate_id,base_candidate_id,fade_ms?}` maps the preview identified by `candidate_id` into a full same-source converted base. It preserves samples outside the selected interval and records both immutable versions. Adopting preview settings and assembling preview audio are separate operations.
 
 Every job still requires a revision and idempotency key. Requested/consumed F0 hashes represent different grids; compare each hash across versions, not requested against consumed. Cache identity includes actual numeric controls, source/model/index hashes and external target conditions, excluding view and comparison IDs. Unsupported controls fail before rendering; no missing-index fallback to zero.
+
+Presentation changes (`playhead`, `mode`, `view_preferences`, active voice-part focus) remain revisioned/persisted but create no edit checkpoint. Undo/redo skips legacy view-only checkpoints, preserves current presentation values and retains the redo branch after view changes. WAV export accepts `wav_subtype:pcm_s16le|pcm_s24le|pcm_f32le`; the UI's selected output drives playback, measurement and both export actions.
 
 ## Worker disk protocol (unchanged transport)
 

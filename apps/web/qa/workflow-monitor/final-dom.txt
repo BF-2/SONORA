@@ -1,0 +1,188 @@
+- complementary:
+  - button "SONORA 声 序 · 音 频 工 作 台":
+    - text: SONORA
+    - generic: 声 序 · 音 频 工 作 台
+  - button "交互与监听统一验收 本地工程 · 已保存 ⌄":
+    - strong: 交互与监听统一验收
+    - generic: 本地工程 · 已保存
+    - generic: ⌄
+  - text: 制作流程
+  - generic: "06"
+  - navigation "制作步骤":
+    - button "导入诊断 ✓":
+      - generic: 导入诊断
+      - generic "已有已完成产物": ✓
+    - button "人声整理 ✓":
+      - generic: 人声整理
+      - generic "已有已完成产物": ✓
+    - button "音高与歌词 ✓":
+      - generic: 音高与歌词
+      - generic "已有已完成产物": ✓
+    - button "声音转换 ✓":
+      - generic: 声音转换
+      - generic "已有已完成产物": ✓
+    - button "混音 ✓":
+      - generic: 混音
+      - generic "已有已完成产物": ✓
+    - button "导出 ✓":
+      - generic: 导出
+      - generic "已有已完成产物": ✓
+  - button "声音与模型 180":
+    - text: 声音与模型
+    - generic: "180"
+  - button "候选与版本 2":
+    - text: 候选与版本
+    - generic: "2"
+  - button "任务队列 0":
+    - text: 任务队列
+    - generic: "0"
+  - generic: 文件在本机处理
+  - button "引擎与设置":
+    - text: 引擎与设置
+- banner:
+  - strong: 混音
+  - button "撤销":
+  - button "重做":
+  - group "编辑信息密度":
+    - button "快速完成"
+    - button "专家设置"
+- main:
+  - generic: STEP 05 / MIX & FINISH
+  - heading "让每一层，各得其所。" [level=1]
+  - paragraph: 人声、伴奏与空间，共同组成最后的作品。
+  - generic: 本地服务已连接
+  - region "本阶段操作指引":
+    - strong: 当前输入：当前混音：候选 2 · Epoch 275
+    - generic: 可继续
+    - generic: 源区间 00:00.0 — 00:08.0
+    - button "检查成品并导出":
+      - text: 检查成品并导出
+    - list:
+      - generic: "1"
+      - text: 确认采用的人声
+      - generic: "2"
+      - text: 选择伴奏
+      - generic: "3"
+      - text: 调整推子与效果
+      - generic: "4"
+      - text: 渲染混音
+      - generic: "5"
+      - text: 检查电平
+    - generic: 最终混音 · 保留的版本
+  - heading "混音台" [level=2]:
+    - text: 混音台
+  - generic: 不叠加原始整曲
+  - button "original_demo_vocal.wav": original_demo_vocal.wav
+  - slider "original_demo_vocal.wav音量": "0"
+  - generic: "+12"
+  - generic: "0"
+  - generic: "-24"
+  - generic: "-60"
+  - meter "original_demo_vocal.wav效果后电平"
+  - generic: 效果后电平 · 停止
+  - spinbutton "original_demo_vocal.wav增益数值": "0"
+  - text: dB
+  - button "静音" [pressed]
+  - button "独奏"
+  - generic: 声像
+  - slider "original_demo_vocal.wav声像": "0"
+  - generic: 居中
+  - button "试听此轨 · 含推子与效果":
+    - text: 试听此轨 · 含推子与效果
+  - button "候选 2 · Epoch 275": 候选 2 · Epoch 275
+  - slider "候选 2 · Epoch 275音量": "-3"
+  - generic: "+12"
+  - generic: "0"
+  - generic: "-24"
+  - generic: "-60"
+  - meter "候选 2 · Epoch 275效果后电平"
+  - generic: 效果后电平 · 停止
+  - spinbutton "候选 2 · Epoch 275增益数值": "-3"
+  - text: dB
+  - button "静音"
+  - button "独奏"
+  - generic: 声像
+  - slider "候选 2 · Epoch 275声像": "1"
+  - generic: 右 100%
+  - button "试听此轨 · 含推子与效果":
+    - text: 试听此轨 · 含推子与效果
+  - status: 已更新：当前推子、声像、静音/独奏、偏移和效果
+  - paragraph: 设置变化时暂停旧试听，更新完成后可播放新版本。完整成品请点击“渲染混音”。
+  - generic: 选区起点（秒）
+  - spinbutton "选区起点（秒）": "0"
+  - generic: 选区终点（秒）
+  - spinbutton "选区终点（秒）": "8"
+  - button "循环试听":
+    - text: 循环试听
+  - button "选择整段"
+  - button "播放当前混音选区"
+  - button "渲染混音":
+    - text: 渲染混音
+  - button "添加伴奏"
+  - heading "同一条时间轴" [level=2]:
+    - text: 同一条时间轴
+  - generic: 拖动选择区间 · 单击定位
+  - button "缩小时间轴": −
+  - status: 1×
+  - button "放大时间轴": +
+  - button "original_demo_vocal.wav 解码素材 人声":
+    - strong: original_demo_vocal.wav
+    - generic: 解码素材
+    - generic: 人声
+  - generic: 00:00.0
+  - generic: 00:02.7
+  - generic: 00:05.4
+  - generic: 00:08.1
+  - generic: 00:10.8
+  - generic: 00:13.5
+  - slider "original_demo_vocal.wav 波形；左右键移动播放头，拖动选择区间"
+  - button "候选 2 · Epoch 275 模型推理 转换人声":
+    - strong: 候选 2 · Epoch 275
+    - generic: 模型推理
+    - generic: 转换人声
+  - generic: 00:00.0
+  - generic: 00:02.7
+  - generic: 00:05.4
+  - generic: 00:08.1
+  - generic: 00:10.8
+  - generic: 00:13.5
+  - slider "converted.wav 波形；左右键移动播放头，拖动选择区间"
+  - text: 选区
+  - strong: 00:00.0 — 00:08.0
+  - generic: · 8.00 秒
+  - complementary:
+    - strong: 轨道处理链
+    - generic: POST FX
+    - strong: original_demo_vocal.wav
+    - generic: 对齐偏移（秒）
+    - spinbutton "对齐偏移（秒）": "0"
+    - generic: 高通滤波
+    - checkbox "高通滤波"
+    - generic: 低通滤波
+    - checkbox "低通滤波"
+    - generic: 压缩器
+    - checkbox "压缩器"
+    - generic: 延迟
+    - checkbox "延迟"
+    - generic: 限制器
+    - checkbox "限制器"
+    - paragraph: 处理顺序以启用顺序保存。修改后会自动更新选区试听；底部标明当前是全部混音还是单轨效果后监听。
+  - text: 编辑自动保存 · 原素材保持不变
+  - button "上一步"
+  - button "继续 · 导出":
+    - text: 继续 · 导出
+- contentinfo "音频播放控制":
+  - strong: 当前混音选区试听
+  - generic: 混音 · 当前混音 · 推子/效果后
+  - button "循环选区":
+  - button "播放音频":
+  - button "回到选区起点": ↤
+  - text: 00:01.9
+  - emphasis: / 00:13.5
+  - slider "播放位置": "1.95"
+  - button "原始 A" [disabled]
+  - button "候选 B" [disabled]
+  - generic "声音转换页对同一选区测量RMS后启用；测量期间不匹配响度":
+    - checkbox "等响" [disabled]
+    - text: 等响
+  - slider "监听音量": "0.75"

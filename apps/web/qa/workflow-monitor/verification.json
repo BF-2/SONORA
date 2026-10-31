@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-31T15:07:32.413072+00:00",
+  "passed": true,
+  "project_id": "project_e42ab04b990746dfa5a2",
+  "source_commits": {
+    "behavior": "fc2e68b",
+    "cleanup": "8e3e57f"
+  },
+  "automated": {
+    "backend_passed": 103,
+    "worker_passed": 39,
+    "total_passed": 142,
+    "failed": 0,
+    "skipped": [
+      {
+        "name": "test_scan_rejects_unapproved_root_and_symbolic_escape",
+        "reason": "Symlink privilege unavailable"
+      }
+    ],
+    "junit": "tests/results/workflow-monitor/regression.xml"
+  },
+  "browser": {
+    "production_url": "http://127.0.0.1:8767",
+    "native_ui_clicked": false,
+    "checks": [
+      "task_and_role_before_import",
+      "workflow_gated_continue",
+      "navigation_does_not_render_full_mix",
+      "view_changes_do_not_consume_undo",
+      "project_switch_restores_own_bounded_playhead",
+      "400ms_loop_stays_running_and_can_stop",
+      "ab_shared_position_and_window_rms",
+      "five_ab_switches_one_audio_get",
+      "font_minimum_11px",
+      "390px_no_document_overflow",
+      "live_post_fx_meter_observed_minus_16_1_dbfs",
+      "float32_export",
+      "production_project_stage_restore"
+    ],
+    "narrow_viewport": {
+      "css_width": 375,
+      "document_width": 375,
+      "visible_text_below_11px": 0
+    },
+    "screenshots": [
+      "narrow.jpg",
+      "mixer.jpg",
+      "export.jpg",
+      "production.jpg"
+    ]
+  },
+  "inference": [
+    {
+      "job_id": "job_0889761e606f49e5b29a",
+      "operation": "pitch",
+      "model_id": null,
+      "range_ticks": null,
+      "artifacts": [
+        {
+          "id": "artifact_05cc70c86ec041d0b50c",
+          "sha256": "68aec09e0497122c5f5fdab6b57d8c7a508fe5d1445c739358e8526a45350cb1",
+          "path": "E:\\voice\\aponyvoice\\runtime\\workflow-monitor-qa\\cache\\68\\68aec09e0497122c5f5fdab6b57d8c7a508fe5d1445c739358e8526a45350cb1.json",
+          "processing_kind": "model_inference",
+          "model_hash": "6d62215f4306e3ca278246188607209f09af3dc77ed4232efdd069798c4ec193",
+          "requested_f0_hash": null,
+          "consumed_f0_hash": null,
+          "sample_rate": 16000,
+          "sample_count": 214400
+        }
+      ]
+    },
+    {
+      "job_id": "job_08f0e3c35b5348bba04f",
+      "operation": "convert",
+      "model_id": "model_8c0b6de9317a7e307671a8b1",
+      "range_ticks": [
+        0,
+        384000
+      ],
+      "artifacts": [
+        {
+          "id": "artifact_5acf623069d241838a8e",
+          "sha256": "d7f442e51e72215a5881f77abbc1ac2299d1734d06e2f6a0feb56861cd978fae",
+          "path": "E:\\voice\\aponyvoice\\runtime\\workflow-monitor-qa\\cache\\d7\\d7f442e51e72215a5881f77abbc1ac2299d1734d06e2f6a0feb56861cd978fae.wav",
+          "processing_kind": "model_inference",
+          "model_hash": "a6be0458aa38647791f2f290d845ab74f4d75baf72a7203a6933383f1ad30637",
+          "requested_f0_hash": "f7a9579a507d15062d83ca12e6f25409b0fe4fa53185681b80a330818ffda05a",
+          "consumed_f0_hash": "484a0814a44af6b70ab480cd02a2b31c54085b22597a7a436dc46df4da56895f",
+          "sample_rate": 40000,
+          "sample_count": 320000
+        },
+        {
+          "id": "artifact_5eb210aa9ff0421fb9c8",
+          "sha256": "c69ec2ba298b91fd55ea82067911e0b13b752ca00aea1976dfcbbd4c3e1613eb",
+          "path": "E:\\voice\\aponyvoice\\runtime\\workflow-monitor-qa\\cache\\c6\\c69ec2ba298b91fd55ea82067911e0b13b752ca00aea1976dfcbbd4c3e1613eb.wav",
+          "processing_kind": "dsp",
+          "model_hash": null,
+          "requested_f0_hash": null,
+          "consumed_f0_hash": null,
+          "sample_rate": 44100,
+          "sample_count": 352800
+        }
+      ]
+    },
+    {
+      "job_id": "job_fe95af53d83c41139c29",
+      "operation": "convert",
+      "model_id": "model_8c0b6de9317a7e307671a8b1",
+      "range_ticks": null,
+      "artifacts": [
+        {
+          "id": "artifact_8604cb87d5b44915aa6f",
+          "sha256": "2347c90904051960a4e903423d0b5485355543cab953d1c27cd3979b6bc2d901",
+          "path": "E:\\voice\\aponyvoice\\runtime\\workflow-monitor-qa\\cache\\23\\2347c90904051960a4e903423d0b5485355543cab953d1c27cd3979b6bc2d901.wav",
+          "processing_kind": "model_inference",
+          "model_hash": "a6be0458aa38647791f2f290d845ab74f4d75baf72a7203a6933383f1ad30637",
+          "requested_f0_hash": "f7a9579a507d15062d83ca12e6f25409b0fe4fa53185681b80a330818ffda05a",
+          "consumed_f0_hash": "0b15225c1bdc6b028ee23b8e7d315b16a04fa89b522a9c77615027486c7222b5",
+          "sample_rate": 40000,
+          "sample_count": 536000
+        }
+      ]
+    }
+  ],
+  "worker_cache_fix": {
+    "numba_cache": "runtime/<session>/engine-cache/numba",
+    "worker_temp": "runtime/<session>/jobs/<job>/<engine>/temp",
+    "initial_stall": "Numba attempted NamedTemporaryFile in the shared read-only package cache; Windows repeatedly returned PermissionError.",
+    "resolved_real_inference": true,
+    "original_weight_hash_unchanged": true
+  },
+  "mix": {
+    "preview_job": "job_4d7bd59f5cce4cc8b51d",
+    "preview_artifact": "artifact_1fbe3a86de0e45698907",
+    "full_artifact": "artifact_47e816728d254c4d857a",
+    "preview_seconds": 8.0,
+    "full_seconds": 13.525,
+    "preview_full_max_sample_difference": 0.0,
+    "gain_db": -3,
+    "pan": 1,
+    "offset_ticks": 6000,
+    "effect": "highpass 80 Hz",
+    "left_channel_peak": 0.0,
+    "first_125ms_peak": 0.0,
+    "preview_does_not_add_project_assets": true,
+    "effect_tail_regression": "preview is zero-padded past the same final boundary as full mix"
+  },
+  "export": {
+    "id": "export_8c6b0df7b5614dbe8196",
+    "name": "交互与监听验收 · Float32.wav",
+    "path": "E:\\voice\\aponyvoice\\runtime\\workflow-monitor-qa\\exports\\交互与监听验收 · Float32.wav",
+    "artifact_id": "artifact_47e816728d254c4d857a",
+    "job_id": "job_5e47bc877f4e40d0ba01",
+    "format": "wav",
+    "codec": "pcm_f32le",
+    "sample_rate": 48000,
+    "channels": 2,
+    "duration": 13.525,
+    "sha256": "5148d369b08d2a56a832572452d626009315c673f3c2804356d4e7940b008696",
+    "processing_kind": "model_inference",
+    "created_at": "2026-10-31T14:44:26.125737+00:00",
+    "measurements": {
+      "integrated_lufs": -20.6,
+      "true_peak_dbfs": -8.8,
+      "measurement_engine": "ffmpeg ebur128 peak=true",
+      "measurement_succeeded": true
+    },
+    "source_offset_ticks": 0,
+    "bus_export_semantics": "post-fader/post-FX/stereo sum; no implicit master limiting; effect tails trimmed to timeline length"
+  },
+  "build": {
+    "exe": "E:\\voice\\aponyvoice\\apps\\desktop\\target\\release\\sonora-recovery.exe",
+    "size": 4645376,
+    "sha256": "7892a0c17d4a800d6c7fe80427fced622f38f36ba192b5bdc00480630c93dc5c",
+    "typecheck": true,
+    "vite_production": true,
+    "cargo_locked_offline_release": true
+  },
+  "cleanup_scope": {
+    "duplicate_css_rules_removed": 5,
+    "unused_prototype_rules_removed": 5,
+    "unused_url_ref_removed": true,
+    "App_and_CSS_not_split": true
+  },
+  "protected_hashes": {
+    "workers/separation/run.py": "d9b5628593e455c180a59b47404e0acc37921f3699e9c2b3f7b7bd56da364f39",
+    "services/orchestrator/voices.py": "51bb3dcc2da5e3e53bd233f371e42fdd092d0fd2305b14519994d6b048fda9fb",
+    "packages/contracts/HARMONY.md": "44b61eb097558ea85d5ce8b23382f605adac9e5771a983e5a3ce986eda341b72"
+  },
+  "cleanup": {
+    "qa_service_stopped": true,
+    "vite_stopped": true,
+    "temporary_token_cleared": true,
+    "root_test_directories_archived": 3,
+    "archive": "runtime/retained-workflow-tests",
+    "recursive_delete_performed": false,
+    "initial_batch_cleanup_rejection": "Automatic approval rejected the combined recursive cleanup command: blocked by policy; no more specific reason was returned.",
+    "verification_audio_and_private_engine_cache_retained": true
+  }
+}

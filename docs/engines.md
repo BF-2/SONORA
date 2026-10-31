@@ -1,5 +1,7 @@
 # 本机音频引擎与复用记录
 
+2026-10-31交互与监听增量：选区监听复用FFmpeg完整混音链，保留滤波/压缩/延迟的上文状态再裁剪，主母线和单轨效果后电平来自实际渲染采样。试听缓存不污染工程历史；最终混音和导出仍是明确任务。真峰值/综合响度可在导出前按实际源/选区测量。worker的`NUMBA_CACHE_DIR`及`TEMP/TMP`指向本项目私有目录，避免Numba对复用只读程序包目录进行临时写入重试；没有修改上游环境或下载模型。
+
 2026-10-31专项增量：模型选择现由SQLite模型目录管理，保留旧29份注册身份并发现全部既有Epoch导出；`resources.json`保留兼容种子与引擎配置。RVC实际参数、动态禁用条件、F0处理顺序和同源版本对比见 `docs/models-rvc.md`，统一实测见 `docs/acceptance.md`。原始 Applio/权重/索引/环境未升级或改写。
 
 SONORA 的执行器实际调用本机模型：audio-separator 0.44.2 / MelBand RoFormer、独立 PitchService、Applio RVC，以及 Nishiren Gard AI DiffSinger 2.0 的 ONNX 歌声合成。运行入口是 `workers/<engine>/run.py --request <JSON> --response <JSON>`；协议见 `packages/contracts/API.md`。每个作业使用独立进程，取消由编排服务终止该进程树。普通同权限进程不构成操作系统安全沙箱。
