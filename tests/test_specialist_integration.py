@@ -241,6 +241,70 @@ def test_changed_detection_controls_never_choose_old_pitch():
         scheduler.choose_pitch(job,source,{**parameters,'f0_min':70,'pitch_artifact_id':pitch['id']})
 
 
+@pytest.mark.parametrize('scope',['project','track','clip'])
+def test_pitch_binding_clear_matches_workflow_and_keeps_locked_edits(monkeypatch,scope):
+    app_module=importlib.import_module('services.orchestrator.app');catalog=FixtureCatalog()
+    project,source=fixture_project();old_params={'pitch_algorithm':'rmvpe','f0_min':50}
+    path,raw,_=_pitch(source,old_params)
+    pitch=media.commit(store,path,kind='dsp',inputs=[source['id']],role='pitch',extra={'analysis_parameters':raw['analysis_parameters']})
+    lock={'id':'absolute-lock','start_tick':0,'end_tick':4800,'operation':'set_hz','hz':440,'locked':True,
+          'snapshot':{'sample_rate':16000,'hop':160,'frame_center_offset':0,'f0_hz':[440.]*10}}
+    project=store.change(project['id'],lambda p:(p['assets'].append(pitch),p['pitch_edits'].append(lock)))
+    extra={} if scope=='project' else {'track_id':project['tracks'][0]['id']}
+    if scope=='clip':extra.update(clip_id='pitch-clip',range_ticks=[0,48000])
+    project=_select(catalog,project,'model-a',scope,**extra)
+    def change(values):
+        return {'parameters':{**project['parameters'],**values}} if scope=='project' else {'model_parameter_updates':{scope+'s':{extra.get('clip_id',extra.get('track_id')):values}}}
+    with monkeypatch.context() as context:
+        context.setattr(app_module,'catalog',catalog)
+        project=req('PATCH',f"/projects/{project['id']}",json={'revision':project['revision'],'patch':change({'f0_min':70,'pitch_artifact_id':pitch['id']})})
+        workflow=req('GET',f"/projects/{project['id']}/workflow")
+        assert workflow['pitch_analysis']['state']=='stale'
+        assert workflow['stages'][2]['recommendation']['operation']=='pitch'
+        assert workflow['stages'][3]['recommendation']['id']=='refresh_pitch_preview'
+        project=req('PATCH',f"/projects/{project['id']}",json={'revision':project['revision'],'patch':change({'pitch_artifact_id':None})})
+        effective,_=resolve_binding(project,project['parameters'],source['id'])
+        assert effective['pitch_artifact_id'] is None and project['pitch_edits']==[lock]
+        assert scheduler.choose_pitch(_job(project,parameters=effective),source) is None
+        assert Path(pitch['path']).is_file() and pitch['id'] in [a['id'] for a in project['assets']]
+        assert req('GET',f"/projects/{project['id']}/workflow")['pitch_analysis']['binding']=='automatic'
+
+
+def test_stale_pitch_retry_resets_pinned_track_without_mutating_failed_snapshot(monkeypatch):
+    from tests.test_core import wait_job
+    from services.orchestrator.rvc_service import StalePitchBinding
+    project,source=fixture_project();track_id=project['tracks'][0]['id']
+    project=store.change(project['id'],lambda p:p.update(model_bindings={'tracks':{track_id:{'selection':{},'parameters':{'pitch_artifact_id':'old-curve'}}}}))
+    params={'track_id':track_id,'f0_min':70,'transpose':12,'range_ticks':[0,48000],'pitch_artifact_id':'old-curve'}
+    def execute(job,cancel):
+        if job['parameters'].get('pitch_artifact_id'):raise StalePitchBinding('音高分析参数已改变，指定曲线是旧分析')
+        assert job['parameters']['f0_min']==70 and job['parameters']['transpose']==12
+        return []
+    with monkeypatch.context() as context:
+        context.setattr(scheduler,'execute',execute)
+        failed=wait_job(scheduler.submit(project['id'],{'revision':project['revision'],'idempotency_key':uuid.uuid4().hex,'operation':'convert','input_artifact_id':source['id'],'parameters':params}))
+        assert failed['error']['code']=='stale_pitch_binding'
+        assert '重新检测并重试' in failed['error']['recovery']
+        retry=req('POST',f"/jobs/{failed['id']}/retry",json={'reset_pitch_binding':True})
+        assert wait_job(retry)['state']=='succeeded'
+        assert store.get('jobs',failed['id'])['parameters']['pitch_artifact_id']=='old-curve'
+        assert store.get('projects',project['id'])['model_bindings']['tracks'][track_id]['parameters']['pitch_artifact_id']=='old-curve'
+
+
+def test_remove_old_preview_is_reversible_and_preserves_audio_and_adopted_result():
+    project,source=fixture_project();project,candidates,base,preview=_attach_candidates(project,source)
+    hashes={a['id']:media.sha256(a['path']) for a in (source,base,preview)}
+    result=req('PATCH',f"/projects/{project['id']}",json={'revision':project['revision'],'patch':{'candidates':[{'id':candidates[1]['id'],'archived':True}]}})
+    assert len(result['candidates'])==2 and result['candidates'][1]['archived']
+    assert result['selected_candidate_id']==candidates[0]['id']
+    assert candidates[1]['id'] not in [o['id'] for o in describe_workflow(result)['stages'][3]['outputs']]
+    rejected=client.patch('/api/v1/projects/'+project['id'],headers=AUTH,json={'revision':result['revision'],'patch':{'candidates':[{'id':candidates[0]['id'],'archived':True}]}})
+    assert rejected.status_code==400 and '正在被采用' in rejected.text
+    restored=req('POST',f"/projects/{project['id']}/history",json={'revision':result['revision'],'direction':'undo'})
+    assert not restored['candidates'][1].get('archived')
+    assert {a['id']:media.sha256(a['path']) for a in (source,base,preview)}==hashes
+
+
 def test_compare_versions_uses_one_source_pitch_range_seed_and_no_auto_adopt(monkeypatch):
     project,source=fixture_project();catalog=FixtureCatalog();project=_select(catalog,project,'model-a')
     params={**project['parameters'],'model_ids':['model-a','model-b'],'range_ticks':[12000,36000],'seed':73,'index_rate':0}

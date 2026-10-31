@@ -82,7 +82,7 @@
     },
     "Candidate": {
       "type": "object", "required": ["id", "source_artifact_id", "artifact_id", "generation_depth"],
-      "properties": {"id": {"$ref": "#/$defs/Id"}, "source_artifact_id": {"$ref": "#/$defs/Id"}, "artifact_id": {"$ref": "#/$defs/Id"}, "generation_depth": {"type": "integer", "minimum": 1}, "parameters": {"type": "object"}}
+      "properties": {"id": {"$ref": "#/$defs/Id"}, "source_artifact_id": {"$ref": "#/$defs/Id"}, "artifact_id": {"$ref": "#/$defs/Id"}, "generation_depth": {"type": "integer", "minimum": 1}, "parameters": {"type": "object"}, "archived": {"type": "boolean", "default": false}}
     }
   }
 }

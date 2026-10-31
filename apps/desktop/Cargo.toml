@@ -18,6 +18,10 @@ path = "src/main.rs"
 name = "sonora-specialist"
 path = "src/main.rs"
 
+[[bin]]
+name = "sonora-recovery"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "=2.7.4", features = [] }
 

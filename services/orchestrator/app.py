@@ -131,7 +131,7 @@ def workflow(pid:str,voice_part:str|None=None):
     else:binding_error=None
     view=copy.deepcopy(p)
     if not binding:view['parameters']=effective
-    result=describe_workflow(view,quick_manifest(catalog,effective),voice_part)
+    result=describe_workflow(view,quick_manifest(catalog,effective),voice_part,store)
     result.update(effective_parameters=effective,binding_origin=effective.get('model_binding_scope','voice_part' if binding else 'project'),binding_error=binding_error)
     return result
 
@@ -182,6 +182,7 @@ def validate_patch(p,patch):
         media.bounded(t.get('gain_db',0),-96,24);media.bounded(t.get('pan',0),-1,1);media.effects_filter(t.get('effects',[]))
         if not isinstance(t.get('offset_ticks',0),int): raise ValueError('轨道偏移必须为整数 tick。')
     params=patch.get('parameters',{})
+    if 'pitch_artifact_id' in params and params['pitch_artifact_id'] is not None and not isinstance(params['pitch_artifact_id'],str):raise ValueError('分析绑定必须为产物ID或空值。')
     validate_rvc_parameters({k:v for k,v in params.items() if k in PARAMETER_KEYS or k in ('range_ticks','source_timeline_offset_ticks')},clean_audio_available=clean_audio_available())
     if params.get('source_artifact_id') and params['source_artifact_id'] not in owned:raise ValueError('所选输入不属于当前工程。')
     if 'view_preferences' in patch:
@@ -213,6 +214,7 @@ def validate_patch(p,patch):
                 c=next((c for c in p['candidates'] if c['id']==selected and c.get('voice_part')==part),None)
                 origin=next((a for a in p['assets'] if c and a['id']==c.get('part_source_artifact_id',c['source_artifact_id'])),None)
                 if not c or not origin or origin['sha256']!=source['sha256']:raise ValueError('候选不属于当前声部源，不能跨声部或跨源采用。')
+                if c.get('archived'):raise ValueError('此候选已移除，请先恢复片段。')
                 output=next(a for a in p['assets'] if a['id']==c['artifact_id'])
                 source_track=next((t for t in p['tracks'] if t['artifact_id']==source['id']),{})
                 if not covers_source(output,source,source_track.get('offset_ticks',0)):raise ValueError('短试听不能替换整条声部；请完整渲染后采用。')
@@ -237,7 +239,13 @@ def patch_project(pid:str,body:dict):
                 seen.add(identifier);current_candidate=current_candidates[identifier]
                 for key in ('source_artifact_id','artifact_id','model_id','generation_depth','voice_part','part_source_artifact_id'):
                     if key in incoming and incoming[key]!=current_candidate.get(key):raise ValueError('候选推理来源不可编辑。')
-                current_candidates[identifier]={**current_candidate,**{key:incoming[key] for key in ('name','notes','favorite') if key in incoming}}
+                if 'archived' in incoming:
+                    if type(incoming['archived']) is not bool:raise ValueError('片段移除状态必须为布尔值。')
+                    if incoming['archived']:
+                        selected_ids={p.get('selected_candidate_id')}|{b.get('selected_candidate_id') for b in p.get('voice_parts',{}).values()}
+                        if identifier in selected_ids:raise ValueError('该候选正在被采用；请先采用另一候选，再移除。')
+                        if any(not t.get('mute') and t['artifact_id']==current_candidate['artifact_id'] for t in p['tracks']):raise ValueError('该候选仍用于混音；请先静音对应轨道，再移除。')
+                current_candidates[identifier]={**current_candidate,**{key:incoming[key] for key in ('name','notes','favorite','archived') if key in incoming}}
             patch['candidates']=[current_candidates[c['id']] for c in p['candidates']]
         scoped_parameter_changes=[]
         if 'model_parameter_updates' in patch:
@@ -248,7 +256,7 @@ def patch_project(pid:str,body:dict):
                 if not isinstance(entries,dict):raise ValueError('模型参数覆盖必须为对象。')
                 for identifier,delta in entries.items():
                     if identifier not in bindings.get(scope,{}) or not isinstance(delta,dict):raise ValueError('模型覆盖不存在。')
-                    if set(delta)-PARAMETER_KEYS-{'parameter_sources','preset_id','switch_policy','accepted_preview_id'}:raise ValueError('通过版本选择器改变模型/索引绑定，参数覆盖不能改变身份。')
+                    if set(delta)-PARAMETER_KEYS-{'parameter_sources','preset_id','switch_policy','accepted_preview_id','pitch_artifact_id'}:raise ValueError('通过版本选择器改变模型/索引绑定，参数覆盖不能改变身份。')
                     entry=bindings[scope][identifier];old=entry.get('parameters',{})
                     merged={**old,**delta}
                     if 'parameter_sources' in delta:merged['parameter_sources']={**old.get('parameter_sources',{}),**delta['parameter_sources']}
@@ -317,6 +325,7 @@ def patch_project(pid:str,body:dict):
             if p.get('voice_parts'):raise ValueError('主唱/和声模式请在对应声部采用候选，不能将完整混合人声重新叠入。')
             selected=next((c for c in p['candidates'] if c['id']==patch['selected_candidate_id']),None)
             if not selected: raise ValueError('候选不存在。')
+            if selected.get('archived'):raise ValueError('此候选已移除，请先恢复片段。')
             source=next(a for a in p['assets'] if a['id']==selected['source_artifact_id']);output=next(a for a in p['assets'] if a['id']==selected['artifact_id'])
             source_track=next((t for t in p['tracks'] if t['artifact_id']==source['id']),{})
             if not covers_source(output,source,source_track.get('offset_ticks',0)):raise ValueError('短试听不能替换整条人声；可采用试听设置、局部采用到完整候选，或生成完整版本。')
@@ -580,11 +589,17 @@ def job(jid:str): return public_job(store.get('jobs',jid))
 @app.post('/api/v1/jobs/{jid}/cancel')
 def cancel_job(jid:str): return public_job(scheduler.cancel(jid))
 @app.post('/api/v1/jobs/{jid}/retry')
-def retry_job(jid:str):
+def retry_job(jid:str,body:dict|None=None):
     original=store.get('jobs',jid)
     if original['state'] not in ('failed','cancelled','blocked'): raise ValueError('此任务不需要重试。')
+    body=body or {}
+    if set(body)-{'reset_pitch_binding'} or type(body.get('reset_pitch_binding',False)) is not bool:raise ValueError('未知的重试恢复选项。')
+    parameters=copy.deepcopy(original['parameters'])
+    if body.get('reset_pitch_binding'):
+        if original['operation'] not in ('convert','compare_versions'):raise ValueError('该任务不支持音高绑定恢复。')
+        parameters['pitch_artifact_id']=None
     p=store.get('projects',original['project_id'])
-    return public_job(scheduler.submit(p['id'],{'revision':p['revision'],'operation':original['operation'],'input_artifact_id':original['input_artifact_id'],'parameters':original['parameters'],'idempotency_key':uid('retry')}))
+    return public_job(scheduler.submit(p['id'],{'revision':p['revision'],'operation':original['operation'],'input_artifact_id':original['input_artifact_id'],'parameters':parameters,'idempotency_key':uid('retry')}))
 
 @app.get('/api/v1/events')
 def events(after:int=0):

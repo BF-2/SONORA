@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipWebBuild, [ValidateSet('sonora','sonora-harmony','sonora-specialist')][string]$BinaryName = 'sonora-specialist')
+param([switch]$SkipWebBuild, [ValidateSet('sonora','sonora-harmony','sonora-specialist','sonora-recovery')][string]$BinaryName = 'sonora-recovery')
 
 $ErrorActionPreference = 'Stop'
 $sonoraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))

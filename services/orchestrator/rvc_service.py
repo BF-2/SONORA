@@ -13,6 +13,31 @@ PARAMETER_KEYS=set(load_parameter_schema()['properties'])
 ANALYSIS_KEYS={'pitch_algorithm','f0_min','f0_max','threshold','silence_db','hop_length','device'}
 VIEW_PARAMETER_KEYS={'active_voice_part','comp_segments','comp_base_candidate_id','score_duration_ticks','switch_policy','parameter_sources','preset_id'}
 
+class StalePitchBinding(ValueError):
+    code='stale_pitch_binding'
+    recovery='点击“重新检测并重试”解除本次任务的旧曲线绑定；或在声音转换中清除固定分析绑定。手工编辑、锁定区和已有候选保留。'
+
+
+def pitch_matches(pitch,parameters,store=None):
+    expected=pitch_analysis_parameters(parameters)
+    recorded=pitch.get('worker_metadata',{}).get('analysis_parameters') or pitch.get('analysis_parameters')
+    if recorded:return recorded==expected
+    if store and pitch.get('job_id'):
+        try:return pitch_analysis_parameters(store.get('jobs',pitch['job_id'])['parameters'])==expected
+        except (ValueError,KeyError):pass
+    return False
+
+
+def pitch_analysis_state(project,source,parameters,part=None,store=None):
+    available=[a for a in project['assets'] if a.get('stem_role')=='pitch' and a.get('voice_part')==part and source and source['id'] in a.get('input_artifact_ids',[])]
+    specified=parameters.get('pitch_artifact_id')
+    chosen=next((a for a in available if a['id']==specified),None) if specified else next((a for a in reversed(available) if pitch_matches(a,parameters,store)),None)
+    valid=bool(chosen and pitch_matches(chosen,parameters,store) and Path(chosen['path']).is_file())
+    state='ready' if valid else 'stale' if available or specified else 'missing'
+    return {'state':state,'artifact_id':chosen['id'] if valid else None,'previous_artifact_id':available[-1]['id'] if available else None,
+            'binding':'fixed' if specified else 'automatic','specified_artifact_id':specified,
+            'message':'当前分析与检测参数一致。' if valid else '检测参数或输入已改变，旧曲线仅供查看；重新检测会保留手工编辑和锁定区。' if state=='stale' else '尚无匹配分析；生成试听会先检测当前输入。'}
+
 def clean_audio_available():
     lock=ROOT/'engine-envs/locked-environments.json'
     if not lock.exists():return False

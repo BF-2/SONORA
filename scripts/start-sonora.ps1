@@ -13,6 +13,8 @@ $sonoraHarmonyExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-ha
 if (Test-Path -LiteralPath $sonoraHarmonyExe) { $sonoraExe = $sonoraHarmonyExe }
 $sonoraSpecialistExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-specialist.exe'
 if (Test-Path -LiteralPath $sonoraSpecialistExe) { $sonoraExe = $sonoraSpecialistExe }
+$sonoraRecoveryExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-recovery.exe'
+if (Test-Path -LiteralPath $sonoraRecoveryExe) { $sonoraExe = $sonoraRecoveryExe }
 $sonoraPort = 8765
 
 if (-not $Browser -and (Test-Path -LiteralPath $sonoraExe)) {

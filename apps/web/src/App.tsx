@@ -127,8 +127,16 @@ function normal(p: Project): Project {
 function errorText(e: unknown) {
   return e instanceof Error ? e.message : String(e);
 }
+function stalePitchJob(j: Job) {
+  return j.error?.code === "stale_pitch_binding" || !!j.error?.message.includes("指定曲线是旧分析");
+}
 function mergeEditorPatch(base: Bag, delta: Bag): Bag {
   const merged = { ...base, ...delta };
+  if (Array.isArray(base.candidates) && Array.isArray(delta.candidates))
+    merged.candidates = [
+      ...base.candidates.map((candidate: Bag) => ({ ...candidate, ...delta.candidates.find((change: Bag) => change.id === candidate.id) })),
+      ...delta.candidates.filter((change: Bag) => !base.candidates.some((candidate: Bag) => candidate.id === change.id)),
+    ];
   if (delta.voice_parts) {
     merged.voice_parts = { ...base.voice_parts };
     for (const [part, raw] of Object.entries(delta.voice_parts)) {
@@ -673,10 +681,12 @@ export default function App() {
     activePart === "vocal"
       ? legacyVocal
       : project?.assets.find((a) => a.id === partBinding?.source_artifact_id);
-  const candidates =
+  const scopedCandidates =
     project?.candidates.filter((c) =>
       activePart === "vocal" ? !c.voice_part : c.voice_part === activePart,
     ) || [];
+  const candidates = scopedCandidates.filter((c) => !c.archived);
+  const archivedCandidates = scopedCandidates.filter((c) => c.archived);
   const selectedCandidateId =
     activePart === "vocal"
       ? project?.selected_candidate_id
@@ -731,7 +741,9 @@ export default function App() {
   );
   const selection = project?.selection || { start: 0, end: ticks(maxDuration) };
   const currentModel = models.find((m) => m.id === editorParameters.model_id);
-  const lastPitch = project?.assets
+  const pitchAnalysis = workflow?.project_id === project?.id &&
+    (workflow?.voice_part || "vocal") === activePart ? workflow?.pitch_analysis : undefined;
+  const lastPitch = project?.assets.find((a) => a.id === pitchAnalysis?.artifact_id) || project?.assets
     .slice()
     .reverse()
     .find(
@@ -1010,7 +1022,7 @@ export default function App() {
       ).parameters;
       const parameters: Bag = {
         ...renderValues,
-        pitch_artifact_id: lastPitch?.id,
+        pitch_artifact_id: renderValues.pitch_artifact_id ?? null,
         pitch_edits: editorPitchEdits,
         ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
       };
@@ -1248,7 +1260,7 @@ export default function App() {
         model_ids: selected.map((m) => m.id),
         range_ticks: [selection.start, selection.end],
         ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
-        pitch_artifact_id: lastPitch?.id,
+        pitch_artifact_id: editorContext(pRef.current, activePart).parameters.pitch_artifact_id ?? null,
       },
       vocal.id,
     );
@@ -1327,6 +1339,43 @@ export default function App() {
     adoptedCandidate.source_artifact_id === c.source_artifact_id
       ? adoptedCandidate
       : undefined;
+  const clearPitchBinding = async () => {
+    param({ pitch_artifact_id: null });
+    await flush();
+    setError("");
+    tell("已清除固定分析绑定；下次试听按当前参数匹配或重新检测，手工编辑与锁定区保留。");
+  };
+  const detectCurrentPitch = () => guard(async () => {
+    await clearPitchBinding();
+    await job("pitch", { ...editorContext(pRef.current, activePart).parameters, pitch_artifact_id: null }, vocal?.id);
+  }, "按当前参数检测音高");
+  const refreshPitchPreview = () => guard(async () => {
+    await clearPitchBinding();
+    await renderCandidate(true);
+  }, "更新分析与试听");
+  const archiveCandidate = (c: Bag, archived: boolean) => guard(async () => {
+    update({ candidates: [{ id: c.id, archived }] });
+    await flush();
+    if (archived && (candidate?.id === c.id || listenId === c.artifact_id)) {
+      audio.current?.pause();
+      setAuditionCandidateIds((previous) => ({ ...previous, [auditionScope]: "" }));
+      setListenId("");
+      setAB("A");
+    }
+    tell(archived ? "已移出片段列表，音频与血缘保留；可从已移除列表恢复或撤销。" : "片段已恢复。");
+  }, archived ? "移除片段" : "恢复片段");
+  const pitchRecovery = (
+    <div className={pitchAnalysis?.state === "stale" ? "warning-inline" : "info-inline"} role="status">
+      <strong>{pitchAnalysis?.state === "stale" ? "旧分析 · 需要更新" : editorParameters.pitch_artifact_id ? "已固定分析曲线" : "自动匹配当前分析"}</strong>
+      <p>{pitchAnalysis?.message || "试听按当前检测参数选择曲线；没有匹配结果时先重新检测。"}</p>
+      <div className="row wrap">
+        <button className="button small" disabled={!vocal || !!busy} onClick={() => void detectCurrentPitch()}>按当前参数重新检测</button>
+        <button className="button small ghost" disabled={!vocal || !!busy || !editorParameters.model_id} onClick={() => void refreshPitchPreview()}>清除旧绑定并重新试听</button>
+        <button className="text-button" disabled={!editorParameters.pitch_artifact_id || !!busy} onClick={() => void guard(clearPitchBinding, "清除分析绑定")}>清除固定分析绑定</button>
+      </div>
+      <small>重新检测和清除绑定均保留手工音高编辑、锁定区及旧音频；旧试听可在候选卡片中移除。</small>
+    </div>
+  );
   const localAdopt = (c: Bag) =>
     guard(async () => {
       const base = fullBaseFor(c);
@@ -1367,6 +1416,10 @@ export default function App() {
     }, 0);
   const workflowAction = (action: Bag) => {
     const id = action.id;
+    if (id === "refresh_pitch_preview") {
+      void refreshPitchPreview();
+      return;
+    }
     if (["import", "import_audio"].includes(id)) {
       chooseImport();
       return;
@@ -1429,18 +1482,7 @@ export default function App() {
     }
     if (action.operation === "pitch") {
       setStep(2);
-      void guard(
-        () =>
-          job(
-            "pitch",
-            {
-              ...editorParameters,
-              pitch_algorithm: editorParameters.pitch_algorithm || "rmvpe",
-            },
-            vocal?.id,
-          ),
-        "提交音高分析",
-      );
+      void detectCurrentPitch();
       return;
     }
     if (action.operation === "separate") {
@@ -1967,10 +2009,10 @@ export default function App() {
       </Card>
     ) : null;
   const waveformCard = (tracks?: Track[]) => {
-    const rows =
+    const rows = (
       tracks ||
       project?.tracks.filter((t) => !["pitch"].includes(t.role)) ||
-      [];
+      []).filter((t) => !t.mute || !project?.candidates.some(c => c.archived && c.artifact_id === t.artifact_id) || project?.candidates.some(c => !c.archived && c.artifact_id === t.artifact_id));
     return (
       <Card
         title="同一条时间轴"
@@ -2131,6 +2173,7 @@ export default function App() {
               : "尚无检测曲线；生成试听会先执行独立音高分析"}
           </span>
         </div>
+        {pitchRecovery}
         {activePart === "vocal" && !vocal && (
           <div className="row wrap">
             <button
@@ -2965,26 +3008,7 @@ export default function App() {
                   <span>TARGET F0</span>
                 </div>
                 {algorithmField}
-                <button
-                  className="button full"
-                  disabled={!vocal || !!busy}
-                  onClick={() =>
-                    void guard(
-                      () =>
-                        job(
-                          "pitch",
-                          {
-                            pitch_algorithm:
-                              editorParameters.pitch_algorithm || "rmvpe",
-                          },
-                          vocal?.id,
-                        ),
-                      "提交音高复核",
-                    )
-                  }
-                >
-                  重新检测 · 保留编辑
-                </button>
+                {pitchRecovery}
                 <div className="line" />
                 <Slider
                   label="选区移调"
@@ -3788,6 +3812,9 @@ export default function App() {
                     </span>
                   </div>
                   <div className="version-actions space-top">
+                    <button className="text-button" disabled={!!busy || c.id === selectedCandidateId || !!project?.tracks.some(t => t.artifact_id === c.artifact_id && !t.mute)}
+                      title="移出列表并保留音频与历史，可恢复或撤销；正在采用或混音的候选需先取消使用。"
+                      onClick={() => void archiveCandidate(c, true)}>{c.preview_only ? "移除试听片段" : "移除候选"}</button>
                     {c.preview_only && (
                       <>
                         <button
@@ -3980,6 +4007,18 @@ export default function App() {
                 </div>
               ))}
             </div>
+            {!!archivedCandidates.length && (
+              <details className="candidate-provenance">
+                <summary>已移除片段与候选（{archivedCandidates.length}）</summary>
+                <p>音频、版本哈希和历史仍保留；恢复片段或撤销即可重新试听。</p>
+                {archivedCandidates.map((c) => (
+                  <div className="row wrap" key={c.id}>
+                    <span>{blind ? "已移除候选" : c.name}</span>
+                    <button className="text-button" disabled={!!busy} onClick={() => void archiveCandidate(c, false)}>恢复片段</button>
+                  </div>
+                ))}
+              </details>
+            )}
             {!candidates.length && (
               <Card>
                 <Empty title="第一版声音，值得认真试听" icon="headphones">
@@ -5568,7 +5607,7 @@ export default function App() {
                       {j.error && (
                         <div className="job-error">
                           {j.error.message}
-                          <small>{j.error.recovery}</small>
+                          <small>{stalePitchJob(j) ? "点击右侧“重新检测并重试”，解除该任务的旧曲线绑定并按任务参数重新分析；保留手工编辑和已有音频。" : j.error.recovery}</small>
                         </div>
                       )}
                     </div>
@@ -5590,12 +5629,12 @@ export default function App() {
                           className="button small"
                           onClick={() =>
                             void guard(async () => {
-                              await post(`/jobs/${j.id}/retry`);
+                              await post(`/jobs/${j.id}/retry`, stalePitchJob(j) ? { reset_pitch_binding: true } : {});
                               tell("已加入重试队列。");
                             })
                           }
                         >
-                          重试
+                          {stalePitchJob(j) ? "重新检测并重试" : "重试"}
                         </button>
                       )
                     )}

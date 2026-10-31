@@ -1,0 +1,109 @@
+{
+  "passed": true,
+  "project_id": "project_6de14d5b492a4eab9fc1",
+  "scope": "Isolated copy of the actual failing project; original files reused through read-only hardlinks.",
+  "regression": {
+    "passed": 90,
+    "failed": 0,
+    "new_cases": 5
+  },
+  "real_recovery": [
+    {
+      "job_id": "job_3934ba6cc8d44606bc8a",
+      "state": "succeeded",
+      "source": "artifact_830a9c2b950f486182f9",
+      "model_hash": "a6be0458aa38647791f2f290d845ab74f4d75baf72a7203a6933383f1ad30637",
+      "range_ticks": [
+        6525689,
+        8506831
+      ],
+      "pitch_binding": null,
+      "actual_analysis_parameters": {
+        "pitch_algorithm": "rmvpe",
+        "f0_min": 300.0,
+        "f0_max": 2000.0,
+        "threshold": 0.03,
+        "silence_db": -50.0,
+        "sample_rate": 16000,
+        "hop": 160,
+        "frame_length": 1024,
+        "device": "cuda:0",
+        "resampling": "soxr_vhq",
+        "analysis_schema_version": "1.1.0"
+      },
+      "pitch_artifact_id": "artifact_866de8cc126a41deaa62",
+      "output": {
+        "id": "artifact_49c0ef5353854433b969",
+        "path": "E:\\voice\\aponyvoice\\runtime\\pitch-recovery-qa\\cache\\95\\959da052e8093a098b48210b719840ea29f49d5a5cd12fd81dfb5de380d1f84e.wav",
+        "sha256": "959da052e8093a098b48210b719840ea29f49d5a5cd12fd81dfb5de380d1f84e",
+        "sample_count": 1650951,
+        "sample_rate": 40000,
+        "timeline_offset_ticks": 6525689,
+        "requested_f0_hash": "26cbeef37ad8f2dfab3371113d9c7d04d51ce97d7536ae88d88d681d4c499498",
+        "consumed_f0_hash": "1d0162272decb1c509965a1f7661b49f06e67c91c77a190ffb8c0f10d15958fd"
+      }
+    },
+    {
+      "job_id": "job_64cdbdfcfb3e41998a58",
+      "state": "succeeded",
+      "source": "artifact_830a9c2b950f486182f9",
+      "model_hash": "a6be0458aa38647791f2f290d845ab74f4d75baf72a7203a6933383f1ad30637",
+      "range_ticks": [
+        6525689,
+        6912000
+      ],
+      "pitch_binding": null,
+      "actual_analysis_parameters": {
+        "pitch_algorithm": "rmvpe",
+        "f0_min": 301.0,
+        "f0_max": 2000.0,
+        "threshold": 0.03,
+        "silence_db": -50.0,
+        "sample_rate": 16000,
+        "hop": 160,
+        "frame_length": 1024,
+        "device": "cuda:0",
+        "resampling": "soxr_vhq",
+        "analysis_schema_version": "1.1.0"
+      },
+      "pitch_artifact_id": "artifact_cb00bb0b7e86446a8fb2",
+      "output": {
+        "id": "artifact_f9f6233e8d54430cab19",
+        "path": "E:\\voice\\aponyvoice\\runtime\\pitch-recovery-qa\\cache\\15\\157669345f9815bed8105ee07fceaf8e17ac5d8079865693f6eff1c0016be76a.wav",
+        "sha256": "157669345f9815bed8105ee07fceaf8e17ac5d8079865693f6eff1c0016be76a",
+        "sample_count": 321926,
+        "sample_rate": 40000,
+        "timeline_offset_ticks": 6525689,
+        "requested_f0_hash": "e99b2c000ee81e2830f317721f295a4cd6ff36f8a5586b3728a165423a2c553c",
+        "consumed_f0_hash": "75fdb3d0577886f01904765486a5c94219b9d4e941f58e51619e15feeb8e2b49"
+      }
+    }
+  ],
+  "ui_actions": [
+    "old_failed_job_reset_and_retry",
+    "change_f0_min_300_to_301",
+    "clear_old_binding_and_preview",
+    "remove_old_preview",
+    "restore_removed_preview",
+    "adjacent_note_edit_and_removal_both_persist",
+    "new_preview_playback_reached_end"
+  ],
+  "original_artifact_hashes_unchanged": true,
+  "adopted_candidate_preserved": true,
+  "other_voice_part_unchanged": true,
+  "native_ui_clicked": false,
+  "build": {
+    "exe": "apps/desktop/target/release/sonora-recovery.exe",
+    "sha256": "491d82d1d9da7c29741e8f385e7f3863afbad483eeb06a0f29033375bfc8fecc",
+    "size": 4641280
+  },
+  "screenshots": [
+    "recovery-controls.jpg",
+    "removed-preview.jpg"
+  ],
+  "cleanup": {
+    "test_service_stopped": true,
+    "temporary_token_file_removed": true,
+    "old_desktop_process_preserved": 6228
+  }
+}

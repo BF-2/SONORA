@@ -1,7 +1,7 @@
 """Read-only stage guidance derived from actual project state, not click history."""
 from pathlib import Path
 from .config import TIMEBASE
-from .rvc_service import candidate_matches
+from .rvc_service import candidate_matches,pitch_analysis_state
 
 STAGES=[('import','导入诊断',['导入音频','确认媒体属性','选择任务','设置选区']),
         ('prepare','人声整理',['确认输入','选择整理路线','运行或跳过分离','独听检查产物']),
@@ -26,12 +26,13 @@ def graph_stale(project,artifact_id):
         if artifact_id in node.get('artifact_refs',[]):return node.get('state')=='stale'
     return False
 
-def describe_workflow(project,model=None,part=None):
+def describe_workflow(project,model=None,part=None,store=None):
     source,params,binding=scoped_context(project,part)
     source_valid=bool(source and source.get('commit_state')=='committed' and Path(source['path']).is_file())
     raw=next((a for a in project['assets'] if a.get('stem_role')=='original'),source)
     pitch=next((a for a in reversed(project['assets']) if a.get('stem_role')=='pitch' and source and source['id'] in a.get('input_artifact_ids',[])),None)
-    candidates=[c for c in project['candidates'] if c.get('voice_part')==(part if binding else None) and source and c.get('source_artifact_id')==source['id']]
+    analysis=pitch_analysis_state(project,source,params,part if binding else None,store)
+    candidates=[c for c in project['candidates'] if not c.get('archived') and c.get('voice_part')==(part if binding else None) and source and c.get('source_artifact_id')==source['id']]
     selected_id=binding.get('selected_candidate_id') if binding else project.get('selected_candidate_id')
     selected=next((c for c in candidates if c['id']==selected_id),None)
     def current_candidate(c):return bool(c.get('assembly') and c['id']==selected_id and not graph_stale(project,c['artifact_id'])) or candidate_matches(project,c,source,params,model) or not c.get('render_signature') and c.get('model_id')==params.get('model_id') and not graph_stale(project,c['artifact_id'])
@@ -59,7 +60,8 @@ def describe_workflow(project,model=None,part=None):
             else:action('separate','分离人声与伴奏','separate',1);stage['next_hint']='分离完成后先独听，检查残留与起止。'
             if outputs[1]:stage['state']='ready'
         elif index==2:
-            if not pitch:action('pitch','检测当前人声音高','pitch',2);stage['next_hint']='检测结果是估计曲线；手工目标与锁定区域独立保存。'
+            if analysis['state']=='stale':stage['state']='stale';action('pitch','按当前参数重新检测','pitch',2);stage['next_hint']=analysis['message']
+            elif not pitch:action('pitch','检测当前人声音高','pitch',2);stage['next_hint']='检测结果是估计曲线；手工目标与锁定区域独立保存。'
             else:stage['state']='ready';action('go_convert','检查目标并选择模型版本',target=3);stage['next_hint']='修改目标后需要重新渲染试听，旧音频不会假装实时改变。'
         elif index==3:
             if project['task'] in ('cover','rewrite') and source.get('stem_role')=='original' and not(project['task']=='cover' and params.get('skip_separation')):
@@ -72,6 +74,8 @@ def describe_workflow(project,model=None,part=None):
                 stage['blockers'].append({'code':'needs_validation','message':'该版本已发现，尚未完成受限兼容校验。','repair':'校验所选版本后试听，不会一次加载所有权重。'});action('validate_model','校验所选版本',target=3,model_id=params['model_id'])
             elif float(params.get('index_rate',0))>0 and (not model.get('index_path') or model.get('index_match',{}).get('status') not in ('verified',)):
                 stage['blockers'].append({'code':'index_mismatch','message':'检索比例大于零，但没有已验证匹配的索引。','repair':'明确选择无检索（0），或绑定经验证的索引。'});action('fix_index','修复索引选择',target=3)
+            elif analysis['state']=='stale':
+                action('refresh_pitch_preview','按当前参数重新分析并试听',target=3);stage['state']='stale';stage['next_hint']=analysis['message']
             elif not preview_fresh:
                 action('preview','更新当前参数试听' if candidates else '生成代表片段试听','convert',3);stage['state']='preview_stale' if candidates else 'editable';stage['next_hint']='旧参数候选仍可回听；新模型/参数需要新的试听。'
             elif params.get('accepted_preview_id')==preview_fresh['id'] and not selected_fresh:
@@ -95,4 +99,4 @@ def describe_workflow(project,model=None,part=None):
         if index==3:
             for item,candidate in zip(stage['outputs'],candidates):
                 item['current']=current_candidate(candidate);item['freshness']='当前设置' if item['current'] else '旧参数预览';item['preview_only']=bool(candidate.get('preview_only'))
-    return {'project_id':project['id'],'revision':project['revision'],'stages':result,'parameter_sources':params.get('parameter_sources',{}),'voice_part':part if binding else None}
+    return {'project_id':project['id'],'revision':project['revision'],'stages':result,'parameter_sources':params.get('parameter_sources',{}),'voice_part':part if binding else None,'pitch_analysis':analysis}

@@ -12,7 +12,7 @@ from .config import DATA, ROOT, TIMEBASE, resources, binary
 from .store import now, uid, Conflict
 from .editing import note_edits,compose
 from .model_catalog import ModelCatalog
-from .rvc_service import resolve_selection,selection_fields,normalized_job_parameters,render_signature
+from .rvc_service import resolve_selection,selection_fields,normalized_job_parameters,render_signature,pitch_matches,StalePitchBinding
 from .model_selection import resolve_binding
 from .candidate_assembly import assemble_preview
 from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash,pitch_parameter_subset
@@ -64,6 +64,8 @@ class Scheduler:
                     source=source or params.get('source_artifact_id')
                     params,source=resolve_binding(p,params,source)
                     if source and source not in [a['id'] for a in p['assets']]:raise ValueError('绑定输入不属于当前工程。')
+            # An explicit reset must win over a saved track/clip F0 binding.
+            if 'pitch_artifact_id' in overrides:params['pitch_artifact_id']=overrides['pitch_artifact_id']
             if operation=='compare_versions':
                 selected=params.get('model_ids')
                 if not isinstance(selected,list) or not 2<=len(selected)<=8 or len(set(selected))!=len(selected):raise ValueError('请选择同一训练实验的2–8个不同推理版本。')
@@ -118,10 +120,10 @@ class Scheduler:
             except media.Cancelled:
                 self.update(job,state='cancelled',stage='已取消',message='已停止，之前提交的产物仍可使用')
             except Exception as exc:
-                msg=str(exc); code='execution_failed'
+                msg=str(exc); code=getattr(exc,'code','execution_failed')
                 if 'out of memory' in msg.lower(): code='out_of_memory'
                 if '缺少' in msg or '未安装' in msg or 'unavailable' in msg.lower(): code='missing_dependency'
-                self.update(job,state='blocked' if code=='missing_dependency' else 'failed',message=msg[:300],error={'code':code,'message':msg[-6000:],'recovery':'保留已完成产物；检查模型/日志后重试，或改用较短片段。'},stage='需要处理')
+                self.update(job,state='blocked' if code=='missing_dependency' else 'failed',message=msg[:300],error={'code':code,'message':msg[-6000:],'recovery':getattr(exc,'recovery','保留已完成产物；检查模型/日志后重试，或改用较短片段。')},stage='需要处理')
             finally: self.queue.task_done()
 
     def source(self,job,roles=None):
@@ -308,19 +310,12 @@ class Scheduler:
             pitch=next((a for a in job['project_snapshot']['assets'] if a['id']==specified and a.get('stem_role')=='pitch'),None)
             if not pitch:raise ValueError('所选 F0 产物不属于当前工程或不是音高分析。')
             if source and source['id'] not in pitch.get('input_artifact_ids',[]):raise ValueError('所选 F0 不属于当前声部输入。')
-            if not self.pitch_matches(pitch,params):raise ValueError('音高分析参数已改变，指定曲线是旧分析；请重新检测或清除旧分析绑定后试听。')
+            if not self.pitch_matches(pitch,params):raise StalePitchBinding('音高分析参数已改变，指定曲线是旧分析；请重新检测或清除旧分析绑定后试听。')
             return self.store.get('artifacts',specified)
         return next((a for a in reversed(job['project_snapshot']['assets']) if a.get('stem_role')=='pitch' and a.get('voice_part')==part and (source is None or source['id'] in a.get('input_artifact_ids',[])) and self.pitch_matches(a,params)),None)
 
     def pitch_matches(self,pitch,parameters):
-        expected=pitch_analysis_parameters(parameters)
-        recorded=pitch.get('worker_metadata',{}).get('analysis_parameters') or pitch.get('analysis_parameters')
-        if recorded:return recorded==expected
-        producer=pitch.get('job_id')
-        if producer:
-            try:return pitch_analysis_parameters(self.store.get('jobs',producer)['parameters'])==expected
-            except (ValueError,KeyError):return False
-        return False
+        return pitch_matches(pitch,parameters,self.store)
 
     def listening_reference(self,job,source,parameters,offset,cancel):
         region=parameters.get('range_ticks')
