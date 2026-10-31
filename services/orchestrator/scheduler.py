@@ -15,11 +15,12 @@ from .model_catalog import ModelCatalog
 from .rvc_service import resolve_selection,selection_fields,normalized_job_parameters,render_signature,pitch_matches,StalePitchBinding
 from .model_selection import resolve_binding
 from .candidate_assembly import assemble_preview
+from .mixing import mix_tracks,preview_key
 from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash,pitch_parameter_subset
 from workers.pitch.engine import apply_target_parameters,shift_pitch_to_project
 from .voices import VOICE_PARTS,PART_NAMES,voice_part,new_binding,sync_part_tracks,resolve_part,part_unchanged,invalidate_mix,mix_signature,covers_source
 
-OPERATIONS={'separate','separate_harmony','pitch','convert','compare_versions','adopt_preview','convert_parts','mix','export','pipeline','comp','export_stems','svs'}
+OPERATIONS={'separate','separate_harmony','pitch','convert','compare_versions','adopt_preview','convert_parts','mix','mix_preview','export','pipeline','comp','export_stems','svs'}
 TERMINAL={'succeeded','failed','cancelled','blocked'}
 
 class Scheduler:
@@ -170,6 +171,7 @@ class Scheduler:
                 invalidate_mix(p,'主唱/和声分轨已更新')
             elif is_pair:
                 p['warnings'].append({'code':'separation_previous_revision','artifact_ids':[a['id'] for a in artifacts],'message':'分离期间工程声部已修改，本次分离结果保留且静音，没有覆盖新的绑定。重新运行分离可从缓存采用。'})
+            if add_tracks and not is_pair and any(a.get('stem_role') in ('vocal','instrumental','guide','synthesized') for a in artifacts):invalidate_mix(p,'上游音轨已更新，请更新混音')
             context=parameters or job['parameters']
             node_type='mix' if any(a['stem_role']=='mix' for a in artifacts) else 'pitch' if all(a['stem_role']=='pitch' for a in artifacts) else 'convert' if all(a['stem_role']=='converted' for a in artifacts) else job['operation']
             p['graph'].append({'id':uid('node'),'job_id':job['id'],'type':node_type,'voice_part':context.get('voice_part'),'input_refs':list(dict.fromkeys(ref for a in artifacts for ref in a.get('input_artifact_ids',[]))),'artifact_refs':[a['id'] for a in artifacts],'state':'succeeded','project_revision':job['project_revision'],'parameters':copy.deepcopy(context),'dependency_ranges':'whole_node_context_unknown'})
@@ -262,6 +264,11 @@ class Scheduler:
         if parameters.get('voice_part') in VOICE_PARTS:stage=PART_NAMES[parameters['voice_part']]+' · '+stage
         self.update(job,state='running',stage=stage,message='正在运行本地执行器',progress=None,progress_basis='unknown')
         env=os.environ.copy();env['PYTHONDONTWRITEBYTECODE']='1';env['PYTHONUTF8']='1';env['TORCH_FORCE_WEIGHTS_ONLY_LOAD']='1'
+        # Shared runtimes are read-only. Numba otherwise probes their package
+        # directories with temporary files and can retry indefinitely on Windows.
+        numba_cache=DATA/'engine-cache'/'numba';scratch=folder/'temp'
+        numba_cache.mkdir(parents=True,exist_ok=True);scratch.mkdir(exist_ok=True)
+        env.update(NUMBA_CACHE_DIR=str(numba_cache.resolve()),TEMP=str(scratch.resolve()),TMP=str(scratch.resolve()))
         started=time.monotonic()
         media.run([python,script,'--request',req,'--response',response],cancel,folder/'worker.log',env=env,cwd=ROOT)
         if cancel.is_set(): raise media.Cancelled()
@@ -429,6 +436,7 @@ class Scheduler:
         if op=='convert': return self.convert(job,self.source(job),cancel)
         if op=='compare_versions':return self.compare_versions(job,cancel)
         if op=='adopt_preview':return self.adopt_preview(job,cancel)
+        if op=='mix_preview':return self.mix_preview(job,cancel)
         if op=='convert_parts':
             return self.convert_parts(job,cancel)
         if op=='svs':
@@ -612,8 +620,7 @@ class Scheduler:
         self.update(job,state='running',stage='混音与效果',message='处理选定轨道；原混音默认不叠加')
         p=project_snapshot or job['project_snapshot'];params=job['parameters'] if parameters is None else parameters;tracks=params.get('tracks')
         if tracks is None:
-            tracks=[t for t in p['tracks'] if t['role'] not in ('original','mix')]
-            if not tracks: tracks=[t for t in p['tracks'] if t['role']=='original']
+            tracks=mix_tracks(p)
         owned={a['id'] for a in p['assets']}
         if any(t['artifact_id'] not in owned for t in tracks): raise ValueError('混音轨道不属于当前工程。')
         output=DATA/'jobs'/job['id']/'mix.wav';inputs=media.mix(self.store,tracks,output,cancel)
@@ -623,6 +630,42 @@ class Scheduler:
             if mix_signature(current)==mix_signature(p):current['warnings']=[w for w in current['warnings'] if w.get('code')!='pending_mix']
             else:invalidate_mix(current,'混音期间轨道或声部选择已变化，本次结果属于先前版本')
         self.store.change(job['project_id'],mark_mix,history=False)
+        return [a]
+
+    def mix_preview(self,job,cancel):
+        p=job['project_snapshot'];params=job['parameters'];region=params.get('range_ticks')
+        length=max((round(a['sample_count']*TIMEBASE/a['sample_rate'])+next((t.get('offset_ticks',0) for t in p['tracks'] if t['artifact_id']==a['id']),a.get('timeline_offset_ticks',0)) for a in p['assets'] if a.get('media_type','').startswith('audio') and a.get('stem_role')!='mix_preview'),default=0)
+        if not isinstance(region,list) or len(region)!=2 or any(type(v) is not int for v in region) or region[0]<0 or region[1]>length or region[1]-region[0]<2400:raise ValueError('混音试听选区需要位于工程音频范围内，且至少50毫秒。')
+        monitor=params.get('monitor_track_id');tracks=mix_tracks(p);key=preview_key(p,region,monitor)
+        owned={a['id'] for a in p['assets']}
+        if any(t['artifact_id'] not in owned for t in tracks):raise ValueError('混音轨道不属于当前工程。')
+        if monitor:
+            tracks=[{**t,'mute':False,'solo':False} for t in tracks if t['id']==monitor]
+            if not tracks:raise ValueError('监听轨道不存在。')
+        cached=self.store.cache_get(key);a=None
+        if cached:
+            try:a=self.store.get('artifacts',cached[0]);media.validate_artifact(a)
+            except (KeyError,ValueError):a=None
+        if a is None:
+            self.update(job,state='running',stage='渲染当前混音选区',message='使用当前推子、声像、静音/独奏、偏移及效果')
+            folder=DATA/'jobs'/job['id'];output=folder/'mix-preview.wav'
+            inputs=media.mix(self.store,tracks,output,cancel,range_ticks=region)
+            enabled=[t for t in tracks if not t.get('mute')]
+            if any(t.get('solo') for t in enabled):enabled=[t for t in enabled if t.get('solo')]
+            by_id={a['id']:a for a in p['assets']}
+            bus_end=max((round(by_id[t['artifact_id']]['sample_count']*TIMEBASE/by_id[t['artifact_id']]['sample_rate'])+t.get('offset_ticks',0) for t in enabled),default=0)
+            meters={}
+            for i,t in enumerate(enabled):
+                one=folder/f'meter-{i}.wav';media.mix(self.store,[t],one,cancel,range_ticks=region,timeline_end=bus_end)
+                meters[t['id']]=media.meter_levels(one)
+                one.unlink(missing_ok=True)
+            a=media.commit(self.store,output,kind='dsp',inputs=inputs,job=job,role='mix_preview',name='当前混音选区试听',
+                extra={'preview_key':key,'range_ticks':region,'timeline_offset_ticks':region[0],'monitor_track_id':monitor,'track_meters':meters,'master_meter':media.meter_levels(output),'measurements':media.loudness(output)})
+            self.store.cache_put(key,[a['id']])
+        # Monitoring is a cached job result, not a new project edit or export source.
+        # Keeping it out of project snapshots avoids one large meter array per drag.
+        job['artifact_ids'].append(a['id'])
+        self.store.event('artifact.committed',job,{'artifact_id':a['id']})
         return [a]
 
     def has_conversion(self,artifact,visited=None):

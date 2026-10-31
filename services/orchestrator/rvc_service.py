@@ -11,7 +11,7 @@ from workers.rvc_parameters import (load_parameter_schema,parameter_defaults,par
 
 PARAMETER_KEYS=set(load_parameter_schema()['properties'])
 ANALYSIS_KEYS={'pitch_algorithm','f0_min','f0_max','threshold','silence_db','hop_length','device'}
-VIEW_PARAMETER_KEYS={'active_voice_part','comp_segments','comp_base_candidate_id','score_duration_ticks','switch_policy','parameter_sources','preset_id'}
+VIEW_PARAMETER_KEYS={'active_voice_part','comp_segments','comp_base_candidate_id','score_duration_ticks','switch_policy','parameter_sources','preset_id','task_confirmed','import_role'}
 
 class StalePitchBinding(ValueError):
     code='stale_pitch_binding'

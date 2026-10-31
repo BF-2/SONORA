@@ -121,7 +121,7 @@ function normal(p: Project): Project {
     exports: p.exports || [],
     warnings: p.warnings || [],
     graph: p.graph || [],
-    mode: p.mode || "quick",
+    mode: p.mode === "detail" ? "expert" : p.mode || "quick",
   };
 }
 function errorText(e: unknown) {
@@ -329,7 +329,8 @@ export default function App() {
   );
   const [modal, setModal] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notices, setNotices] = useState<{ id: string; text: string }[]>([]);
+  const [toastPaused, setToastPaused] = useState(false);
   const [busy, setBusy] = useState("");
   const [saveState, setSaveState] = useState("已保存");
   const [playhead, setPlayhead] = useState(0);
@@ -357,6 +358,13 @@ export default function App() {
   const [blind, setBlind] = useState(false);
   const [blindOrder,setBlindOrder] = useState<string[]>([]);
   const [format, setFormat] = useState("wav");
+  const [wavSubtype, setWavSubtype] = useState("pcm_s24le");
+  const [mixPreview, setMixPreview] = useState<Bag | null>(null);
+  const [mixPreviewState, setMixPreviewState] = useState("");
+  const [mixMonitor, setMixMonitor] = useState("");
+  const [abMeasurements, setAbMeasurements] = useState<Bag | null>(null);
+  const [exportMeasurements, setExportMeasurements] = useState<Bag | null>(null);
+  const [meterDb, setMeterDb] = useState(-120);
   const [stemSemantics, setStemSemantics] = useState("post_fader_fx");
   const [experimentShifts, setExperimentShifts] = useState("-2,0,2");
   const [exportSelection, setExportSelection] = useState(false);
@@ -388,9 +396,30 @@ export default function App() {
   const refreshNeeded = useRef(false);
   const jobSignature = useRef("");
   const objectUrl = useRef("");
+  const mediaCache = useRef(new Map<string, Promise<string>>());
+  const measurementCache = useRef(new Map<string, Promise<Bag>>());
+  const previewRun = useRef(0);
+  const loopPending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioGraph = useRef<{ context: AudioContext; gain: GainNode; analyser: AnalyserNode } | null>(null);
   const applyProject = useCallback((p: Project) => {
     const n = normal(p);
+    if (pRef.current?.id === n.id && pRef.current.revision > n.revision) return;
     if (pRef.current?.id !== n.id) {
+      if (audio.current) audio.current.dataset.projectId = "";
+      audio.current?.pause();
+      if (audio.current) { audio.current.removeAttribute("src"); audio.current.load(); }
+      if (loopPending.current) clearTimeout(loopPending.current);
+      loopPending.current = null;
+      previewRun.current++;
+      for (const url of mediaCache.current.values()) void url.then(value => URL.revokeObjectURL(value)).catch(() => {});
+      mediaCache.current.clear(); measurementCache.current.clear();
+      setPlaying(false); setLoop(false); setListenId(""); setAB("A");
+      setMixPreview(null); setMixMonitor(""); setExportId(""); setSelectedTrack("");
+      const end = Math.max(0, n.parameters.timeline_duration_ticks || 0,
+        ...n.assets.filter(isAudio).map(a => ticks(duration(a)) + (n.tracks.find(t => t.artifact_id === a.id)?.offset_ticks ?? a.timeline_offset_ticks ?? 0)),
+        ...n.notes.map(note => note.end));
+      n.playhead = Math.max(0, Math.min(n.playhead || 0, end));
+      playRef.current = seconds(n.playhead); setPlayhead(playRef.current);
       setStepState(n.view_preferences?.stage ?? 0);
       setZoomState(n.view_preferences?.zoom ?? 1);
       setWorkflow(null);
@@ -400,9 +429,13 @@ export default function App() {
     localStorage.setItem("sonora-project", n.id);
   }, []);
   const tell = useCallback((msg: string) => {
-    setNotice(msg);
-    setTimeout(() => setNotice(""), 5500);
+    setNotices(previous => [...previous, { id: uid(), text: msg }].slice(-5));
   }, []);
+  useEffect(() => {
+    if (!notices.length || toastPaused) return;
+    const timer = setTimeout(() => setNotices(items => items.slice(1)), 5500);
+    return () => clearTimeout(timer);
+  }, [notices[0]?.id, toastPaused]);
   const guard = useCallback(async (fn: () => Promise<unknown>, label = "") => {
     if (label) setBusy(label);
     try {
@@ -491,6 +524,7 @@ export default function App() {
       });
   };
   const setStep = (value: number) => {
+    audio.current?.pause(); setListenId(""); setMixMonitor("");
     setStepState(value);
     updateView({ stage: value });
   };
@@ -572,8 +606,6 @@ export default function App() {
       if (recent) {
         const p = await request<Project>(`/projects/${recent.id}`);
         applyProject(p);
-        setPlayhead(seconds(p.playhead || 0));
-        playRef.current = seconds(p.playhead || 0);
       }
     }
   }, [applyProject]);
@@ -717,10 +749,17 @@ export default function App() {
   const comparisonB = project?.assets.find(
     (a) => a.id === candidate?.artifact_id,
   );
-  const listen =
+  const exportSource = project?.assets.find(a => a.id === exportId) || project?.assets.slice().reverse().find(a => a.stem_role === "mix") || comparisonB || source;
+  const mixStateKey = JSON.stringify([project?.id, project?.tracks.filter(t => t.role !== "mix"), project?.selection, mixMonitor]);
+  const currentMixPreview = mixPreview?.key === mixStateKey ? mixPreview.artifact as Artifact : undefined;
+  const trackMeter = (id: string) => {
+    const meter = currentMixPreview?.track_meters?.[id];
+    const index = Math.floor((playhead - seconds(currentMixPreview?.timeline_offset_ticks || 0)) / (meter?.hop_seconds || .05));
+    return playing && step === 4 ? Math.max(-120, ...(meter?.peaks_dbfs?.[index] || [-120])) : -120;
+  };
+  const listen = step === 4 ? currentMixPreview : step === 5 ? exportSource :
     project?.assets.find((a) => a.id === listenId) ||
-    (ab === "B" ? comparisonB : comparisonA) ||
-    (!candidate ? vocal || source : undefined);
+    (step === 3 ? (ab === "B" ? comparisonB : comparisonA) : step === 0 ? source : vocal || source);
   const artifactOffset = (a?: Artifact) =>
     a
       ? seconds(
@@ -823,14 +862,24 @@ export default function App() {
     let live = true;
     const wasPlaying = !a.paused;
     const at = playRef.current;
-    media(`/artifacts/${listen.id}/audio`)
-      .then((blob) => {
-        if (!live) return;
-        const url = URL.createObjectURL(blob);
-        if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+    const cache = mediaCache.current;
+    let cached = cache.get(listen.id);
+    if (!cached) {
+      cached = media(`/artifacts/${listen.id}/audio`).then(blob => URL.createObjectURL(blob)).catch(e => { cache.delete(listen.id); throw e; });
+      cache.set(listen.id, cached);
+      if (cache.size > 6) {
+        const oldest = cache.keys().next().value!;
+        if (oldest !== listen.id) { void cache.get(oldest)!.then(url => URL.revokeObjectURL(url)); cache.delete(oldest); }
+      }
+    }
+    cached.then((url) => {
+        if (!live || pRef.current?.id !== project?.id) return;
         objectUrl.current = url;
+        a.pause();
+        a.dataset.projectId = project?.id || "";
         a.src = url;
         a.onloadedmetadata = () => {
+          if (!live || pRef.current?.id !== project?.id) return;
           a.currentTime = Math.max(
             0,
             Math.min(
@@ -853,22 +902,98 @@ export default function App() {
       live = false;
     };
   }, [listen?.id, listenOffset]);
-  const aRms = comparisonA?.diagnostics?.rms_dbfs,
-    bRms = comparisonB?.diagnostics?.rms_dbfs;
+  const aRms = abMeasurements?.a.rms_dbfs,
+    bRms = abMeasurements?.b.rms_dbfs;
   const matchAvailable =
-    Number.isFinite(aRms) &&
-    Number.isFinite(bRms) &&
-    Math.abs(duration(comparisonA) - duration(comparisonB)) < 0.001 &&
-    Math.abs(artifactOffset(comparisonA) - artifactOffset(comparisonB)) < 0.001;
+    step === 3 && Number.isFinite(aRms) && Number.isFinite(bRms);
   const matchGain =
     matched && matchAvailable && !listenId
       ? 10 ** ((Math.min(aRms, bRms) - (ab === "A" ? aRms : bRms)) / 20)
       : 1;
   useEffect(() => {
-    if (audio.current)
-      audio.current.volume = Math.min(1, Math.max(0, volume * matchGain));
+    const value = Math.min(1, Math.max(0, volume * matchGain));
+    if (audioGraph.current) {
+      const { context, gain } = audioGraph.current;
+      gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setTargetAtTime(value, context.currentTime, .008);
+      if (audio.current) audio.current.volume = 1;
+    } else if (audio.current) audio.current.volume = value;
   }, [volume, matchGain]);
+  const prepareAudioGraph = async () => {
+    if (!audio.current) return;
+    if (!audioGraph.current) {
+      const context = new AudioContext(), gain = context.createGain(), analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      context.createMediaElementSource(audio.current).connect(gain).connect(analyser).connect(context.destination);
+      gain.gain.value = volume * matchGain; audio.current.volume = 1;
+      audioGraph.current = { context, gain, analyser };
+    }
+    await audioGraph.current.context.resume();
+  };
+  const loopStart = Math.max(seconds(selection.start), listenOffset);
+  const loopEnd = Math.min(seconds(selection.end), listenOffset + duration(listen));
+  const loopValid = !!listen && loopEnd - loopStart >= .05;
+  const resetLoopSeek = () => {
+    if (loopPending.current) clearTimeout(loopPending.current);
+    loopPending.current = null;
+    if (audio.current) audio.current.onseeked = null;
+    const graph = audioGraph.current;
+    if (graph && graph.context.state !== "closed") {
+      graph.gain.gain.cancelScheduledValues(graph.context.currentTime);
+      graph.gain.gain.setTargetAtTime(volume * matchGain, graph.context.currentTime, .005);
+    }
+  };
+  const wrapLoop = () => {
+    const a = audio.current;
+    if (!a || !loop || !loopValid || loopPending.current) return false;
+    const graph = audioGraph.current;
+    if (graph) {
+      graph.gain.gain.cancelScheduledValues(graph.context.currentTime);
+      graph.gain.gain.setValueAtTime(graph.gain.gain.value, graph.context.currentTime);
+      graph.gain.gain.linearRampToValueAtTime(0, graph.context.currentTime + .005);
+    }
+    loopPending.current = setTimeout(() => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true; resetLoopSeek();
+        void a.play().catch(() => setPlaying(false));
+      };
+      a.onseeked = finish;
+      loopPending.current = setTimeout(finish, 300);
+      a.currentTime = Math.max(0, loopStart - listenOffset);
+    }, 6);
+    return true;
+  };
+  const transportFrame = useRef<() => void>(() => {});
+  transportFrame.current = () => {
+    const a = audio.current;
+    if (!a || a.paused || a.dataset.projectId !== pRef.current?.id) return;
+    if (loop && loopValid && a.currentTime + listenOffset >= loopEnd - .008) wrapLoop();
+    playRef.current = a.currentTime + listenOffset;
+    setPlayhead(playRef.current);
+    if (audioGraph.current) {
+      const data = new Float32Array(audioGraph.current.analyser.fftSize);
+      audioGraph.current.analyser.getFloatTimeDomainData(data);
+      setMeterDb(20 * Math.log10(Math.max(1e-6, ...data.map(Math.abs))));
+    }
+  };
+  useEffect(() => {
+    if (!playing) { setMeterDb(-120); return; }
+    let frame = 0, last = 0;
+    const tick = (time: number) => { if (time - last > 32) { transportFrame.current(); last = time; } frame = requestAnimationFrame(tick); };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing]);
+  useEffect(() => {
+    if (!loop || !loopValid) {
+      resetLoopSeek();
+      if (loop && !loopValid) setLoop(false);
+    }
+    return resetLoopSeek;
+  }, [loop, loopValid, listen?.id]);
   const seek = (t: number) => {
+    resetLoopSeek();
     const value = listen
       ? Math.min(listenOffset + duration(listen), Math.max(listenOffset, t))
       : Math.min(maxDuration, Math.max(0, t));
@@ -881,6 +1006,68 @@ export default function App() {
         audio.current.duration || Math.max(0, value - listenOffset),
       );
   };
+  const measurement = (artifact: Artifact, region?: number[]) => {
+    const key = JSON.stringify([artifact.id, region]);
+    let result = measurementCache.current.get(key);
+    if (!result) {
+      result = post<Bag>(`/artifacts/${artifact.id}/measure`, region ? { range_ticks: region } : {}).catch(e => { measurementCache.current.delete(key); throw e; });
+      measurementCache.current.set(key, result);
+    }
+    return result;
+  };
+  useEffect(() => {
+    if (step !== 4 || !project) return;
+    const run = ++previewRun.current;
+    let disposed = false, jobId = "";
+    setMixPreviewState("当前设置已改变，正在准备选区试听…");
+    audio.current?.pause();
+    const timer = setTimeout(async () => {
+      try {
+        await flush();
+        const p = pRef.current;
+        if (!p || disposed || p.id !== project.id) return;
+        const region = p.selection.end > p.selection.start ? [p.selection.start, p.selection.end] : [0, ticks(Math.min(maxDuration, 15))];
+        const body = { revision: p.revision, idempotency_key: uid(), operation: "mix_preview", parameters: { range_ticks: region, monitor_track_id: mixMonitor || null } };
+        let result: Job;
+        try { result = await post<Job>(`/projects/${p.id}/jobs`, body); }
+        catch (e) {
+          if (!(e instanceof ApiError) || e.status !== 409 || disposed) throw e;
+          const latest = await request<Project>(`/projects/${p.id}`);
+          result = await post<Job>(`/projects/${p.id}/jobs`, { ...body, revision: latest.revision });
+        }
+        jobId = result.id;
+        if (disposed) { void post(`/jobs/${jobId}/cancel`).catch(() => {}); return; }
+        while (activeJob(result) && !disposed) {
+          setMixPreviewState(result.state === "queued" ? "混音试听已排队…" : "正在用当前推子与效果渲染选区…");
+          await new Promise(resolve => setTimeout(resolve, 350));
+          result = await request<Job>(`/jobs/${jobId}`);
+        }
+        if (disposed || run !== previewRun.current) return;
+        if (result.state !== "succeeded") throw new Error(result.error?.message || "选区试听未完成");
+        const artifact = await request<Artifact>(`/artifacts/${result.artifact_ids[0]}`);
+        if (disposed || run !== previewRun.current) return;
+        setMixPreview({ key: mixStateKey, artifact });
+        setMixPreviewState(mixMonitor ? "已更新：当前轨道推子后 / 效果后试听" : "已更新：当前推子、声像、静音/独奏、偏移和效果");
+      } catch (e) { if (!disposed) setMixPreviewState(`试听未更新：${errorText(e)}`); }
+    }, 650);
+    return () => { disposed = true; clearTimeout(timer); if (jobId) void post(`/jobs/${jobId}/cancel`).catch(() => {}); };
+  }, [step, mixStateKey, flush]);
+  useEffect(() => {
+    let live = true; setAbMeasurements(null);
+    if (step !== 3 || !comparisonA || !comparisonB) return;
+    const start = Math.max(artifactOffset(comparisonA), artifactOffset(comparisonB), seconds(selection.start));
+    const end = Math.min(artifactOffset(comparisonA) + duration(comparisonA), artifactOffset(comparisonB) + duration(comparisonB), seconds(selection.end));
+    if (end <= start) return;
+    const regionFor = (artifact: Artifact) => [start, end].map(time => ticks(time - artifactOffset(artifact)) + (artifact.timeline_offset_ticks || 0));
+    const timer = setTimeout(() => { void Promise.all([measurement(comparisonA, regionFor(comparisonA)), measurement(comparisonB, regionFor(comparisonB))]).then(([a,b]) => { if (live) setAbMeasurements({ a, b }); }).catch(() => {}); }, 350);
+    return () => { live = false; clearTimeout(timer); };
+  }, [step, comparisonA?.id, comparisonB?.id, artifactOffset(comparisonA), artifactOffset(comparisonB), selection.start, selection.end]);
+  useEffect(() => {
+    let live = true; setExportMeasurements(null);
+    if (step !== 5 || !exportSource) return;
+    void measurement(exportSource, exportSelection ? [selection.start, selection.end] : undefined).then(value => { if (live) setExportMeasurements(value); }).catch(e => { if (live) setError(errorText(e)); });
+    return () => { live = false; };
+  }, [step, exportSource?.id, exportSelection, selection.start, selection.end]);
   const togglePlay = () => {
     const a = audio.current;
     if (!listen || !a?.src) {
@@ -894,10 +1081,13 @@ export default function App() {
           a.currentTime + listenOffset >= seconds(selection.end))
       )
         seek(seconds(selection.start));
-      void a.play().catch((e) => setError(errorText(e)));
-    } else a.pause();
+      void prepareAudioGraph().then(() => a.play()).catch((e) => setError(errorText(e)));
+    } else {
+      resetLoopSeek(); a.pause();
+    }
   };
   const selectAB = (which: "A" | "B") => {
+    if (step !== 3) return;
     if (which === "A" && !comparisonA) {
       tell("候选的源音频缺失，请先重新链接。");
       return;
@@ -934,7 +1124,10 @@ export default function App() {
     setProjects((ps) => [p, ...ps]);
     return p;
   };
-  const chooseImport = (role = "original") => {
+  const setupReady = !!project?.assets.length || !!(project?.parameters.task_confirmed && project?.parameters.import_role);
+  const importRole = project?.parameters.import_role || (project?.assets.length ? "original" : "");
+  const chooseImport = (role = importRole || "original") => {
+    if (step === 0 && !setupReady) { tell("先确认制作任务和本次素材角色。"); return; }
     roleRef.current = role;
     upload.current?.click();
   };
@@ -1034,14 +1227,21 @@ export default function App() {
   const historyAction = (direction: "undo" | "redo") =>
     guard(async () => {
       await flush();
-      const p = pRef.current;
+      let p = pRef.current;
       if (!p) return;
-      applyProject(
-        await post<Project>(`/projects/${p.id}/history`, {
-          direction,
-          revision: p.revision,
-        }),
-      );
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const result = await post<Project>(`/projects/${p.id}/history`, { direction, revision: p.revision });
+          applyProject(mergeEditorPatch(result, pending.current) as Project);
+          setError(""); break;
+        } catch (e) {
+          if (!(e instanceof ApiError) || e.status !== 409 || attempt === 2) throw e;
+          p = await request<Project>(`/projects/${p.id}`);
+          if (pRef.current?.id !== p.id) return;
+          applyProject(mergeEditorPatch(p, pending.current) as Project);
+          await flush(); p = pRef.current!;
+        }
+      }
       tell(direction === "undo" ? "已撤销上一步编辑。" : "已重做。");
     });
   const openModelManager = (scope: VoicePartKey | "vocal" = activePart) => {
@@ -1416,6 +1616,10 @@ export default function App() {
     }, 0);
   const workflowAction = (action: Bag) => {
     const id = action.id;
+    if (id === "setup") { setStep(0); focusControl("task-setup"); return; }
+    if (action.kind === "navigate" && action.target_stage != null && !["choose_model", "fix_index", "models", "manage_models", "audition", "import"].includes(id)) {
+      setStep(action.target_stage); return;
+    }
     if (id === "refresh_pitch_preview") {
       void refreshPitchPreview();
       return;
@@ -1497,13 +1701,7 @@ export default function App() {
     }
     if (action.operation === "export") {
       setStep(5);
-      const a =
-        project?.assets
-          .slice()
-          .reverse()
-          .find((a) => a.stem_role === "mix") ||
-        comparisonB ||
-        source;
+      const a = exportSource;
       void guard(
         () =>
           job(
@@ -1511,6 +1709,7 @@ export default function App() {
             {
               artifact_id: a?.id,
               format,
+              wav_subtype: wavSubtype,
               name: exportName || project?.name,
               selection_only: exportSelection,
               model_converted: !!a?.model_hash,
@@ -1581,7 +1780,9 @@ export default function App() {
   }, []);
   useEffect(
     () => () => {
-      if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+      for (const value of mediaCache.current.values()) void value.then(url => URL.revokeObjectURL(url)).catch(() => {});
+      if (loopPending.current) clearTimeout(loopPending.current);
+      void audioGraph.current?.context.close();
       recorder.current?.stream.getTracks().forEach((t) => t.stop());
     },
     [],
@@ -1633,7 +1834,7 @@ export default function App() {
         onClick={() => {
           setLoop(true);
           seek(seconds(selection.start));
-          void audio.current?.play().catch((e) => setError(errorText(e)));
+          void prepareAudioGraph().then(() => audio.current?.play()).catch((e) => setError(errorText(e)));
         }}
         disabled={!listen}
       >
@@ -2056,11 +2257,11 @@ export default function App() {
                     className="track-label"
                     onClick={() => {
                       setSelectedTrack(track.id);
-                      setListenId(a.id);
+                      if (step === 4) setMixMonitor(track.id); else setListenId(a.id);
                     }}
                     onDoubleClick={() => {
-                      setListenId(a.id);
-                      void audio.current?.play().catch(() => {});
+                      if (step === 4) setMixMonitor(track.id);
+                      else { setListenId(a.id); void prepareAudioGraph().then(() => audio.current?.play()).catch(() => {}); }
                     }}
                   >
                     <strong>
@@ -2445,37 +2646,52 @@ export default function App() {
       });
     }, "提交歌声合成");
 
-  const latestStageNode = (index: number) => {
-    const types: Record<number, string[]> = {
-      3: ["convert", "convert_parts", "pipeline", "comp"],
-      4: ["mix"],
-      5: ["export", "export_stems"],
-    };
-    return project?.graph
-      .slice()
-      .reverse()
-      .find(
-        (n) =>
-          types[index]?.includes(n.type) &&
-          (index !== 3 ||
-            (!n.parameters?.range_ticks &&
-              (!n.voice_part || n.voice_part === activePart))),
-      );
-  };
   let content: ReactNode;
   if (step === 0)
     content = (
       <div className="layout-split">
         <div className="stack">
           <Card className="card-pad">
+            <div className="section-caption" id="task-setup">
+              你想完成什么？<span>先确认任务，再选择素材角色</span>
+            </div>
+            <div className="task-grid">
+              {[
+                ["cover", "note", "歌曲翻唱", "原词 · 换一种音色"],
+                ["speech", "mic", "语音变声", "对话 · 口播 · 配音"],
+                ["rewrite", "spark", "改词翻唱", "新歌词 · 新演唱来源"],
+              ].map(([id, icon, title, sub]) => (
+                <button
+                  className={`task-card ${project?.task === id ? "active" : ""}`}
+                  key={id}
+                  disabled={connection !== "ready" || !!busy}
+                  onClick={() =>
+                    void guard(async () => {
+                      await ensureProject();
+                      update({ task: id, parameters: { ...pRef.current!.parameters, task_confirmed: true, import_role: pRef.current!.parameters.import_role || "" } });
+                    })
+                  }
+                >
+                  <Icon name={icon} />
+                  <strong>{title}</strong>
+                  <small>{sub}</small>
+                </button>
+              ))}
+            </div>
+            <Field label="本次导入角色" hint="原曲含伴奏时选原曲；独立录音选干人声；改词演唱选新导唱。">
+              <select value={importRole} disabled={!project?.parameters.task_confirmed && !project?.assets.length} onChange={e => globalParam({ import_role: e.target.value })}>
+                <option value="">请选择本次素材角色</option><option value="original">原曲 · 含伴奏</option><option value="vocal">干人声 · 无伴奏</option><option value="guide">新导唱 · 唱着新歌词</option><option value="instrumental">已有伴奏</option><option value="lead_vocal">独立主唱</option><option value="backing_vocal">独立和声</option>
+              </select>
+            </Field>
             <div
               className={`drop-zone ${busy ? "working" : ""}`}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
                 const f = e.dataTransfer.files[0];
-                if (f)
-                  void guard(() => importFile(f, "original"), "正在导入与解码");
+                if (f && !setupReady) tell("请先确认任务和素材角色，再拖入音频。");
+                if (f && setupReady)
+                  void guard(() => importFile(f, importRole), "正在导入与解码");
               }}
             >
               <span className="drop-icon">
@@ -2487,7 +2703,7 @@ export default function App() {
                 <div className="row wrap">
                   <button
                     className="button primary"
-                    disabled={!!busy || connection !== "ready"}
+                    disabled={!setupReady || !!busy || connection !== "ready"}
                     onClick={() => chooseImport()}
                   >
                     <Icon name="import" />
@@ -2495,9 +2711,9 @@ export default function App() {
                   </button>
                   <button
                     className="text-button"
-                    disabled={!!busy || connection !== "ready"}
+                    disabled={!setupReady || !!busy || connection !== "ready"}
                     onClick={() => {
-                      roleRef.current = "original";
+                      roleRef.current = importRole;
                       setModal("import-path");
                     }}
                   >
@@ -2505,7 +2721,7 @@ export default function App() {
                   </button>
                   <button
                     className="text-button"
-                    disabled={!!busy || connection !== "ready"}
+                    disabled={!setupReady || !!busy || connection !== "ready"}
                     onClick={() =>
                       void guard(async () => {
                         const p = await ensureProject();
@@ -2522,32 +2738,6 @@ export default function App() {
                   </button>
                 </div>
               </div>
-            </div>
-            <div className="section-caption">
-              你想完成什么？<span>可随时切换，保留工程</span>
-            </div>
-            <div className="task-grid">
-              {[
-                ["cover", "note", "歌曲翻唱", "原词 · 换一种音色"],
-                ["speech", "mic", "语音变声", "对话 · 口播 · 配音"],
-                ["rewrite", "spark", "改词翻唱", "新歌词 · 新演唱来源"],
-              ].map(([id, icon, title, sub]) => (
-                <button
-                  className={`task-card ${project?.task === id ? "active" : ""}`}
-                  key={id}
-                  disabled={connection !== "ready" || !!busy}
-                  onClick={() =>
-                    void guard(async () => {
-                      await ensureProject();
-                      update({ task: id });
-                    })
-                  }
-                >
-                  <Icon name={icon} />
-                  <strong>{title}</strong>
-                  <small>{sub}</small>
-                </button>
-              ))}
             </div>
           </Card>
           <Card
@@ -4362,7 +4552,7 @@ export default function App() {
       </>
     );
   else if (step === 4) {
-    const mixTracks =
+    let mixTracks =
       project?.tracks.filter(
         (t) =>
           !["pitch", "original", "mix"].includes(t.role) &&
@@ -4374,6 +4564,7 @@ export default function App() {
             (!["vocal", "vocals", "guide", "synthesized"].includes(t.role) &&
               !(t.role === "converted" && !t.voice_part))),
       ) || [];
+    if (!mixTracks.length) mixTracks = project?.tracks.filter(t => t.role === "original") || [];
     content = (
       <div className="layout-split">
         <div className="stack">
@@ -4419,12 +4610,13 @@ export default function App() {
                         }
                       />
                       <div className="fader-scale">
-                        <span>+12</span>
-                        <span>0</span>
-                        <span>−24</span>
-                        <span>−60</span>
+                        {[12, 0, -24, -60].map(db => <span key={db} style={{ top: `${(12 - db) / 72 * 100}%` }}>{db > 0 ? "+" : ""}{db}</span>)}
+                      </div>
+                      <div className={`channel-meter ${trackMeter(t.id) >= 0 ? "clipping" : ""}`} role="meter" aria-label={`${t.name}效果后电平`} aria-valuemin={-60} aria-valuemax={0} aria-valuenow={Math.max(-60, Math.min(0, trackMeter(t.id)))}>
+                        <i style={{ height: `${Math.max(0, Math.min(100, (trackMeter(t.id) + 60) / 60 * 100))}%` }} />
                       </div>
                     </div>
+                    <small className="meter-readout">{trackMeter(t.id) > -120 ? `${trackMeter(t.id).toFixed(1)} dBFS` : "效果后电平 · 停止"}</small>
                     <div className="channel-level">
                       <input
                         aria-label={`${t.name}增益数值`}
@@ -4467,18 +4659,17 @@ export default function App() {
                           patchTrack(t.id, { pan: +e.target.value })
                         }
                       />
+                      <small>{t.pan ? `${t.pan < 0 ? "左" : "右"} ${Math.round(Math.abs(t.pan) * 100)}%` : "居中"}</small>
                     </Field>
                     <button
                       className="text-button"
                       onClick={() => {
-                        setListenId(t.artifact_id);
-                        tell(
-                          "正在监听该轨的已完成版本。混音推子与效果需渲染后试听。",
-                        );
+                        setMixMonitor(t.id);
+                        tell("正在生成该轨的推子后、效果后选区试听。");
                       }}
                     >
                       <Icon name="headphones" />
-                      监听已完成轨
+                      试听此轨 · 含推子与效果
                     </button>
                   </div>
                 ))}
@@ -4490,7 +4681,12 @@ export default function App() {
             )}
           </Card>
           <div className="highlight-strip">
-            推子与效果更改已存入配方。点击“渲染混音”生成新版本，再与旧版对照试听。
+            <strong role="status">{mixPreviewState || "进入混音后，按当前选区自动生成试听。"}</strong>
+            <p>设置变化时暂停旧试听，更新完成后可播放新版本。完整成品请点击“渲染混音”。</p>
+            {currentMixPreview && currentMixPreview.measurements?.true_peak_dbfs > 0 && <p className="warning-inline">当前混音真峰值 {currentMixPreview.measurements.true_peak_dbfs.toFixed(1)} dBTP，超过满幅；请降低推子后导出整数格式。</p>}
+            {selectionControls}
+            {mixMonitor && <button className="button small" onClick={() => setMixMonitor("")}>返回全部轨道混音试听</button>}
+            <button className="button small" disabled={!currentMixPreview} onClick={togglePlay}>{playing ? "暂停混音试听" : "播放当前混音选区"}</button>
           </div>
           <div className="row">
             <button
@@ -4513,7 +4709,7 @@ export default function App() {
               添加伴奏
             </button>
           </div>
-          {waveformCard()}
+          {waveformCard(mixTracks)}
         </div>
         <aside className="inspector stack">
           <Card className="card-pad">
@@ -4614,8 +4810,7 @@ export default function App() {
                     );
                   })}
                   <p className="info-inline">
-                    处理顺序以启用顺序保存。静音 /
-                    独奏、增益、声像和效果在渲染时生效；当前播放的是已提交产物。
+                    处理顺序以启用顺序保存。修改后会自动更新选区试听；底部标明当前是全部混音还是单轨效果后监听。
                   </p>
                 </>
               );
@@ -4664,6 +4859,11 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              {format === "wav" && <Field label="WAV 位深与采样格式" hint="16/24位整数需要峰值留量；32位浮点保留超满幅数据，播放仍需降低监听音量。">
+                <select value={wavSubtype} onChange={e => setWavSubtype(e.target.value)}>
+                  <option value="pcm_s16le">16-bit PCM</option><option value="pcm_s24le">24-bit PCM</option><option value="pcm_f32le">32-bit Float</option>
+                </select>
+              </Field>}
               <Field label="文件名（不含扩展名）">
                 <input
                   value={exportName}
@@ -4687,19 +4887,13 @@ export default function App() {
                   disabled={!source || !!busy}
                   onClick={() =>
                     void guard(async () => {
-                      const a =
-                        project?.assets.find((x) => x.id === exportId) ||
-                        project?.assets
-                          .slice()
-                          .reverse()
-                          .find((x) => x.stem_role === "mix") ||
-                        comparisonB ||
-                        source;
+                      const a = exportSource;
                       await job(
                         "export",
                         {
                           artifact_id: a?.id,
                           format,
+                          wav_subtype: wavSubtype,
                           name: exportName || project?.name,
                           selection_only: exportSelection,
                           model_converted:
@@ -4765,6 +4959,7 @@ export default function App() {
                     () =>
                       job("export_stems", {
                         semantics: stemSemantics,
+                        wav_subtype: wavSubtype,
                         format: format === "mp3" ? "wav" : format,
                       }),
                     "提交分轨导出",
@@ -4789,6 +4984,7 @@ export default function App() {
                     </strong>
                     <small>
                       {e.format?.toUpperCase()} ·{" "}
+                      {e.codec} ·{" "}
                       {e.processing_kind
                         ? kindNames[e.processing_kind]
                         : e.created_at}{" "}
@@ -4825,14 +5021,7 @@ export default function App() {
               <span>MEASURED</span>
             </div>
             {(() => {
-              const a =
-                project?.assets.find((x) => x.id === exportId) ||
-                project?.assets
-                  .slice()
-                  .reverse()
-                  .find((x) => x.stem_role === "mix") ||
-                comparisonB ||
-                source;
+              const a = exportSource;
               const d = a?.diagnostics;
               const measuredExport = project?.exports
                 .slice()
@@ -4842,7 +5031,7 @@ export default function App() {
                     e.artifact_id === a?.id &&
                     e.measurements?.measurement_succeeded,
                 );
-              const measured = measuredExport?.measurements;
+              const measured = exportMeasurements || measuredExport?.measurements;
               return (
                 <>
                   <div className="parameter-row">
@@ -4868,7 +5057,7 @@ export default function App() {
                     </strong>
                   </div>
                   <div className="parameter-row">
-                    <span>导出综合响度</span>
+                    <span>{exportSelection ? "选区综合响度" : "当前源综合响度"}</span>
                     <strong>
                       {measured?.integrated_lufs != null
                         ? `${Number(measured.integrated_lufs).toFixed(1)} LUFS`
@@ -4876,13 +5065,15 @@ export default function App() {
                     </strong>
                   </div>
                   <div className="parameter-row">
-                    <span>导出真峰值</span>
+                    <span>{exportSelection ? "选区真峰值" : "当前源真峰值"}</span>
                     <strong>
                       {measured?.true_peak_dbfs != null
                         ? `${Number(measured.true_peak_dbfs).toFixed(2)} dBTP`
                         : "未测量"}
                     </strong>
                   </div>
+                  {exportMeasurements && <p className="info-inline">已测量 {exportMeasurements.duration.toFixed(2)} 秒 · {exportMeasurements.measurement_engine}</p>}
+                  {!exportMeasurements && <p className="info-inline">正在测量所选音频的真实峰值与响度…</p>}
                   {measuredExport && (
                     <div className="helper-box">
                       <strong>最近导出测量</strong>
@@ -4913,7 +5104,7 @@ export default function App() {
     );
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell density-${mode}`}>
       <aside className="sidebar">
         <button className="brand" onClick={() => setStep(0)}>
           <span className="brand-mark">
@@ -4936,19 +5127,9 @@ export default function App() {
         </div>
         <nav aria-label="制作步骤">
           {steps.map(([icon, title], i) => {
-            const stale = latestStageNode(i)?.state === "stale";
-            const done =
-              i === 0
-                ? !!source
-                : i === 1
-                  ? project?.assets.some((a) => a.stem_role === "instrumental")
-                  : i === 2
-                    ? !!lastPitch
-                    : i === 3
-                      ? !!candidate
-                      : i === 4
-                        ? project?.assets.some((a) => a.stem_role === "mix")
-                        : !!project?.exports.length;
+            const stage = workflow?.project_id === project?.id ? workflow?.stages?.find((item: Bag) => item.id === i) : undefined;
+            const stale = ["stale", "preview_stale"].includes(stage?.state);
+            const done = !!stage?.completed;
             return (
               <button
                 className={`nav-step ${step === i ? "active" : ""} ${done ? "done" : ""}`}
@@ -5051,7 +5232,6 @@ export default function App() {
             >
               {[
                 ["quick", "快速完成"],
-                ["detail", "精细编辑"],
                 ["expert", "专家设置"],
               ].map(([id, title]) => (
                 <button
@@ -5172,6 +5352,7 @@ export default function App() {
             stage={step}
             voicePart={activePart}
             catalogRevision={catalogRevision}
+            activityKey={jobs.map(j => `${j.id}:${j.state}:${j.stage}`).join("|")}
             disabled={!!busy || saveState !== "已保存"}
             onAction={workflowAction}
             onLoaded={setWorkflow}
@@ -5182,7 +5363,7 @@ export default function App() {
             </div>
           )}
           {step >= 2 &&
-            [3, 4, 5].some((i) => latestStageNode(i)?.state === "stale") &&
+            ["stale", "preview_stale"].includes(currentStage?.state) &&
             project?.warnings.some((w) => w.code === "pending_render") && (
               <div className="pending-strip">
                 新版本待试听 · 已完成版本继续保留，请渲染受影响的节点。
@@ -5206,12 +5387,15 @@ export default function App() {
               {step < 5 && (
                 <button
                   className="button primary"
-                  onClick={() => setStep(step + 1)}
+                  disabled={!currentStage?.continuation || currentStage.continuation.disabled || !!busy || saveState !== "已保存"}
+                  title={saveState !== "已保存" ? saveState : currentStage?.continuation?.reason || "只切换页面，不执行任务"}
+                  onClick={() => workflowAction(currentStage!.continuation)}
                 >
-                  {steps[step + 1][1]}
+                  {currentStage?.continuation?.label || "继续"}
                   <Icon name="arrow" />
                 </button>
               )}
+              {currentStage?.continuation?.disabled && <small role="status">{currentStage.continuation.reason}</small>}
             </div>
           </div>
         </main>
@@ -5221,12 +5405,12 @@ export default function App() {
               <Icon name="wave" />
             </span>
             <div>
-              <strong>{listen?.name || "等待你的第一段声音"}</strong>
+              <strong>{listen?.name || (step === 4 ? "当前混音试听正在更新" : "暂无当前阶段的试听来源")}</strong>
               <small>
                 {listen
-                  ? kindNames[listen.processing_kind]
-                  : "导入音频，即可试听"}
-                {listenId ? " · 单轨监听" : ""}
+                  ? `${steps[step][1]} · ${step === 4 ? mixMonitor ? "单轨 · 推子/效果后" : "当前混音 · 推子/效果后" : step === 5 ? "当前导出源" : step === 3 ? `${ab} 通道 · ` + kindNames[listen.processing_kind] : kindNames[listen.processing_kind]}`
+                  : step === 4 ? "等待当前设置渲染完成" : `${steps[step][1]} · 请准备本阶段输入`}
+                {listenId && step !== 4 && step !== 5 ? " · 单轨原始产物" : ""}
               </small>
             </div>
           </div>
@@ -5236,6 +5420,8 @@ export default function App() {
                 className={`icon-button ${loop ? "on" : ""}`}
                 aria-label="循环选区"
                 aria-pressed={loop}
+                disabled={!loopValid}
+                title={loopValid ? "循环当前选区与试听源的交集" : "选区与试听音频需要至少50毫秒交集"}
                 onClick={() => setLoop(!loop)}
               >
                 <Icon name="repeat" />
@@ -5275,14 +5461,14 @@ export default function App() {
             <div className="segmented ab-switch">
               <button
                 className={ab === "A" && !listenId ? "active" : ""}
-                disabled={!comparisonA}
+                disabled={step !== 3 || !comparisonA}
                 onClick={() => selectAB("A")}
               >
                 {referenceCandidate ? "候选 A" : "原始 A"}
               </button>
               <button
                 className={ab === "B" && !listenId ? "active" : ""}
-                disabled={!comparisonB}
+                disabled={step !== 3 || !comparisonB}
                 onClick={() => selectAB("B")}
               >
                 候选 B
@@ -5293,7 +5479,7 @@ export default function App() {
               title={
                 matchAvailable
                   ? `按 RMS 匹配：${(20 * Math.log10(matchGain)).toFixed(1)} dB`
-                  : "需要同一区间的两份 RMS 测量；片段与整段不混用统计结果"
+                  : "声音转换页对同一选区测量RMS后启用；测量期间不匹配响度"
               }
             >
               <input
@@ -5316,39 +5502,24 @@ export default function App() {
                 onChange={(e) => setVolume(+e.target.value)}
               />
             </label>
+            <span className="monitor-meter" title="实际监听输出峰值，受监听音量影响">{playing ? `${meterDb.toFixed(0)} dBFS` : "监听停止"}</span>
           </div>
         </footer>
         <audio
           ref={audio}
-          onPlay={() => setPlaying(true)}
+          onPlay={() => { if (audio.current?.dataset.projectId === pRef.current?.id) setPlaying(true); }}
           onPause={() => {
             setPlaying(false);
-            savePlayhead();
+            if (audio.current?.dataset.projectId === pRef.current?.id) savePlayhead();
           }}
           onEnded={() => {
-            if (loop && audio.current && selection.end > selection.start) {
-              audio.current.currentTime = Math.max(
-                0,
-                seconds(selection.start) - listenOffset,
-              );
-              void audio.current.play().catch(() => setPlaying(false));
-            } else setPlaying(false);
+            if (audio.current?.dataset.projectId !== pRef.current?.id) return;
+            if (!wrapLoop()) setPlaying(false);
           }}
           onTimeUpdate={() => {
             const a = audio.current!;
-            if (
-              loop &&
-              selection.end > selection.start &&
-              a.currentTime + listenOffset >=
-                Math.min(
-                  seconds(selection.end),
-                  listenOffset + duration(listen),
-                )
-            )
-              a.currentTime = Math.max(
-                0,
-                seconds(selection.start) - listenOffset,
-              );
+            if (a.dataset.projectId !== pRef.current?.id) return;
+            if (loop && loopValid && a.currentTime + listenOffset >= loopEnd) wrapLoop();
             setPlayhead(a.currentTime + listenOffset);
             playRef.current = a.currentTime + listenOffset;
           }}
@@ -5446,9 +5617,11 @@ export default function App() {
             }, "导入 MIDI");
         }}
       />
-      {notice && (
-        <div className="toast show" role="status">
-          {notice}
+      {!!notices.length && (
+        <div className="toast show" role="status" key={notices[0].id} onMouseEnter={() => setToastPaused(true)} onMouseLeave={() => setToastPaused(false)}>
+          <span>{notices[0].text}</span>
+          {notices.length > 1 && <small>另有 {notices.length - 1} 条</small>}
+          <button className="icon-button" aria-label="关闭当前提示" onClick={() => { setNotices(items => items.slice(1)); setToastPaused(false); }}>×</button>
         </div>
       )}
       {modal && (
@@ -5513,7 +5686,6 @@ export default function App() {
                         );
                         setListenId("");
                         setModal("");
-                        setStep(0);
                       })
                     }
                   >
@@ -5691,7 +5863,7 @@ export default function App() {
               </Field>
               <Field label="素材角色">
                 <select
-                  defaultValue="original"
+                  defaultValue={roleRef.current}
                   onChange={(e) => {
                     roleRef.current = e.target.value;
                   }}

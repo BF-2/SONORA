@@ -132,6 +132,18 @@ def workflow(pid:str,voice_part:str|None=None):
     view=copy.deepcopy(p)
     if not binding:view['parameters']=effective
     result=describe_workflow(view,quick_manifest(catalog,effective),voice_part,store)
+    with store.connect() as db:
+        running=[json.loads(row[0]) for row in db.execute("SELECT body FROM jobs WHERE project_id=? AND json_extract(body,'$.state') IN ('queued','preparing','running') ORDER BY rowid DESC",(pid,))]
+    stage_for={'separate':1,'separate_harmony':1,'pitch':2,'convert':3,'compare_versions':3,'convert_parts':3,'mix':4,'export':5,'export_stems':5}
+    result['active_jobs']=[]
+    for job in running:
+        part=job['parameters'].get('voice_part')
+        if part and part!=voice_part:continue
+        result['active_jobs'].append({key:job.get(key) for key in ('id','operation','state','stage','message')})
+        index=stage_for.get(job['operation'])
+        if index is not None:
+            stage=result['stages'][index];stage['state']='running';stage['status_text']='排队中' if job['state']=='queued' else job['stage']
+            stage['recommendation']['disabled']=True
     result.update(effective_parameters=effective,binding_origin=effective.get('model_binding_scope','voice_part' if binding else 'project'),binding_error=binding_error)
     return result
 
@@ -378,12 +390,14 @@ def attach_import(pid,a):
         p['assets'].append(a)
         p['last_user_audio_edit']=uid('edit')
         role=a['stem_role'];duration=round(a['sample_count']*TIMEBASE/a['sample_rate'])
+        p['parameters'].setdefault('task_confirmed',True);p['parameters'].setdefault('import_role',role)
         p['tracks'].append({'id':uid('track'),'name':a['name'],'role':role,'voice_part':voice_part(a),'artifact_id':a['id'],'gain_db':0,'pan':0,'mute':False,'solo':False,'offset_ticks':a.get('timeline_offset_ticks',0),'effects':[]})
         if role in VOICE_PARTS:
             bindings=p.setdefault('voice_parts',{});bindings[role]=new_binding(a,bindings.get(role));sync_part_tracks(p,[role])
         elif p.get('voice_parts') and role in ('original','vocal','guide'):p['tracks'][-1]['mute']=True
         if not p['selection']['end']: p['selection']={'start':0,'end':duration}
         if role=='original' and len(p['assets'])==1 and p['name']=='未命名工程': p['name']=Path(a['name']).stem
+        invalidate_mix(p,'导入素材改变了混音输入，请更新混音')
     return {'project':store.change(pid,mutate),'artifact':a}
 
 async def upload(file:UploadFile,limit=512*1024*1024):
@@ -632,6 +646,16 @@ def data(aid:str):
     if a['media_type']!='application/json': raise ValueError('不是结构化分析产物。')
     content=json.loads(p.read_text(encoding='utf-8'));content['timeline_offset_ticks']=a.get('timeline_offset_ticks',0)
     return JSONResponse(content)
+
+@app.post('/api/v1/artifacts/{aid}/measure')
+def measure_audio(aid:str,body:dict|None=None):
+    artifact=store.get('artifacts',aid);body=body or {};region=body.get('range_ticks')
+    if set(body)-{'range_ticks'}:raise ValueError('未知测量选项。')
+    media.validate_artifact(artifact)
+    key=media.hash_json({'measurement_version':1,'sha256':artifact['sha256'],'offset':artifact.get('timeline_offset_ticks',0),'range':region})
+    result=store.cache_get(key)
+    if result is None:result=media.measure_artifact(artifact,region);store.cache_put(key,result)
+    return {**result,'artifact_id':aid}
 @app.get('/api/v1/exports/{eid}/download')
 def download(eid:str):
     e=next((e for p in store.all('projects') for e in p['exports'] if e['id']==eid),None)

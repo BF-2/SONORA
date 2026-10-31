@@ -2,6 +2,7 @@
 from pathlib import Path
 from .config import TIMEBASE
 from .rvc_service import candidate_matches,pitch_analysis_state
+from .mixing import mix_tracks
 
 STAGES=[('import','导入诊断',['导入音频','确认媒体属性','选择任务','设置选区']),
         ('prepare','人声整理',['确认输入','选择整理路线','运行或跳过分离','独听检查产物']),
@@ -29,7 +30,10 @@ def graph_stale(project,artifact_id):
 def describe_workflow(project,model=None,part=None,store=None):
     source,params,binding=scoped_context(project,part)
     source_valid=bool(source and source.get('commit_state')=='committed' and Path(source['path']).is_file())
-    raw=next((a for a in project['assets'] if a.get('stem_role')=='original'),source)
+    setup_confirmed=bool(project['assets']) or bool(params.get('task_confirmed') and params.get('import_role'))
+    raw=next((a for a in project['assets'] if a.get('stem_role')=='original'),source or next((a for a in project['assets'] if a.get('media_type','').startswith('audio')),None))
+    enabled_tracks=[t for t in mix_tracks(project) if not t.get('mute')]
+    if any(t.get('solo') for t in enabled_tracks):enabled_tracks=[t for t in enabled_tracks if t.get('solo')]
     pitch=next((a for a in reversed(project['assets']) if a.get('stem_role')=='pitch' and source and source['id'] in a.get('input_artifact_ids',[])),None)
     analysis=pitch_analysis_state(project,source,params,part if binding else None,store)
     candidates=[c for c in project['candidates'] if not c.get('archived') and c.get('voice_part')==(part if binding else None) and source and c.get('source_artifact_id')==source['id']]
@@ -48,11 +52,13 @@ def describe_workflow(project,model=None,part=None,store=None):
         valid=bool(current and current.get('commit_state')=='committed' and Path(current['path']).is_file())
         stage={'id':index,'key':key,'title':title,'sequence':steps,'state':'not_started','input':{'artifact_id':current['id'] if current else None,'name':current.get('name') if current else '尚未选择输入','valid':valid,'range_ticks':project['selection'],'stale':graph_stale(project,current['id']) if current else False},'blockers':[],'outputs':[{'id':a['id'],'name':a.get('name',title+'结果'),'state':a.get('state','committed'),'selected':a.get('selected',False)} for a in outputs[index]],'next_hint':''}
         def action(identifier,label,operation=None,target=None,**extra):
-            stage['recommendation']={'id':identifier,'label':label,'operation':operation,'target_stage':target,**extra}
+            kind='execute' if operation or identifier in ('validate_model','refresh_pitch_preview') else 'navigate'
+            stage['recommendation']={'id':identifier,'label':label,'operation':operation,'kind':kind,'target_stage':target,**extra}
         if index==0:
-            if valid:stage['state']='editable';action('choose_task','确认任务与选区',target=1);stage['next_hint']='原文件保留；歌曲可先分离，干人声可直接分析。'
+            if not setup_confirmed:stage['state']='blocked';action('setup','先确认任务与素材角色',target=0);stage['next_hint']='先选择制作任务和本次音频角色，再导入文件。'
+            elif valid:stage['state']='ready';action('prepare','前往人声整理',target=1);stage['next_hint']='原文件保留；歌曲可先分离，干人声可直接分析。'
             else:action('import','选择音频',target=0)
-        elif not source_valid:
+        elif not source_valid and not (index==4 and enabled_tracks or index==5 and mix):
             stage['blockers'].append({'code':'missing_input','message':'当前没有有效音频输入。','repair':'导入音频或按哈希重新链接缺失素材。'});action('import','导入或重新链接音频',target=0);stage['state']='blocked'
         elif index==1:
             if project['task']=='speech' or source.get('stem_role') in ('guide','synthesized','vocal','lead_vocal','backing_vocal'):
@@ -85,10 +91,12 @@ def describe_workflow(project,model=None,part=None,store=None):
             else:stage['state']='ready';action('mix','前往混音',target=4);stage['next_hint']='采用的模型、索引和参数随候选保存，不随“最新版本”替换。'
             if stage['blockers']:stage['state']='blocked'
         elif index==4:
+            stage['input'].update(name='当前混音：'+('、'.join(t.get('name',t['role']) for t in enabled_tracks[:3]) or '所有轨道已静音'),track_ids=[t['id'] for t in enabled_tracks],valid=bool(enabled_tracks))
             if not selected and not project.get('voice_parts'):
                 stage['state']='needs_review';stage['next_hint']='尚未采用转换候选，可先返回试听；直接混音会使用现有原声。';action('audition','返回选择人声候选',target=3)
             elif mix and not graph_stale(project,mix['id']):stage['state']='ready';action('go_export','检查成品并导出',target=5)
             else:stage['state']='editable';action('mix','渲染当前轨道混音','mix',4);stage['next_hint']='只混入启用轨道；修改推子或采用候选后需重算混音。'
+            if not enabled_tracks:stage['recommendation']['disabled']=True;stage['next_hint']='当前试听为静音；启用一条轨道后再生成完整混音。'
         elif index==5:
             if mix and graph_stale(project,mix['id']):
                 stage['state']='blocked';stage['blockers'].append({'code':'stale_mix','message':'最后的混音对应旧设置。','repair':'重新渲染混音后导出当前版本。'});action('mix','更新混音','mix',4)
@@ -99,4 +107,14 @@ def describe_workflow(project,model=None,part=None,store=None):
         if index==3:
             for item,candidate in zip(stage['outputs'],candidates):
                 item['current']=current_candidate(candidate);item['freshness']='当前设置' if item['current'] else '旧参数预览';item['preview_only']=bool(candidate.get('preview_only'))
+    prepared=source_valid and (source.get('stem_role') in ('vocal','guide','synthesized','lead_vocal','backing_vocal') or project['task']=='speech' or params.get('skip_separation'))
+    gates=[(setup_confirmed and bool(raw) and Path(raw['path']).is_file(),'先确认任务/角色并导入有效音频。'),
+           (prepared,'先准备干人声，或明确选择跳过分离。'),
+           (analysis['state']=='ready','先按当前参数检测音高。'),
+           (selected_fresh and not selected.get('preview_only',False) if selected else False,'先生成并采用覆盖输入的完整候选。'),
+           (bool(mix and not graph_stale(project,mix['id'])),'先渲染当前设置的完整混音。')]
+    for i,(allowed,reason) in enumerate(gates):
+        result[i]['continuation']={'id':'continue','kind':'navigate','target_stage':i+1,'label':'继续 · '+STAGES[i+1][1],'disabled':not allowed,'reason':'' if allowed else reason}
+    for stage in result:
+        stage['completed']=stage['id']<5 and not stage.get('continuation',{}).get('disabled',True) or stage['id']==5 and bool(project['exports'])
     return {'project_id':project['id'],'revision':project['revision'],'stages':result,'parameter_sources':params.get('parameter_sources',{}),'voice_part':part if binding else None,'pitch_analysis':analysis}

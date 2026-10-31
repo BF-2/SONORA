@@ -16,6 +16,13 @@ def uid(prefix):
 def encode(value):
     return json.dumps(value, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
 
+def edit_state(project):
+    value=copy.deepcopy(project)
+    for key in ('revision','updated_at','playhead','mode','view_preferences','last_user_audio_edit'):value.pop(key,None)
+    value.get('parameters',{}).pop('active_voice_part',None)
+    value.get('parameters',{}).get('parameter_sources',{}).pop('active_voice_part',None)
+    return value
+
 class Conflict(ValueError):
     pass
 
@@ -92,23 +99,33 @@ class Store:
             if row is None:raise KeyError(identifier)
             p=json.loads(row[0])
             if revision is not None and revision != p['revision']: raise Conflict('工程已更新，请刷新后重试。')
+            before=edit_state(p)
             mutation(p)
             p['revision'] += 1
             p['updated_at'] = now()
             validate_project(p)
             db.execute('UPDATE projects SET body=? WHERE id=?',(encode(p),identifier))
-            if history: self._checkpoint(db,p)
+            if history and edit_state(p)!=before: self._checkpoint(db,p)
             return p
 
     def history(self, identifier, direction, revision):
         with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
             current = self.get('projects',identifier)
             if current['revision'] != revision: raise Conflict('工程版本已更新。')
             pos = db.execute('SELECT position FROM cursors WHERE project_id=?',(identifier,)).fetchone()[0]
-            target = pos + (-1 if direction=='undo' else 1)
-            row = db.execute('SELECT body FROM history WHERE project_id=? AND position=?',(identifier,target)).fetchone()
-            if not row: return current
+            checkpoint=db.execute('SELECT body FROM history WHERE project_id=? AND position=?',(identifier,pos)).fetchone()
+            baseline=edit_state(json.loads(checkpoint[0])) if checkpoint else edit_state(current)
+            target=pos
+            while True:
+                target += -1 if direction=='undo' else 1
+                row=db.execute('SELECT body FROM history WHERE project_id=? AND position=?',(identifier,target)).fetchone()
+                if not row:return current
+                if edit_state(json.loads(row[0]))!=baseline:break
             value = json.loads(row[0]); value['revision'] = current['revision']+1; value['updated_at']=now();value['last_user_audio_edit']=uid('edit')
+            for key in ('playhead','mode','view_preferences'):
+                if key in current:value[key]=copy.deepcopy(current[key])
+            if 'active_voice_part' in current['parameters']:value['parameters']['active_voice_part']=current['parameters']['active_voice_part']
             db.execute('UPDATE projects SET body=? WHERE id=?',(encode(value),identifier))
             db.execute('UPDATE cursors SET position=? WHERE project_id=?',(target,identifier))
             return value

@@ -531,7 +531,7 @@ export function PitchCanvas({
       const w = r.width - 42,
         h = r.height;
       const y = (m: number) => h - ((m - lo) / (hi - lo)) * h;
-      ctx.font = "10px system-ui";
+      ctx.font = "11px system-ui";
       for (let n = lo; n <= hi; n++) {
         ctx.strokeStyle = n % 12 === 0 ? "#495149" : "#29332d";
         ctx.beginPath();

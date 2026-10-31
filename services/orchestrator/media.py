@@ -153,10 +153,14 @@ def effects_filter(effects):
         else: raise ValueError(f'未实现的效果：{typ}')
     return filters
 
-def mix(store,tracks,output,cancel=None):
+def mix(store,tracks,output,cancel=None,range_ticks=None,timeline_end=None):
     tracks=[t for t in tracks if not t.get('mute')]
     if any(t.get('solo') for t in tracks): tracks=[t for t in tracks if t.get('solo')]
-    if not tracks: raise ValueError('没有可混音的轨道。')
+    if not tracks:
+        if range_ticks and len(range_ticks)==2 and all(type(v) is int for v in range_ticks) and range_ticks[0]>=0 and range_ticks[1]>range_ticks[0]:
+            run([binary('ffmpeg'),'-v','error','-f','lavfi','-i','anullsrc=r=48000:cl=stereo','-af',f'atrim=end_sample={range_ticks[1]-range_ticks[0]}','-c:a','pcm_f32le','-y',str(output)],cancel)
+            return []
+        raise ValueError('没有可混音的轨道。')
     args=[binary('ffmpeg'),'-v','error','-nostdin']; graph=[]; inputs=[]; total=0
     for i,t in enumerate(tracks):
         a=store.get('artifacts',t['artifact_id']); inputs.append(a['id']); args+=safe_input(validate_artifact(a))
@@ -168,12 +172,48 @@ def mix(store,tracks,output,cancel=None):
         elif offset<0: filters.append(f'atrim=start_sample={-offset}')
         filters+=['asetpts=PTS-STARTPTS']
         graph.append(f'[{i}:a]'+','.join(filters)+f'[t{i}]')
-    graph.append(''.join(f'[t{i}]' for i in range(len(tracks)))+f'amix=inputs={len(tracks)}:normalize=0:duration=longest,apad,atrim=end_sample={max(total,1)}[out]')
+    if timeline_end is not None:total=max(total,int(timeline_end))
+    trim=f'atrim=end_sample={max(total,1)}'
+    if range_ticks:
+        start,end=range_ticks
+        if type(start) is not int or type(end) is not int or start<0 or end<=start:raise ValueError('混音试听选区无效。')
+        trim+=f',apad,atrim=start_sample={start}:end_sample={end},asetpts=PTS-STARTPTS'
+    graph.append(''.join(f'[t{i}]' for i in range(len(tracks)))+f'amix=inputs={len(tracks)}:normalize=0:duration=longest,apad,{trim}[out]')
     run(args+['-filter_complex',';'.join(graph),'-map','[out]','-c:a','pcm_f32le','-y',str(output)],cancel)
     return inputs
 
-def loudness(path):
-    result=subprocess.run([binary('ffmpeg'),'-hide_banner','-nostdin',*safe_input(path),'-af','ebur128=peak=true','-f','null','-'],capture_output=True,timeout=180,creationflags=NO_WINDOW)
+def loudness(path,sample_range=None):
+    filters=(f'atrim=start_sample={sample_range[0]}:end_sample={sample_range[1]},asetpts=PTS-STARTPTS,' if sample_range else '')+'ebur128=peak=true'
+    result=subprocess.run([binary('ffmpeg'),'-hide_banner','-nostdin',*safe_input(path),'-af',filters,'-f','null','-'],capture_output=True,timeout=180,creationflags=NO_WINDOW)
     text=result.stderr.decode(errors='replace'); tail=text[text.rfind('Summary:'):]
     i=re.search(r'I:\s+(-?[\d.]+) LUFS',tail); peak=re.search(r'Peak:\s+(-?[\d.]+) dBFS',tail)
     return {'integrated_lufs':float(i.group(1)) if i else None,'true_peak_dbfs':float(peak.group(1)) if peak else None,'measurement_engine':'ffmpeg ebur128 peak=true','measurement_succeeded':result.returncode==0}
+
+def meter_levels(path,hop_seconds=.05):
+    with sf.SoundFile(path) as audio:
+        hop=max(1,round(audio.samplerate*hop_seconds));levels=[]
+        while True:
+            block=audio.read(hop,dtype='float32',always_2d=True)
+            if not len(block):break
+            levels.append([round(float(20*np.log10(max(float(np.max(np.abs(block[:,i]))),1e-12))),2) for i in range(block.shape[1])])
+        return {'hop_seconds':hop/audio.samplerate,'peaks_dbfs':levels}
+
+def measure_artifact(artifact,range_ticks=None):
+    if not artifact.get('media_type','').startswith('audio'):raise ValueError('只能测量音频产物。')
+    if range_ticks is not None and (not isinstance(range_ticks,list) or len(range_ticks)!=2 or any(type(v) is not int for v in range_ticks)):raise ValueError('测量区间无效。')
+    path=validate_artifact(artifact);offset=artifact.get('timeline_offset_ticks',0);sr=artifact['sample_rate']
+    start,end=0,artifact['sample_count']
+    if range_ticks:
+        if len(range_ticks)!=2 or any(type(v) is not int for v in range_ticks):raise ValueError('测量区间无效。')
+        start=max(0,round((range_ticks[0]-offset)*sr/TIMEBASE));end=min(end,round((range_ticks[1]-offset)*sr/TIMEBASE))
+    if end<=start:raise ValueError('测量选区与音频没有交集。')
+    peak=0.;squares=0.;count=0
+    with sf.SoundFile(path) as audio:
+        audio.seek(start);remaining=end-start
+        while remaining:
+            block=audio.read(min(65536,remaining),dtype='float64',always_2d=True)
+            if not len(block):raise ValueError('测量采样不足。')
+            remaining-=len(block);peak=max(peak,float(np.max(np.abs(block))));squares+=float(np.square(block).sum());count+=block.size
+    return {**loudness(path,[start,end]),'sample_peak_dbfs':20*math.log10(max(peak,1e-12)),
+            'rms_dbfs':10*math.log10(max(squares/count,1e-24)),'sample_range':[start,end],
+            'duration':(end-start)/sr,'artifact_id':artifact['id'],'artifact_hash':artifact['sha256'],'range_ticks':range_ticks}

@@ -13,6 +13,7 @@ export function WorkflowStrip({
   onAction,
   onLoaded,
   catalogRevision,
+  activityKey,
 }: {
   projectId?: string;
   revision: number;
@@ -22,6 +23,7 @@ export function WorkflowStrip({
   onAction: (action: Bag) => void;
   onLoaded: (workflow: Bag) => void;
   catalogRevision: number;
+  activityKey?: string;
 }) {
   const [workflow, setWorkflow] = useState<Bag | null>(null),
     [error, setError] = useState("");
@@ -47,7 +49,7 @@ export function WorkflowStrip({
     return () => {
       live = false;
     };
-  }, [projectId, revision, voicePart, catalogRevision]);
+  }, [projectId, revision, voicePart, catalogRevision, activityKey]);
   const step =
     workflow?.project_id === projectId &&
     (voicePart === "vocal"
@@ -84,15 +86,15 @@ export function WorkflowStrip({
         <div className="workflow-main">
           <div>
             <strong>当前输入：尚未导入</strong>
-            <p>选择任务 → 导入音频 → 检查素材 → 选择下一步。</p>
+            <p>确认任务 → 选择素材角色 → 导入音频 → 检查素材。</p>
             <small>先选语音变声或歌曲翻唱，原始文件只读保留。</small>
           </div>
           <button
             className="button primary workflow-primary"
-            onClick={() => onAction({ id: "import_audio", label: "选择音频" })}
+            onClick={() => onAction({ id: "setup", label: "确认任务与角色" })}
           >
             <Icon name="import" />
-            选择音频
+            确认任务与角色
           </button>
         </div>
       </section>

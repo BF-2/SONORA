@@ -63,7 +63,8 @@ def test_history_modes_and_stale_revision():
     assert changed['playhead']==12345 and changed['mode']=='expert'
     assert client.patch('/api/v1/projects/'+p['id'],headers=AUTH,json={'revision':start,'patch':{'mode':'quick'}}).status_code==409
     undo=req('POST',f"/projects/{p['id']}/history",json={'direction':'undo','revision':changed['revision']})
-    assert undo['mode']=='quick'
+    assert undo['mode']=='expert' and undo['playhead']==12345
+    assert undo['selection']==p['selection']
     redo=req('POST',f"/projects/{p['id']}/history",json={'direction':'redo','revision':undo['revision']})
     assert redo['playhead']==12345 and redo['selection']['start']==2345
 

@@ -21,6 +21,7 @@ F0_TARGET_KEYS={'transpose','filter_radius','f0_autotune','f0_autotune_strength'
 CONTEXT_FIELDS=set('model_id model_artifact_id model_hash index_id index_hash preset_id parameter_sources model_selection source_timeline_offset_ticks pitch_artifact_id pitch_edits range_ticks voice_part active_voice_part chain_candidate_id comparison_id algorithm skip_separation separation_model_id harmony_model_id separation_task parts mix_after comp_segments comp_base_candidate_id score_duration_ticks name format artifact_id selection_only model_converted tracks sample_rate allow_stale wav_subtype allow_clipping svs_model_id language duration_ticks notes lyrics timing_policy steps speaker'.split())
 CONTEXT_FIELDS.update('source_artifact_id voice_id run_id training_run_id voice_profile_id switch_policy model_ids comparison_parameters compare_index_id comparison_name adopt_result auto_adopt model_binding_scope model_binding_target clip_id clip_range_ticks view_preferences'.split())
 CONTEXT_FIELDS.update('track_id ignore_clip_bindings accepted_preview_id'.split())
+CONTEXT_FIELDS.update('task_confirmed import_role monitor_track_id'.split())
 ALIASES={'pitch':'transpose','f0_method':'pitch_algorithm','algorithm':'pitch_algorithm'}
 
 
