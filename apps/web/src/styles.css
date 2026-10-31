@@ -1837,25 +1837,6 @@ input[type="checkbox"] {
   height: 150px !important;
   accent-color: #badb84;
 }
-.level-meter {
-  width: 7px;
-  height: 142px;
-  background: repeating-linear-gradient(
-    to top,
-    #b6cf7b 0px,
-    #b6cf7b 5px,
-    transparent 5px,
-    transparent 8px
-  );
-  position: relative;
-  opacity: 0.7;
-}
-.level-meter:before {
-  content: "";
-  position: absolute;
-  inset: 0 0 60% 0;
-  background: #242e21;
-}
 .channel-level {
   text-align: center;
   color: #b8d297;
@@ -2032,12 +2013,6 @@ dialog::backdrop {
   opacity: 1;
   transform: translate(-50%, 0);
 }
-.pro-only {
-  display: none;
-}
-body.pro .pro-only {
-  display: block;
-}
 .info-inline {
   font-size: var(--font-xs);
   color: #839a73;
@@ -2206,9 +2181,6 @@ body.pro .pro-only {
   }
   main {
     padding: var(--space-5);
-  }
-  .topbar {
-    padding: 0 24px;
   }
   .task-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2404,9 +2376,6 @@ body.pro .pro-only {
   .breadcrumb {
     font-size: var(--font-xs);
   }
-  .top-actions .icon-button {
-    display: none;
-  }
   main {
     padding: 21px 17px;
   }
@@ -2473,9 +2442,6 @@ body.pro .pro-only {
   .stat {
     padding: 10px;
   }
-  .stat strong {
-    font-size: var(--font-md);
-  }
   .card-top {
     padding: 15px;
   }
@@ -2493,9 +2459,6 @@ body.pro .pro-only {
     gap: 7px;
   }
   .track-label {
-    font-size: var(--font-xs);
-  }
-  .track-label small {
     font-size: var(--font-xs);
   }
   .wave-canvas-wrap {
@@ -2655,9 +2618,6 @@ body.pro .pro-only {
   .fader {
     height: 120px !important;
   }
-  .level-meter {
-    height: 120px;
-  }
   .step-tabs {
     gap: 17px;
   }
@@ -2715,9 +2675,6 @@ body.pro .pro-only {
 :root {
   --font:
     "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
-}
-body {
-  font-size: var(--font-body);
 }
 button.brand {
   border: 0;

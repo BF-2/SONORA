@@ -395,7 +395,6 @@ export default function App() {
   const eventCursor = useRef(0);
   const refreshNeeded = useRef(false);
   const jobSignature = useRef("");
-  const objectUrl = useRef("");
   const mediaCache = useRef(new Map<string, Promise<string>>());
   const measurementCache = useRef(new Map<string, Promise<Bag>>());
   const previewRun = useRef(0);
@@ -874,7 +873,6 @@ export default function App() {
     }
     cached.then((url) => {
         if (!live || pRef.current?.id !== project?.id) return;
-        objectUrl.current = url;
         a.pause();
         a.dataset.projectId = project?.id || "";
         a.src = url;
