@@ -22,6 +22,8 @@
     "notes": {"type": "array", "items": {"$ref": "#/$defs/Note"}},
     "lyrics": {"type": "array", "items": {"$ref": "#/$defs/Lyric"}},
     "candidates": {"type": "array", "items": {"$ref": "#/$defs/Candidate"}},
+    "separation_runs": {"type":"array","items":{"type":"object","required":["id","operation","artifact_ids"],"properties":{"id":{"$ref":"#/$defs/Id"},"operation":{"enum":["separate","separate_harmony"]},"artifact_ids":{"type":"array","minItems":2,"maxItems":2,"items":{"$ref":"#/$defs/Id"}},"archived":{"type":"boolean"},"voice_parts_snapshot":{"type":"object"}}}},
+    "selected_separations": {"type":"object","properties":{"separate":{"type":["string","null"]},"separate_harmony":{"type":["string","null"]}}},
     "parameters": {"type": "object"},
     "view_preferences": {"type":"object","properties":{"stage":{"type":"integer","minimum":0,"maximum":5},"expanded_panels":{"type":"object"},"auto_archive_candidates":{"type":"boolean","default":true},"pitch_views":{"type":"object","additionalProperties":{"type":"object","properties":{"start":{"type":"number","minimum":0},"span":{"type":"number","minimum":0.05},"center":{"type":"number"},"range":{"type":"number","minimum":1}}}}}},
     "model_bindings": {"type":"object","properties":{"project":{"type":"object"},"tracks":{"type":"object"},"clips":{"type":"object"}}},

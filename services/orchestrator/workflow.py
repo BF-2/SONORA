@@ -7,13 +7,14 @@ from .mixing import mix_tracks
 STAGES=[('import','导入诊断',['导入音频','确认媒体属性','选择任务','设置选区']),
         ('prepare','人声整理',['确认输入','选择整理路线','运行或跳过分离','独听检查产物']),
         ('pitch','音高与歌词',['确认人声源','检测音高','检查与编辑','锁定目标曲线']),
-        ('convert','声音转换',['选择输入','选择声音与版本','检查索引和兼容性','调整参数','生成短试听','采用或完整生成']),
+        ('convert','声音转换',['选择输入','选择声音与版本','检查索引和兼容性','调整参数','生成完整版本','选定混音版本']),
         ('mix','混音',['确认采用的人声','选择伴奏','调整推子与效果','渲染混音','检查电平']),
         ('export','导出',['选择有效产物','设置格式与范围','检查技术指标','导出文件与配方'])]
 
 def scoped_context(project,part=None):
     binding=project.get('voice_parts',{}).get(part or '')
-    parameters=binding.get('parameters',{}) if binding else project.get('parameters',{})
+    common={key:project.get('parameters',{})[key] for key in ('device','seed','cpu_threads') if key in project.get('parameters',{})}
+    parameters={**common,**binding.get('parameters',{})} if binding else project.get('parameters',{})
     chosen=binding.get('source_artifact_id') if binding else parameters.get('source_artifact_id')
     source=next((a for a in project['assets'] if a['id']==chosen),None)
     if source is None and not chosen:
@@ -82,8 +83,8 @@ def describe_workflow(project,model=None,part=None,store=None):
                 stage['blockers'].append({'code':'index_mismatch','message':'检索比例大于零，但没有已验证匹配的索引。','repair':'明确选择无检索（0），或绑定经验证的索引。'});action('fix_index','修复索引选择',target=3)
             elif analysis['state']=='stale':
                 action('refresh_pitch_preview','按当前参数重新分析并试听',target=3);stage['state']='stale';stage['next_hint']=analysis['message']
-            elif not preview_fresh:
-                action('preview','更新当前参数试听' if candidates else '生成代表片段试听','convert',3);stage['state']='preview_stale' if candidates else 'editable';stage['next_hint']='旧参数候选仍可回听；新模型/参数需要新的试听。'
+            elif not preview_fresh or preview_fresh.get('preview_only'):
+                action('render_full','按当前参数生成完整人声','convert',3);stage['state']='preview_stale' if candidates else 'editable';stage['next_hint']='确认当前声部模型与参数后生成完整版本，再选定混音采用结果。'
             elif params.get('accepted_preview_id')==preview_fresh['id'] and not selected_fresh:
                 stage['state']='preview_accepted';action('render_full','按已采纳试听设置生成完整人声','convert',3);stage['next_hint']='完整生成不会把短试听当作全长候选。'
             elif not selected_fresh:

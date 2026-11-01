@@ -1,0 +1,32 @@
+[
+  {
+    "part": "lead_vocal",
+    "candidate": "candidate_955a0da0c2c246579edb",
+    "preview_only": false,
+    "seconds": 237.845325,
+    "source_seconds": 237.84532879818593,
+    "rate": 40000,
+    "effective": {
+      "index_rate": 0.5,
+      "protect": 0.25,
+      "volume_envelope": 0.6,
+      "filter_radius": 1
+    },
+    "peak": -0.6084034704818058
+  },
+  {
+    "part": "backing_vocal",
+    "candidate": "candidate_2c6e694fc66845db93f5",
+    "preview_only": false,
+    "seconds": 237.845325,
+    "source_seconds": 237.84532879818593,
+    "rate": 40000,
+    "effective": {
+      "index_rate": 0.35,
+      "protect": 0.2,
+      "volume_envelope": 0.7,
+      "filter_radius": 0
+    },
+    "peak": -3.03487189969736
+  }
+]

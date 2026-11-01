@@ -149,6 +149,15 @@ def effects_filter(effects):
         if typ in ('highpass','lowpass'): filters.append(f"{typ}=f={bounded(fx.get('frequency',80 if typ=='highpass' else 16000),20,22000)}")
         elif typ=='compressor': filters.append(f"acompressor=threshold={10**(bounded(fx.get('threshold_db',-18),-60,0)/20)}:ratio={bounded(fx.get('ratio',3),1,20)}:makeup=1")
         elif typ=='delay': filters.append(f"aecho=1:1:{bounded(fx.get('delay_ms',120),1,2000)}:{bounded(fx.get('decay',.2),0,.9)}")
+        elif typ=='reverb':
+            wet=bounded(fx.get('wet',.15),0,.5)
+            tail=bounded(fx.get('room_seconds',.65),.1,3)
+            predelay=bounded(fx.get('predelay_ms',18),0,100)
+            delays=[predelay+tail*1000*(index/24)**1.35 for index in range(1,25)]
+            weights=[math.exp(-3*index/24) for index in range(1,25)]
+            total=sum(weights)
+            decay=[wet*weight/total for weight in weights]
+            filters.append('aecho=1:1:'+ '|'.join(f'{value:.3f}' for value in delays)+':'+ '|'.join(f'{value:.6f}' for value in decay))
         elif typ=='limiter': filters.append(f"alimiter=limit={10**(bounded(fx.get('limit_db',-1),-18,0)/20)}:level=false:latency=true")
         else: raise ValueError(f'未实现的效果：{typ}')
     return filters

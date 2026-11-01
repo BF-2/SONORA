@@ -14,8 +14,12 @@ def voice_part(value):
 def new_binding(artifact,previous=None):
     binding=copy.deepcopy(previous or {})
     same=binding.get('source_artifact_id')==artifact['id']
+    parameters={**PART_DEFAULTS,**binding.get('parameters',{})}
+    if not same:
+        parameters.pop('pitch_artifact_id',None)
+        parameters.pop('accepted_preview_id',None)
     return {'source_artifact_id':artifact['id'],'mode':binding.get('mode','convert'),
-            'parameters':{**PART_DEFAULTS,**binding.get('parameters',{})},
+            'parameters':parameters,
             'pitch_edits':binding.get('pitch_edits',[]) if same else [],
             'notes':binding.get('notes',[]) if same else [],
             'selected_candidate_id':binding.get('selected_candidate_id') if same else None}

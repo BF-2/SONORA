@@ -4,6 +4,8 @@ import { ModelSelector, CatalogManager, versionLabel } from "./ModelSelector";
 import { RvcParameterPanel } from "./RvcParameterPanel";
 import type { RvcCatalog } from "./RvcParameterPanel";
 import { SeparationPanel } from "./SeparationPanel";
+import { SeparationVersions } from "./SeparationVersions";
+import { CandidateVersions } from "./CandidateVersions";
 import { WorkflowStrip } from "./WorkflowStrip";
 import {
   ApiError,
@@ -129,7 +131,10 @@ function errorText(e: unknown) {
   return e instanceof Error ? e.message : String(e);
 }
 function stalePitchJob(j: Job) {
-  return j.error?.code === "stale_pitch_binding" || !!j.error?.message.includes("指定曲线是旧分析");
+  return (
+    j.error?.code === "stale_pitch_binding" ||
+    !!j.error?.message.includes("指定曲线是旧分析")
+  );
 }
 function mergeEditorPatch(base: Bag, delta: Bag): Bag {
   const merged = { ...base, ...delta };
@@ -248,7 +253,7 @@ function runtimePins(value: Bag = {}) {
 function editorContext(
   p: Project | null,
   part: string,
-  ignoreClips = false,
+  ignoreClips = true,
 ): {
   parameters: Bag;
   scope: string;
@@ -261,7 +266,14 @@ function editorContext(
   if (part !== "vocal") {
     const b = p.voice_parts?.[part as VoicePartKey];
     return {
-      parameters: b?.parameters || {},
+      parameters: {
+        ...Object.fromEntries(
+          ["device", "seed", "cpu_threads"]
+            .filter((key) => p.parameters[key] !== undefined)
+            .map((key) => [key, p.parameters[key]]),
+        ),
+        ...b?.parameters,
+      },
       scope: "voice_part",
       targetId: part,
       source: p.assets.find((a) => a.id === b?.source_artifact_id),
@@ -314,6 +326,18 @@ function isAudio(a: Artifact) {
 }
 
 export default function App() {
+  const [uiTheme, setUiTheme] = useState(() =>
+    localStorage.getItem("sonora-ui-theme") === "soft" ? "soft" : "classic",
+  );
+  const [projectSearch, setProjectSearch] = useState("");
+  const [blindLabels, setBlindLabels] = useState<Record<string, string> | null>(
+    null,
+  );
+  const [showHistoricalTracks, setShowHistoricalTracks] = useState(false);
+  useEffect(() => {
+    document.documentElement.dataset.ui = uiTheme;
+    localStorage.setItem("sonora-ui-theme", uiTheme);
+  }, [uiTheme]);
   const [connection, setConnectionState] = useState("connecting");
   const [project, setProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -346,32 +370,28 @@ export default function App() {
   const [matched, setMatched] = useState(true);
   const [zoom, setZoomState] = useState(1);
   const [pitchTab, setPitchTab] = useState("pitch");
-  const [pitchData, setPitchData] = useState<PitchData | null>(null);
-  const [outputPitchData, setOutputPitchData] = useState<PitchData | null>(
-    null,
-  );
+  const [loadedPitchData, setPitchData] = useState<PitchData | null>(null);
+  const [loadedOutputPitchData, setOutputPitchData] =
+    useState<PitchData | null>(null);
   const [relinkHash, setRelinkHash] = useState("");
   const [pitchTool, setPitchTool] = useState("select");
-  const [versionTab, setVersionTab] = useState("active");
-  const [versionSearch, setVersionSearch] = useState("");
   const [previewTargetHash, setPreviewTargetHash] = useState("");
   const seenCandidate = useRef({ scope: "", id: "" });
   const [targetHz, setTargetHz] = useState(220);
   const [semitones, setSemitones] = useState(0);
   const [lock, setLock] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState("");
-  const [blind, setBlind] = useState(false);
-  const [blindOrder,setBlindOrder] = useState<string[]>([]);
   const [format, setFormat] = useState("wav");
   const [wavSubtype, setWavSubtype] = useState("pcm_s24le");
   const [mixPreview, setMixPreview] = useState<Bag | null>(null);
   const [mixPreviewState, setMixPreviewState] = useState("");
   const [mixMonitor, setMixMonitor] = useState("");
   const [abMeasurements, setAbMeasurements] = useState<Bag | null>(null);
-  const [exportMeasurements, setExportMeasurements] = useState<Bag | null>(null);
+  const [exportMeasurements, setExportMeasurements] = useState<Bag | null>(
+    null,
+  );
   const [meterDb, setMeterDb] = useState(-120);
   const [stemSemantics, setStemSemantics] = useState("post_fader_fx");
-  const [experimentShifts, setExperimentShifts] = useState("-2,0,2");
   const [exportSelection, setExportSelection] = useState(false);
   const [exportId, setExportId] = useState("");
   const [exportName, setExportName] = useState("");
@@ -430,6 +450,7 @@ export default function App() {
     }
     pRef.current = n;
     setProject(n);
+    setProjects(previous => [n, ...previous.filter(item => item.id !== n.id)]);
     localStorage.setItem("sonora-project", n.id);
   }, []);
   const tell = useCallback((msg: string) => {
@@ -728,31 +749,34 @@ export default function App() {
       activePart === "vocal" ? !c.voice_part : c.voice_part === activePart,
     ) || [];
   const candidates = scopedCandidates.filter((c) => !c.archived);
-  const archivedCandidates = scopedCandidates.filter((c) => c.archived);
   const selectedCandidateId =
     activePart === "vocal"
       ? project?.selected_candidate_id
       : partBinding?.selected_candidate_id;
-  const renderedCandidates=blind?[...candidates].sort((a,b)=>blindOrder.indexOf(a.id)-blindOrder.indexOf(b.id)):candidates;
   const auditionScope = `${project?.id || ""}:${activePart}`;
   const newestCandidate = candidates[candidates.length - 1];
   useEffect(() => {
-    if (seenCandidate.current.scope === auditionScope && seenCandidate.current.id && newestCandidate?.id && newestCandidate.id !== seenCandidate.current.id) {
+    if (
+      seenCandidate.current.scope === auditionScope &&
+      newestCandidate?.id &&
+      newestCandidate.id !== seenCandidate.current.id
+    ) {
       setAuditionCandidateIds(previous => ({ ...previous, [auditionScope]: newestCandidate.id }));
       if (step === 2) { setListenId(newestCandidate.artifact_id); setAB("B"); }
     }
-    seenCandidate.current = { scope: auditionScope, id: newestCandidate?.id || "" };
+    seenCandidate.current = {
+      scope: auditionScope,
+      id: newestCandidate?.id || "",
+    };
   }, [auditionScope, newestCandidate?.id]);
   const adoptedCandidate = candidates.find((c) => c.id === selectedCandidateId);
   const candidate =
     candidates.find((c) => c.id === auditionCandidateIds[auditionScope]) ||
     adoptedCandidate ||
-    (activePart === "vocal"
-      ? candidates
-          .slice()
-          .reverse()
-          .find((c) => c.artifact_id)
-      : undefined);
+    candidates
+      .slice()
+      .reverse()
+      .find((c) => c.artifact_id);
   const candidateCompatible = (c: Bag) =>
     (activePart === "vocal" && c.source_artifact_id === vocal?.id) ||
     (!!vocal?.sha256 &&
@@ -769,15 +793,28 @@ export default function App() {
   );
   const exportSource = project?.assets.find(a => a.id === exportId) || project?.assets.slice().reverse().find(a => a.stem_role === "mix") || comparisonB || source;
   const mixStateKey = JSON.stringify([project?.id, project?.tracks.filter(t => t.role !== "mix"), project?.selection, mixMonitor]);
-  const currentMixPreview = mixPreview?.key === mixStateKey ? mixPreview.artifact as Artifact : undefined;
+  const currentMixPreview =
+    mixPreview?.key === mixStateKey
+      ? (mixPreview.artifact as Artifact)
+      : undefined;
   const trackMeter = (id: string) => {
     const meter = currentMixPreview?.track_meters?.[id];
     const index = Math.floor((playhead - seconds(currentMixPreview?.timeline_offset_ticks || 0)) / (meter?.hop_seconds || .05));
     return playing && step === 4 ? Math.max(-120, ...(meter?.peaks_dbfs?.[index] || [-120])) : -120;
   };
-  const listen = step === 4 ? currentMixPreview : step === 5 ? exportSource :
-    project?.assets.find((a) => a.id === listenId) ||
-    (step === 3 ? (ab === "B" ? comparisonB : comparisonA) : step === 0 ? source : vocal || source);
+  const listen =
+    step === 4
+      ? currentMixPreview
+      : step === 5
+        ? exportSource
+        : project?.assets.find((a) => a.id === listenId) ||
+          (step === 3
+            ? ab === "B"
+              ? comparisonB
+              : comparisonA
+            : step === 0
+              ? source
+              : vocal || source);
   const artifactOffset = (a?: Artifact) =>
     a
       ? seconds(
@@ -816,6 +853,12 @@ export default function App() {
         a.stem_role === "pitch" &&
         a.input_artifact_ids?.includes(candidate?.artifact_id || ""),
     );
+  const pitchData =
+    loadedPitchData?.artifact_id === lastPitch?.id ? loadedPitchData : null;
+  const outputPitchData =
+    loadedOutputPitchData?.artifact_id === outputPitch?.id
+      ? loadedOutputPitchData
+      : null;
   const activeCount = jobs.filter(activeJob).length;
   const mode = project?.mode || "quick";
   const dirty =
@@ -845,7 +888,7 @@ export default function App() {
     let live = true;
     request<PitchData>(`/artifacts/${lastPitch.id}/data`)
       .then((d) => {
-        if (live) setPitchData(d);
+        if (live) setPitchData({ ...d, artifact_id: lastPitch.id });
       })
       .catch((e) => {
         if (live) setError(errorText(e));
@@ -860,7 +903,7 @@ export default function App() {
     if (outputPitch)
       request<PitchData>(`/artifacts/${outputPitch.id}/data`)
         .then((d) => {
-          if (live) setOutputPitchData(d);
+          if (live) setOutputPitchData({ ...d, artifact_id: outputPitch.id });
         })
         .catch((e) => {
           if (live) setError(errorText(e));
@@ -948,8 +991,11 @@ export default function App() {
     await audioGraph.current.context.resume();
   };
   const loopStart = Math.max(seconds(selection.start), listenOffset);
-  const loopEnd = Math.min(seconds(selection.end), listenOffset + duration(listen));
-  const loopValid = !!listen && loopEnd - loopStart >= .05;
+  const loopEnd = Math.min(
+    seconds(selection.end),
+    listenOffset + duration(listen),
+  );
+  const loopValid = !!listen && loopEnd - loopStart >= 0.05;
   const resetLoopSeek = () => {
     if (loopPending.current) clearTimeout(loopPending.current);
     loopPending.current = null;
@@ -1035,7 +1081,8 @@ export default function App() {
   useEffect(() => {
     if (step !== 4 || !project) return;
     const run = ++previewRun.current;
-    let disposed = false, jobId = "";
+    let disposed = false,
+      jobId = "";
     setMixPreviewState("当前设置已改变，正在准备选区试听…");
     audio.current?.pause();
     const timer = setTimeout(async () => {
@@ -1053,19 +1100,35 @@ export default function App() {
           result = await post<Job>(`/projects/${p.id}/jobs`, { ...body, revision: latest.revision });
         }
         jobId = result.id;
-        if (disposed) { void post(`/jobs/${jobId}/cancel`).catch(() => {}); return; }
+        if (disposed) {
+          void post(`/jobs/${jobId}/cancel`).catch(() => {});
+          return;
+        }
         while (activeJob(result) && !disposed) {
-          setMixPreviewState(result.state === "queued" ? "混音试听已排队…" : "正在用当前推子与效果渲染选区…");
-          await new Promise(resolve => setTimeout(resolve, 350));
+          setMixPreviewState(
+            result.state === "queued"
+              ? "混音试听已排队…"
+              : "正在用当前推子与效果渲染选区…",
+          );
+          await new Promise((resolve) => setTimeout(resolve, 350));
           result = await request<Job>(`/jobs/${jobId}`);
         }
         if (disposed || run !== previewRun.current) return;
-        if (result.state !== "succeeded") throw new Error(result.error?.message || "选区试听未完成");
-        const artifact = await request<Artifact>(`/artifacts/${result.artifact_ids[0]}`);
+        if (result.state !== "succeeded")
+          throw new Error(result.error?.message || "选区试听未完成");
+        const artifact = await request<Artifact>(
+          `/artifacts/${result.artifact_ids[0]}`,
+        );
         if (disposed || run !== previewRun.current) return;
         setMixPreview({ key: mixStateKey, artifact });
-        setMixPreviewState(mixMonitor ? "已更新：当前轨道推子后 / 效果后试听" : "已更新：当前推子、声像、静音/独奏、偏移和效果");
-      } catch (e) { if (!disposed) setMixPreviewState(`试听未更新：${errorText(e)}`); }
+        setMixPreviewState(
+          mixMonitor
+            ? "已更新：当前轨道推子后 / 效果后试听"
+            : "已更新：当前推子、声像、静音/独奏、偏移和效果",
+        );
+      } catch (e) {
+        if (!disposed) setMixPreviewState(`试听未更新：${errorText(e)}`);
+      }
     }, 650);
     return () => { disposed = true; clearTimeout(timer); if (jobId) void post(`/jobs/${jobId}/cancel`).catch(() => {}); };
   }, [step, mixStateKey, flush]);
@@ -1138,7 +1201,6 @@ export default function App() {
       task: "cover",
     });
     applyProject(p);
-    setProjects((ps) => [p, ...ps]);
     return p;
   };
   const setupReady = !!project?.assets.length || !!(project?.parameters.task_confirmed && project?.parameters.import_role);
@@ -1211,6 +1273,10 @@ export default function App() {
   };
   const renderCandidate = (short: boolean, chain = false) =>
     guard(async () => {
+      if (short && step !== 2) {
+        setStep(2);
+        return;
+      }
       if (!project || !editorParameters.model_id)
         throw new Error("请先选择兼容模型。");
       if (activePart !== "vocal" && partBinding?.mode !== "convert")
@@ -1228,7 +1294,7 @@ export default function App() {
       const renderValues = editorContext(
         pRef.current,
         activePart,
-        !short && !!project.parameters.ignore_clip_bindings,
+        !short,
       ).parameters;
       const parameters: Bag = {
         ...renderValues,
@@ -1237,7 +1303,15 @@ export default function App() {
         ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
       };
       delete parameters.range_ticks;
-      if (short) parameters.range_ticks = [selection.start, selection.end];
+      if (short) {
+        parameters.range_ticks = [selection.start, selection.end];
+        parameters.preview_purpose = "pitch_edit";
+      } else {
+        parameters.full_source = true;
+        parameters.ignore_clip_bindings = true;
+        delete parameters.clip_id;
+        delete parameters.clip_range_ticks;
+      }
       if (chain && candidate) parameters.chain_candidate_id = candidate.id;
       await job("convert", parameters, vocal?.id);
     }, "提交转换任务");
@@ -1468,16 +1542,19 @@ export default function App() {
     });
   const compareVersions = async (selected: Bag[]) => {
     if (!vocal) throw new Error("先选择已准备的人声输入。");
-    if (selection.end <= selection.start)
-      throw new Error("先设置代表片段选区。");
+
     await job(
       "compare_versions",
       {
-        ...editorContext(pRef.current, activePart).parameters,
+        ...editorContext(pRef.current, activePart, true).parameters,
         model_ids: selected.map((m) => m.id),
-        range_ticks: [selection.start, selection.end],
+        full_source: true,
+        ignore_clip_bindings: true,
+        range_ticks: null,
         ...(activePart !== "vocal" ? { voice_part: activePart } : {}),
-        pitch_artifact_id: editorContext(pRef.current, activePart).parameters.pitch_artifact_id ?? null,
+        pitch_artifact_id:
+          editorContext(pRef.current, activePart).parameters
+            .pitch_artifact_id ?? null,
       },
       vocal.id,
     );
@@ -1582,15 +1659,43 @@ export default function App() {
     tell(archived ? "已归档，音频与配方保留；可在归档版本中恢复或撤销。" : "片段已恢复。");
   }, archived ? "移除片段" : "恢复片段");
   const pitchRecovery = (
-    <div className={pitchAnalysis?.state === "stale" ? "warning-inline" : "info-inline"} role="status">
-      <strong>{pitchAnalysis?.state === "stale" ? "旧分析 · 需要更新" : editorParameters.pitch_artifact_id ? "已固定分析曲线" : "自动匹配当前分析"}</strong>
-      <p>{pitchAnalysis?.message || "试听按当前检测参数选择曲线；没有匹配结果时先重新检测。"}</p>
+    <div
+      className={
+        pitchAnalysis?.state === "stale" ? "warning-inline" : "info-inline"
+      }
+      role="status"
+    >
+      <strong>
+        {pitchAnalysis?.state === "stale"
+          ? "旧分析 · 需要更新"
+          : editorParameters.pitch_artifact_id
+            ? "已固定分析曲线"
+            : "自动匹配当前分析"}
+      </strong>
+      <p>
+        {pitchAnalysis?.message ||
+          "试听按当前检测参数选择曲线；没有匹配结果时先重新检测。"}
+      </p>
       <div className="row wrap">
-        <button className="button small" disabled={!vocal || !!busy} onClick={() => void detectCurrentPitch()}>按当前参数重新检测</button>
-        <button className="button small ghost" disabled={!vocal || !!busy || !editorParameters.model_id} onClick={() => void refreshPitchPreview()}>清除旧绑定并重新试听</button>
-        <button className="text-button" disabled={!editorParameters.pitch_artifact_id || !!busy} onClick={() => void guard(clearPitchBinding, "清除分析绑定")}>清除固定分析绑定</button>
+        <button
+          className="button small"
+          disabled={!vocal || !!busy}
+          onClick={() => void detectCurrentPitch()}
+        >
+          {lastPitch ? "按当前参数重新检测" : "检测当前声部音高"}
+        </button>
+
+        <button
+          className="text-button"
+          disabled={!editorParameters.pitch_artifact_id || !!busy}
+          onClick={() => void guard(clearPitchBinding, "清除分析绑定")}
+        >
+          清除固定分析绑定
+        </button>
       </div>
-      <small>重新检测和清除绑定均保留手工音高编辑、锁定区及旧音频；旧试听可在候选卡片中移除。</small>
+      <small>
+        重新检测和清除绑定均保留手工音高编辑、锁定区及旧音频；旧试听可在候选卡片中移除。
+      </small>
     </div>
   );
   const localAdopt = (c: Bag) =>
@@ -1929,8 +2034,11 @@ export default function App() {
       (a) => ["vocal", "vocals"].includes(a.stem_role || "") && isAudio(a),
     ) || [];
   const combinedSource =
-    combinedSources.find((a) => a.id === harmonySourceId) ||
-    combinedSources.at(-1);
+    combinedSources.find(
+      (a) =>
+        a.id ===
+        (harmonySourceId || project?.parameters.harmony_source_artifact_id),
+    ) || combinedSources.at(-1);
   const activeHarmonyModel =
     harmonyModels.find((m) => m.id === (project?.parameters.harmony_model_id || harmonyModelId)) ||
     harmonyModels.find((m) => m.status === "ready") ||
@@ -1973,7 +2081,10 @@ export default function App() {
           <Field label="包含主唱与和声的干人声">
             <select
               value={combinedSource?.id || ""}
-              onChange={(e) => setHarmonySourceId(e.target.value)}
+              onChange={(e) => {
+                setHarmonySourceId(e.target.value);
+                globalParam({ harmony_source_artifact_id: e.target.value });
+              }}
             >
               <option value="">先分离原曲或导入混合干人声</option>
               {combinedSources.map((a) => (
@@ -2000,7 +2111,11 @@ export default function App() {
             </select>
           </Field>
         </div>
-        <SeparationPanel harmony parameters={project?.parameters || {}} onChange={globalParam} />
+        <SeparationPanel
+          harmony
+          parameters={project?.parameters || {}}
+          onChange={globalParam}
+        />
         {activeHarmonyModel && (
           <p className="info-inline">
             {activeHarmonyModel.semantic_warning ||
@@ -2118,115 +2233,32 @@ export default function App() {
       </div>
     </Card>
   );
-  const partVoicesPanel =
-    Object.keys(parts).length > 0 ? (
-      <Card
-        title="主唱与和声 · 各自的声音"
-        icon="branch"
-        aside={<Badge tone="blue">独立模型 · 独立音高</Badge>}
-      >
-        <div className="card-pad">
-          <div className="voice-part-cards">
-            {(["lead_vocal", "backing_vocal"] as const).map((part) => {
-              const binding = parts[part],
-                chosen = project?.candidates.find(
-                  (c) => c.id === binding?.selected_candidate_id,
-                );
-              return (
-                <div
-                  className={`voice-part-card ${part} ${activePart === part ? "focused" : ""}`}
-                  key={part}
-                >
-                  <div className="flex-between">
-                    <strong>{roleNames[part]}</strong>
-                    <button
-                      className="text-button"
-                      disabled={!binding}
-                      onClick={() => focusPart(part)}
-                    >
-                      编辑此声部
-                    </button>
-                  </div>
-                  {binding ? (
-                    <>
-                      {selectorFor(part, true, `${roleNames[part]}声音与版本`)}
-                      <Field label={`${roleNames[part]}处理方式`}>
-                        <select
-                          value={binding.mode}
-                          onChange={(e) =>
-                            patchPart(part, { mode: e.target.value })
-                          }
-                        >
-                          <option value="convert">转换此声部</option>
-                          <option value="original">保留原声</option>
-                          <option value="mute">静音此声部</option>
-                        </select>
-                      </Field>
-                      <p className="info-inline">
-                        {binding.mode === "mute"
-                          ? "此声部不进入混音。"
-                          : binding.mode === "original"
-                            ? "混音保留此声部的原始分轨。"
-                            : chosen
-                              ? `采用 ${chosen.name}；另一个声部保持自己的选择。`
-                              : "待转换：目前保留此声部原声，不会冒充转换结果。"}
-                      </p>
-                      <button
-                        className="button small"
-                        disabled={
-                          binding.mode !== "convert" ||
-                          !binding.parameters.model_id ||
-                          !!busy
-                        }
-                        onClick={() =>
-                          void guard(
-                            () =>
-                              job(
-                                "convert",
-                                { voice_part: part },
-                                binding.source_artifact_id,
-                              ),
-                            `提交${roleNames[part]}转换`,
-                          )
-                        }
-                      >
-                        仅转换{roleNames[part]}
-                      </button>
-                    </>
-                  ) : (
-                    <p className="info-inline">
-                      先完成专用分离，或手动导入此声部。
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="row wrap space-top">
-            <button
-              className="button primary"
-              disabled={!bothPartsReady || !!busy}
-              onClick={() =>
-                void guard(
-                  () =>
-                    job("convert_parts", {
-                      parts: ["lead_vocal", "backing_vocal"],
-                      mix_after: true,
-                    }),
-                  "提交双声部转换与混音",
-                )
-              }
-            >
-              <Icon name="spark" />
-              分别转换两声部并混音
-            </button>
-            <span className="info-inline">
-              按各自模式顺序处理；保留另一个声部、伴奏与已提交成果。
+  const partVoicesPanel = hasVoiceParts ? (
+    <div className="part-summary" aria-label="项目声部状态">
+      {(["lead_vocal", "backing_vocal"] as const).map((part) => {
+        const binding = parts[part];
+        const selected = project?.candidates.find(
+          (c) => c.id === binding?.selected_candidate_id,
+        );
+        return (
+          <div key={part}>
+            <strong>{roleNames[part]}</strong>
+            <span>
+              {binding?.mode === "mute"
+                ? "静音"
+                : binding?.mode === "original"
+                  ? "保留原声"
+                  : selected?.name || "待生成完整版本"}
             </span>
+            <small>
+              {models.find((m) => m.id === binding?.parameters.model_id)
+                ?.name || "尚未选择模型"}
+            </small>
           </div>
-        </div>
-      </Card>
-    ) : null;
+        );
+      })}
+    </div>
+  ) : null;
   const waveformCard = (tracks?: Track[]) => {
     const rows = (
       tracks ||
@@ -2275,7 +2307,8 @@ export default function App() {
                     className="track-label"
                     onClick={() => {
                       setSelectedTrack(track.id);
-                      if (step === 4) setMixMonitor(track.id); else setListenId(a.id);
+                      if (step === 4) setMixMonitor(track.id);
+                      else setListenId(a.id);
                     }}
                     onDoubleClick={() => {
                       if (step === 4) setMixMonitor(track.id);
@@ -2382,17 +2415,14 @@ export default function App() {
           )}
         </Field>
         <div className="input-facts">
-          <span>
-            范围 {clock(seconds(selection.start))} —{" "}
-            {clock(seconds(selection.end))}
-          </span>
+          <span>完整输入 {clock(duration(vocal))}</span>
           <span>
             {lastPitch
               ? `${pitchData?.estimator || "已检测"} · ${editorPitchEdits.filter((e) => e.locked).length} 个锁定区`
               : "尚无检测曲线；生成试听会先执行独立音高分析"}
           </span>
         </div>
-        {pitchRecovery}
+
         {activePart === "vocal" && !vocal && (
           <div className="row wrap">
             <button
@@ -2440,13 +2470,13 @@ export default function App() {
               });
             }}
           >
-            工程 → 轨道 → 选区覆盖
+            工程与当前音轨的模型配置
           </summary>
           <p className="info-inline">
             覆盖只影响对应输入与范围。恢复继承不会删除原始模型或旧候选。
           </p>
           <div className="row wrap">
-            {(["project", "track", "clip"] as const).map((scope) => (
+            {(["project", "track"] as const).map((scope) => (
               <button
                 key={scope}
                 className="quiet-button"
@@ -2465,11 +2495,7 @@ export default function App() {
                   }, "保存模型覆盖")
                 }
               >
-                {scope === "project"
-                  ? "设为工程默认"
-                  : scope === "track"
-                    ? "覆盖当前轨道"
-                    : "绑定到当前选区"}
+                {scope === "project" ? "设为工程默认" : "覆盖当前轨道"}
               </button>
             ))}
           </div>
@@ -2503,65 +2529,7 @@ export default function App() {
           )}
         </details>
       )}
-      {activePart === "vocal" &&
-        Object.values(project?.model_bindings?.clips || {}).some(
-          (c: unknown) => (c as Bag).source_artifact_id === vocal?.id,
-        ) && (
-          <label className="toggle-row">
-            <span>
-              整段生成时明确忽略选区覆盖
-              <small>使用轨道 / 工程版本；原选区绑定仍保存。</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={!!project?.parameters.ignore_clip_bindings}
-              onChange={(e) =>
-                globalParam({ ignore_clip_bindings: e.target.checked })
-              }
-            />
-          </label>
-        )}
     </div>
-  );
-  const algorithms = engines.find((e) => e.id === "pitch")?.capabilities
-    ?.algorithms;
-  const algorithmOptions = Array.isArray(algorithms)
-    ? algorithms.map((a: Bag | string) =>
-        typeof a === "string"
-          ? { id: a, label: a, status: "ready" }
-          : {
-              id: a.id || a.name,
-              label: a.name || a.id,
-              status: a.status || "ready",
-            },
-      )
-    : [
-        { id: "rmvpe", label: "RMVPE · 常规歌声", status: "ready" },
-        { id: "pyin", label: "pYIN · CPU 单声部", status: "ready" },
-      ];
-  const algorithmField = (
-    <Field
-      label="音高检测算法"
-      hint="F0 是连续音高估计；无旋律参考时不评价音准。"
-    >
-      <select
-        value={editorParameters.pitch_algorithm || "rmvpe"}
-        onChange={(e) => param({ pitch_algorithm: e.target.value })}
-      >
-        {algorithmOptions.map((a: Bag) => (
-          <option
-            key={a.id}
-            value={a.id}
-            disabled={!["ready", "available", "installed"].includes(a.status)}
-          >
-            {a.label}
-            {a.status !== "ready"
-              ? ` · ${stateLabel[a.status] || a.status}`
-              : ""}
-          </option>
-        ))}
-      </select>
-    </Field>
   );
   const addPitchEdit = (operation: string, extra: Bag = {}) => {
     if (selection.end <= selection.start) {
@@ -2667,6 +2635,21 @@ export default function App() {
       });
     }, "提交歌声合成");
 
+  const artifactLabel = (artifact: Artifact) => {
+    const version = project?.candidates.find(
+      (candidate) => candidate.artifact_id === artifact.id,
+    );
+    if (version)
+      return `${version.name} · ${version.preview_only ? "音高试听" : "完整声部"}${version.archived ? " · 已归档" : ""} · ${clock(duration(artifact))}`;
+    const generation = project?.separation_runs?.find((run: Bag) =>
+      run.artifact_ids.includes(artifact.id),
+    );
+    if (generation)
+      return `${generation.name} · ${roleNames[artifact.stem_role || ""] || artifact.name}`;
+    if (artifact.stem_role === "mix")
+      return `混音版本 ${(project?.assets.filter((a) => a.stem_role === "mix").findIndex((a) => a.id === artifact.id) ?? 0) + 1} · ${clock(duration(artifact))} · ${new Date(artifact.created_at).toLocaleTimeString("zh-CN")}`;
+    return `${artifact.name} · ${kindNames[artifact.processing_kind]}`;
+  };
   let content: ReactNode;
   if (step === 0)
     content = (
@@ -2699,9 +2682,24 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <Field label="本次导入角色" hint="原曲含伴奏时选原曲；独立录音选干人声；改词演唱选新导唱。">
-              <select value={importRole} disabled={!project?.parameters.task_confirmed && !project?.assets.length} onChange={e => globalParam({ import_role: e.target.value })}>
-                <option value="">请选择本次素材角色</option><option value="original">原曲 · 含伴奏</option><option value="vocal">干人声 · 无伴奏</option><option value="guide">新导唱 · 唱着新歌词</option><option value="instrumental">已有伴奏</option><option value="lead_vocal">独立主唱</option><option value="backing_vocal">独立和声</option>
+            <Field
+              label="本次导入角色"
+              hint="原曲含伴奏时选原曲；独立录音选干人声；改词演唱选新导唱。"
+            >
+              <select
+                value={importRole}
+                disabled={
+                  !project?.parameters.task_confirmed && !project?.assets.length
+                }
+                onChange={(e) => globalParam({ import_role: e.target.value })}
+              >
+                <option value="">请选择本次素材角色</option>
+                <option value="original">原曲 · 含伴奏</option>
+                <option value="vocal">干人声 · 无伴奏</option>
+                <option value="guide">新导唱 · 唱着新歌词</option>
+                <option value="instrumental">已有伴奏</option>
+                <option value="lead_vocal">独立主唱</option>
+                <option value="backing_vocal">独立和声</option>
               </select>
             </Field>
             <div
@@ -2710,7 +2708,8 @@ export default function App() {
               onDrop={(e) => {
                 e.preventDefault();
                 const f = e.dataTransfer.files[0];
-                if (f && !setupReady) tell("请先确认任务和素材角色，再拖入音频。");
+                if (f && !setupReady)
+                  tell("请先确认任务和素材角色，再拖入音频。");
                 if (f && setupReady)
                   void guard(() => importFile(f, importRole), "正在导入与解码");
               }}
@@ -2861,81 +2860,31 @@ export default function App() {
             )}
           </Card>
           {waveformCard()}
-          <Card className="card-pad">{selectionControls}</Card>
         </div>
         <aside className="inspector stack">
-          <Card className="card-pad">
-            <div className="inspector-heading">
-              <strong>制作起点</strong>
-              <span>PROJECT</span>
-            </div>
-            {modelField}
-            <button
-              className="button full ghost"
-              onClick={() => openModelManager(activePart)}
-            >
-              <Icon name="box" />
-              管理声音与模型
-            </button>
-            <div className="line" />
-            <div className="helper-box">
-              <strong>
-                {project?.task === "speech"
-                  ? "干净语音可以直接转换"
-                  : project?.task === "rewrite"
-                    ? "新歌词，需要新的演唱"
-                    : "先整理人声，再生成候选"}
-              </strong>
-              <p>
-                {project?.task === "speech"
-                  ? "确认输入是一条干净的单声部，再提取音高并进行变声。"
-                  : project?.task === "rewrite"
-                    ? "导入唱着新词的导唱，或录制新演唱。文字编辑本身不会改变音频。"
-                    : "含伴奏的歌曲推荐先分离；如果已有干人声，可以直接导入。"}
+          <Card title="当前项目" icon="folder">
+            <div className="card-pad">
+              <strong>{project?.name || "新项目"}</strong>
+              <div className="parameter-row">
+                <span>素材数量</span>
+                <b>{project?.assets.filter(isAudio).length || 0}</b>
+              </div>
+              <div className="parameter-row">
+                <span>音轨数量</span>
+                <b>{project?.tracks.length || 0}</b>
+              </div>
+              <div className="parameter-row">
+                <span>完整生成版本</span>
+                <b>
+                  {project?.candidates.filter((c) => !c.preview_only).length ||
+                    0}
+                </b>
+              </div>
+              <p className="info-inline">
+                确认素材后，按六阶段完成分离、音高、转换、混音和导出。
               </p>
             </div>
-            <button
-              className="button primary full space-top"
-              disabled={
-                Object.keys(parts).length > 0
-                  ? !bothPartsReady || !!busy
-                  : !source || !currentModel || !!busy
-              }
-              onClick={() =>
-                void guard(
-                  () =>
-                    Object.keys(parts).length > 0
-                      ? job("convert_parts", {
-                          parts: ["lead_vocal", "backing_vocal"],
-                          mix_after: true,
-                        })
-                      : job(
-                          "pipeline",
-                          {
-                            ...project?.parameters,
-                            skip_separation:
-                              project?.task === "speech" ||
-                              !!project?.parameters.skip_separation,
-                          },
-                          project?.task === "rewrite" ? vocal?.id : source?.id,
-                        ),
-                  "提交完整流程",
-                )
-              }
-            >
-              <Icon name="spark" />
-              {Object.keys(parts).length > 0
-                ? "继续双声部转换与混音"
-                : "运行真实完整流程"}
-            </button>
-            <p className="info-inline">
-              任务在本机执行；进度与失败原因会出现在队列。
-            </p>
           </Card>
-          <div className="helper-box">
-            <strong>先试听一个乐句。</strong>
-            <p>选择 8–15 秒代表片段，确认音色、发音和接缝，再完成整首。</p>
-          </div>
         </aside>
       </div>
     );
@@ -2943,10 +2892,24 @@ export default function App() {
     content = (
       <div className="layout-split">
         <div className="stack">
-          {waveformCard()}
+          {waveformCard(
+            project?.tracks.filter(
+              (t) =>
+                t.artifact_id === source?.id ||
+                t.artifact_id === project.parameters.source_artifact_id ||
+                (t.role === "instrumental" && !t.mute) ||
+                Object.values(parts).some(
+                  (binding) => binding?.source_artifact_id === t.artifact_id,
+                ),
+            ),
+          )}
           <Card className="card-pad">
-            <SeparationPanel parameters={project?.parameters || {}} onChange={globalParam} models={separationEngine?.models || []} />
-            {selectionControls}
+            <SeparationPanel
+              parameters={project?.parameters || {}}
+              onChange={globalParam}
+              models={separationEngine?.models || []}
+            />
+
             <div className="row wrap space-top">
               <button
                 className="button primary"
@@ -2988,11 +2951,45 @@ export default function App() {
               </button>
             </div>
           </Card>
+          {project && (
+            <SeparationVersions
+              project={project}
+              operation="separate"
+              busy={!!busy}
+              flush={flush}
+              onProject={(p) => {
+                if (pRef.current?.id === p.id) {
+                  applyProject(p);
+                  setListenId("");
+                  setHarmonySourceId("");
+                }
+              }}
+              onListen={(id) => setListenId(id)}
+              onError={setError}
+            />
+          )}
           {harmonyPanel}
+          {project && (
+            <SeparationVersions
+              project={project}
+              operation="separate_harmony"
+              busy={!!busy}
+              flush={flush}
+              onProject={(p) => {
+                if (pRef.current?.id === p.id) {
+                  applyProject(p);
+                  setListenId("");
+                  setHarmonySourceId("");
+                }
+              }}
+              onListen={(id) => setListenId(id)}
+              onError={setError}
+            />
+          )}
           <div className="risk-card">
             <span className="risk-icon">i</span>
             <div>
-              <h3>和声也是一条独立的旋律。</h3>
+              <h3>主唱与和声分离检查</h3>
               <p>
                 人声 /
                 伴奏分离不会自动分出主唱与和声。出现音高争夺时，先独听人声、确认声部，再比较算法或修曲线。
@@ -3036,12 +3033,6 @@ export default function App() {
             >
               监听当前人声
             </button>
-            <div className="helper-box space-top">
-              <strong>处理更少，也是一种选择。</strong>
-              <p>
-                不要默认串联最强降噪与去混响。保留气声、齿音与句尾，逐步比较实际听感。
-              </p>
-            </div>
           </Card>
         </aside>
       </div>
@@ -3102,8 +3093,9 @@ export default function App() {
                   </div>
                   <span className="mini-note">目标编辑在重新渲染后生效</span>
                 </div>
-                {pitchData ? (
+                {pitchData && lastPitch && vocal ? (
                   <PitchCanvas
+                    key={`${project!.id}:${activePart}:${lastPitch.id}`}
                     data={pitchData}
                     outputData={outputPitchData}
                     projectId={project!.id}
@@ -3113,8 +3105,20 @@ export default function App() {
                     stale={pitchAnalysis?.state === "stale"}
                     onTargetHash={setPreviewTargetHash}
                     onSeek={seek}
-                    view={project?.view_preferences?.pitch_views?.[activePart] || {}}
-                    onView={(v) => update({ view_preferences: { ...pRef.current?.view_preferences, pitch_views: { ...pRef.current?.view_preferences?.pitch_views, [activePart]: v } } })}
+                    view={
+                      project?.view_preferences?.pitch_views?.[activePart] || {}
+                    }
+                    onView={(v) =>
+                      update({
+                        view_preferences: {
+                          ...pRef.current?.view_preferences,
+                          pitch_views: {
+                            ...pRef.current?.view_preferences?.pitch_views,
+                            [activePart]: v,
+                          },
+                        },
+                      })
+                    }
                     timelineDuration={maxDuration}
                     selection={selection}
                     edits={editorPitchEdits || []}
@@ -3126,46 +3130,108 @@ export default function App() {
                       if (stroke.some(e => editorPitchEdits.some(old => old.locked && old.start_tick < e.end_tick && old.end_tick > e.start_tick))) {
                         setError("绘制范围包含已锁定区域。请先在目标编辑记录中解除该区域锁定，再绘制。"); return;
                       }
-                      const strokeId = uid(); update({ pitch_edits: [...editorPitchEdits,
-                      ...stroke.map(e => ({ ...e, id: uid(), stroke_id: strokeId, locked: lock }))] }); }}
+                      const strokeId = uid();
+                      update({ pitch_edits: [...editorPitchEdits,
+                      ...stroke.map(e => ({ ...e, id: uid(), stroke_id: strokeId, locked: lock }))] });
+                    }}
                   />
                 ) : (
                   <Empty title="先检测真实的人声音高" icon="note">
                     <p>不会生成示例曲线来代替你的素材分析。</p>
-                    <button
-                      className="button primary"
-                      disabled={!vocal || !!busy}
-                      onClick={() =>
-                        void guard(
-                          () =>
-                            job(
-                              "pitch",
-                              {
-                                pitch_algorithm:
-                                  editorParameters.pitch_algorithm || "rmvpe",
-                              },
-                              vocal?.id,
-                            ),
-                          "提交音高分析",
-                        )
-                      }
-                    >
-                      开始音高分析
-                    </button>
                   </Empty>
                 )}
-                <div className="card-pad">{selectionControls}
+                <div className="card-pad">
+                  {selectionControls}
                   <div className="pitch-preview-flow">
                     <strong>编辑 → 生成选区试听 → 对比实际输出</strong>
-                    <p>绿色曲线包含移调、滤波、自动音准、人工音符和锁定编辑；旧音频不会随编辑自动改变。</p>
-                    <Field label="音高编辑对照候选"><select value={candidate?.id || ""} onChange={e => { setAuditionCandidateIds(previous => ({ ...previous, [auditionScope]: e.target.value })); setListenId(""); }}><option value="">尚未生成试听</option>{[...candidates].reverse().map(c => <option key={c.id} value={c.id}>{c.name}{c.preview_only ? " · 片段" : " · 完整"}</option>)}</select></Field>
+                    <p>
+                      绿色曲线包含移调、滤波、自动音准、人工音符和锁定编辑；旧音频不会随编辑自动改变。
+                    </p>
+                    <Field label="音高编辑对照候选">
+                      <select
+                        value={candidate?.id || ""}
+                        onChange={(e) => {
+                          setAuditionCandidateIds((previous) => ({
+                            ...previous,
+                            [auditionScope]: e.target.value,
+                          }));
+                          setListenId("");
+                        }}
+                      >
+                        <option value="">尚未生成试听</option>
+                        {[...candidates].reverse().map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                            {c.preview_only ? " · 片段" : " · 完整"}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
                     <div className="row wrap">
-                      <button className="button primary" disabled={!currentModel || !pitchData || !!busy || selection.end <= selection.start || (activePart !== "vocal" && partBinding?.mode !== "convert")} onClick={() => void refreshPitchPreview()}>生成编辑后的选区试听</button>
-                      <button className="button small" disabled={!vocal} onClick={() => { setListenId(vocal!.id); setLoop(true); seek(seconds(selection.start)); }}>A · 原始人声</button>
-                      <button className="button small" disabled={!comparisonB} onClick={() => { setListenId(comparisonB!.id); setLoop(true); seek(seconds(selection.start)); }}>B · 转换结果</button>
-                      <button className="button small" disabled={!comparisonB || !!busy} onClick={() => void guard(() => job("pitch", { pitch_algorithm: editorParameters.pitch_algorithm || "rmvpe" }, comparisonB!.id), "复测输出音高")}>复测输出音高</button>
+                      <button
+                        className="button primary"
+                        disabled={
+                          !currentModel ||
+                          !pitchData ||
+                          !!busy ||
+                          selection.end <= selection.start ||
+                          (activePart !== "vocal" &&
+                            partBinding?.mode !== "convert")
+                        }
+                        onClick={() => void refreshPitchPreview()}
+                      >
+                        生成编辑后的选区试听
+                      </button>
+                      <button
+                        className="button small"
+                        disabled={!vocal}
+                        onClick={() => {
+                          setListenId(vocal!.id);
+                          setLoop(true);
+                          seek(seconds(selection.start));
+                        }}
+                      >
+                        A · 原始人声
+                      </button>
+                      <button
+                        className="button small"
+                        disabled={!comparisonB}
+                        onClick={() => {
+                          setListenId(comparisonB!.id);
+                          setLoop(true);
+                          seek(seconds(selection.start));
+                        }}
+                      >
+                        B · 转换结果
+                      </button>
+                      <button
+                        className="button small"
+                        disabled={!comparisonB || !!busy}
+                        onClick={() =>
+                          void guard(
+                            () =>
+                              job(
+                                "pitch",
+                                {
+                                  pitch_algorithm:
+                                    editorParameters.pitch_algorithm || "rmvpe",
+                                },
+                                comparisonB!.id,
+                              ),
+                            "复测输出音高",
+                          )
+                        }
+                      >
+                        复测输出音高
+                      </button>
                     </div>
-                    <p role="status">{candidate ? `对照：${candidate.name}。${(candidateDiff(candidate).length || (previewTargetHash && candidate.requested_f0_hash !== previewTargetHash)) ? "目标或设置已有变化，请重新生成试听；当前 B 是历史音频。" : "请结合输出复测曲线与实际试听判断效果。"}` : "请先选择声音模型，再生成当前选区。"}</p>
+                    <p role="status">
+                      {candidate
+                        ? `对照：${candidate.name}。${candidateDiff(candidate).length || (previewTargetHash && candidate.requested_f0_hash !== previewTargetHash) ? "目标或设置已有变化，请重新生成试听；当前 B 是历史音频。" : "请结合输出复测曲线与实际试听判断效果。"}`
+                        : currentModel
+                          ? "当前选区尚无试听结果，可生成编辑后的选区试听。"
+                          : "请先在声音转换阶段选择模型。"}
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -3188,18 +3254,26 @@ export default function App() {
                           {clock(seconds(e.end_tick))}
                         </span>
                         <strong>
-                          {e.stroke_id ? `连续绘制 · ${e.member_ids.length} 帧` : e.operation === "transpose"
-                            ? `${e.semitones > 0 ? "+" : ""}${e.semitones} 半音`
-                            : e.operation === "set_hz"
-                              ? `${Number(e.hz).toFixed(1)} Hz`
-                              : "设为清音"}
+                          {e.stroke_id
+                            ? `连续绘制 · ${e.member_ids.length} 帧`
+                            : e.operation === "transpose"
+                              ? `${e.semitones > 0 ? "+" : ""}${e.semitones} 半音`
+                              : e.operation === "set_hz"
+                                ? `${Number(e.hz).toFixed(1)} Hz`
+                                : "设为清音"}
                         </strong>
                         <button
                           className={`chip ${e.locked ? "active" : ""}`}
                           onClick={() =>
                             update({
                               pitch_edits: editorPitchEdits.map((x) =>
-                                e.member_ids.includes(x.id) ? { ...x, locked: !x.locked, snapshot: undefined } : x,
+                                e.member_ids.includes(x.id)
+                                  ? {
+                                      ...x,
+                                      locked: !x.locked,
+                                      snapshot: undefined,
+                                    }
+                                  : x,
                               ),
                             })
                           }
@@ -3230,7 +3304,44 @@ export default function App() {
                   <strong>音高检查器</strong>
                   <span>TARGET F0</span>
                 </div>
-                {algorithmField}
+                <RvcParameterPanel
+                  section="pitch"
+                  modelId={editorParameters.model_id}
+                  task={project?.task || "speech"}
+                  values={{
+                    ...editorParameters,
+                    range_ticks: [selection.start, selection.end],
+                  }}
+                  mode={mode}
+                  preferences={
+                    project?.view_preferences?.expanded_panels?.[activePart] ||
+                    {}
+                  }
+                  onPreferences={(changes) => {
+                    const p = pRef.current;
+                    updateView({
+                    expanded_panels: {
+                      ...p?.view_preferences?.expanded_panels,
+                      [activePart]: {
+                        ...p?.view_preferences?.expanded_panels?.[activePart],
+                        ...changes,
+                      },
+                    },
+                  });
+                  }}
+                  onChange={applyRvcChanges}
+                  onError={setError}
+                  busy={!!busy}
+                  pitchInfo={{
+                    artifact_id: lastPitch?.id,
+                    estimator: pitchData?.estimator,
+                    locked_count: editorPitchEdits.filter((e) => e.locked)
+                      .length,
+                    edits_count: editorPitchEdits.length,
+                    requested_f0_hash: comparisonB?.requested_f0_hash,
+                    consumed_f0_hash: comparisonB?.consumed_f0_hash,
+                  }}
+                />
                 {pitchRecovery}
                 <div className="line" />
                 <Slider
@@ -3301,26 +3412,7 @@ export default function App() {
                     onChange={(e) => setLock(e.target.checked)}
                   />
                 </label>
-                <button
-                  className="button primary full"
-                  disabled={
-                    !currentModel ||
-                    !pitchData ||
-                    !!busy ||
-                    (activePart !== "vocal" && partBinding?.mode !== "convert")
-                  }
-                  onClick={() => void renderCandidate(true)}
-                >
-                  <Icon name="play" />
-                  渲染选区试听
-                </button>
               </Card>
-              <div className="helper-box">
-                <strong>不把歌唱磨成一条直线。</strong>
-                <p>
-                  保留颤音与滑音。原生算法分数不会转换成“音准百分比”；只有参考旋律才能支持音准比较。
-                </p>
-              </div>
             </aside>
           </div>
         ) : pitchTab === "notes" ? (
@@ -3918,544 +4010,165 @@ export default function App() {
     content = (
       <>
         {partSelector}
+        {partVoicesPanel}
         <div className="layout-split">
           <div className="stack">
-            {partVoicesPanel}
             {sourceSelector}
-            <Card title="2 · 选择声音、实验与版本" icon="box">
+            <Card title="目标声音与模型版本" icon="box">
               <div className="card-pad">
                 {modelField}
                 {scopeControls}
               </div>
             </Card>
-            <Card
-              title="每个候选，都从干净源出发"
-              icon="branch"
-              aside={<Badge tone="neutral">同源候选</Badge>}
-            >
-              <div className="pipeline-row">
-                <div className="pipeline-node">
-                  <strong>
-                    {activePart !== "vocal"
-                      ? roleNames[activePart]
-                      : project?.task === "rewrite"
-                        ? "新词导唱"
-                        : "当前干净人声"}
-                  </strong>
-                  <small>{vocal?.name || "等待导入"}</small>
-                </div>
-                <span>→</span>
-                <div className="pipeline-node">
-                  <strong>
-                    {lastPitch ? "已检测 / 目标编辑" : "等待独立音高分析"}
-                  </strong>
-                  <small>{editorEditGroups.length || 0} 笔人工调整</small>
-                </div>
-                <span>→</span>
-                <div className="pipeline-node">
-                  <strong>{currentModel?.name || "选择声音模型"}</strong>
-                  <small>真实 RVC 执行器</small>
-                </div>
-              </div>
-            </Card>
-            <div className="flex-between">
-              <h2 className="section-title">
-                候选与版本 <span>{candidates.length || 0}</span>
-              </h2>
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={blind}
-                  onChange={(e) => {if(e.target.checked){const order=candidates.map(c=>c.id);for(let i=order.length-1;i>0;i--){const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1);[order[i],order[j]]=[order[j],order[i]];}setBlindOrder(order);}setBlind(e.target.checked);}}
-                />
-                隐藏模型名盲听
-              </label>
-            </div>
-            <Field label="A 通道对照" hint="可直接比较两个同源 Epoch；切换保持同一播放头，等响采用各自实际 RMS。">
-              <select value={referenceCandidate?.id||""} onChange={e=>{update({view_preferences:{...pRef.current?.view_preferences,ab_reference_candidate_id:e.target.value}});setListenId("");}}>
-                <option value="">当前试听的同区间原声</option>
-                {renderedCandidates.filter(c=>c.id!==candidate?.id && c.source_artifact_id===candidate?.source_artifact_id).map(c=><option key={c.id} value={c.id}>{blind?`盲听候选 ${String.fromCharCode(65+renderedCandidates.indexOf(c))}`:c.name}</option>)}
-              </select>
-            </Field>
-            <div className="candidate-management">
-              <label className="toggle-row"><span>自动归档旧版本 · 保留最近两条</span><input type="checkbox" checked={project?.view_preferences?.auto_archive_candidates !== false} onChange={e => update({ view_preferences: { ...pRef.current?.view_preferences, auto_archive_candidates: e.target.checked } })} /></label>
-              <p className="info-inline">每次成功生成后整理同来源、同声部旧版本；收藏、恢复保留、正在采用或混音中的版本及最新对比批次受保护。归档保留音频与配方。</p>
-              <div className="row wrap"><button className={`chip ${versionTab === "active" ? "active" : ""}`} onClick={() => setVersionTab("active")}>当前版本（{candidates.length}）</button><button className={`chip ${versionTab === "archived" ? "active" : ""}`} onClick={() => setVersionTab("archived")}>归档版本（{archivedCandidates.length}）</button><button className="button small" disabled={!!busy} onClick={() => void guard(async () => { await flush(); const p = pRef.current!; applyProject(await post<Project>(`/projects/${p.id}/candidates/archive-older`, { revision: p.revision })); tell("旧版本已整理，受保护版本保留。"); })}>立即整理旧版本</button></div>
-              <input aria-label="搜索音频版本" placeholder="搜索版本名称或备注" value={versionSearch} onChange={e => setVersionSearch(e.target.value)} />
-            </div>
-            <div className="version-grid" id="candidate-list">
-              {(versionTab === "active" ? renderedCandidates.filter(c => !versionSearch || `${c.name} ${c.notes}`.toLowerCase().includes(versionSearch.toLowerCase())) : []).map((c, i) => (
-                <div
-                  className={`version-card ${candidate?.id === c.id ? "selected" : ""}`}
-                  key={c.id}
-                >
-                  <div className="version-top">
-                    <h3>
-                      {blind
-                        ? `候选 ${String.fromCharCode(65 + i)}`
-                        : c.name || `候选 ${i + 1}`}
-                    </h3>
-                    <span className="version-number">#{i + 1}</span>
-                  </div>
-                  <p>
-                    {blind
-                      ? "模型信息已隐藏"
-                      : models.find((m) => m.id === c.model_id)?.name ||
-                        c.model_id}
-                    <br />
-                    {c.parameters?.segments
-                      ? "同源片段拼选 · 需检查接缝"
-                      : c.generation_depth > 1
-                        ? `显式串联 · 第 ${c.generation_depth} 代`
-                        : "从干净源生成 · 第 1 代"}
-                  </p>
-                  <div className="chip-row">
-                    {c.model_snapshot && !blind && (
-                      <span className="chip">
-                        {versionLabel(c.model_snapshot)}
-                        {c.model_snapshot.epoch_source === "filename_inferred"
-                          ? " · 编号待核验"
-                          : ""}
-                      </span>
-                    )}
-                    {c.comparison_id && (
-                      <Badge tone="blue">
-                        同源版本对比 · {c.comparison_id.slice(-6)}
-                      </Badge>
-                    )}
-                    {(typeof candidateState(c)?.current==='boolean' ? !candidateState(c)?.current : candidateState(c)?.stale ||
-                      candidateDiff(c).length > 0) && (
-                      <Badge tone="orange">旧参数预览</Badge>
-                    )}
-                    {c.preview_only && (
-                      <Badge tone="orange">片段试听 · 不改变混音</Badge>
-                    )}
-                    <span className="chip">
-                      {c.parameters?.transpose || 0} st
-                    </span>
-                    <span className="chip">
-                      {stateLabel[c.state] || c.state || "已渲染"}
-                    </span>
-                    <span className="chip">
-                      源 …{c.source_artifact_id?.slice(-8)}
-                    </span>
-                  </div>
-                  <div className="version-actions space-top">
-                    <button className="text-button" disabled={!!busy || c.id === selectedCandidateId || !!project?.tracks.some(t => t.artifact_id === c.artifact_id && !t.mute)}
-                      title="移出列表并保留音频与历史，可恢复或撤销；正在采用或混音的候选需先取消使用。"
-                      onClick={() => void archiveCandidate(c, true)}>{"归档此版本"}</button>
-                    {c.preview_only && (
-                      <>
-                        <button
-                          className="button small"
-                          disabled={!candidateCompatible(c) || !!busy}
-                          onClick={() =>
-                            void guard(() => adoptSettings(c), "采用试听设置")
-                          }
-                        >
-                          采用此试听设置
-                        </button>
-                        <button
-                          className="button small ghost"
-                          disabled={!fullBaseFor(c) || !!busy}
-                          title={
-                            fullBaseFor(c)
-                              ? "仅替换该试听区间，保留完整基础候选的其它位置"
-                              : "先生成并采用一个同源完整版本"
-                          }
-                          onClick={() => void localAdopt(c)}
-                        >
-                          局部采用到完整版
-                        </button>
-                      </>
-                    )}
-                    <button
-                      className={`button small ${adoptedCandidate?.id === c.id ? "primary" : ""}`}
-                      disabled={
-                        !c.artifact_id ||
-                        !!c.preview_only ||
-                        !candidateCompatible(c) ||
-                        (activePart === "vocal" &&
-                          Object.keys(parts).length > 0)
-                      }
-                      onClick={() => {
-                        update({ selected_candidate_id: c.id });
-                        setAuditionCandidateIds((previous) => ({
-                          ...previous,
-                          [auditionScope]: c.id,
-                        }));
-                        setListenId("");
-                        setAB("B");
-                      }}
-                    >
-                      {c.preview_only
-                        ? "片段仅供试听"
-                        : !candidateCompatible(c)
-                          ? "旧输入仅供试听"
-                          : activePart === "vocal" &&
-                              Object.keys(parts).length > 0
-                            ? "旧版仅供试听"
-                            : adoptedCandidate?.id === c.id
-                              ? "已选候选"
-                              : "采用此候选"}
-                    </button>
-                    <button
-                      className="button ghost small"
-                      disabled={!c.artifact_id}
-                      onClick={() => {
-                        setAuditionCandidateIds((previous) => ({
-                          ...previous,
-                          [auditionScope]: c.id,
-                        }));
-                        setListenId("");
-                        setAB("B");
-                        tell(
-                          c.preview_only
-                            ? "已载入片段试听；不会改变整曲混音或另一声部。"
-                            : "候选已载入试听；混音采用状态保持不变。",
-                        );
-                      }}
-                    >
-                      <Icon name="play" />
-                      试听
-                    </button>
-                    <button
-                      className={`chip ${c.favorite ? "active" : ""}`}
-                      onClick={() =>
-                        update({
-                          candidates: project!.candidates.map((x) =>
-                            x.id === c.id ? { ...x, favorite: !x.favorite } : x,
-                          ),
-                        })
-                      }
-                    >
-                      {c.favorite ? "已收藏" : "收藏"}
-                    </button>
-                    <button
-                      className="text-button"
-                      disabled={!c.artifact_id || !!busy}
-                      onClick={() =>
-                        void guard(
-                          () =>
-                            job(
-                              "pitch",
-                              {
-                                pitch_algorithm:
-                                  editorParameters.pitch_algorithm || "rmvpe",
-                              },
-                              c.artifact_id,
-                            ),
-                          "提交输出音高复测",
-                        )
-                      }
-                    >
-                      复测输出音高
-                    </button>
-                  </div>
-                  <input
-                    className="candidate-note"
-                    aria-label={`候选 ${i + 1} 备注`}
-                    value={c.notes || ""}
-                    placeholder="写下听感与下一步调整…"
-                    onChange={(e) =>
-                      update({
-                        candidates: project!.candidates.map((x) =>
-                          x.id === c.id ? { ...x, notes: e.target.value } : x,
-                        ),
-                      })
-                    }
-                  />
-                  {!blind && (
-                    <details className="candidate-provenance">
-                      <summary>版本、输入与生效参数</summary>
-                      <p>
-                        实验：
-                        {c.model_snapshot?.run_name ||
-                          c.model_snapshot?.run_id ||
-                          c.model_snapshot?.training_run_id ||
-                          "旧候选未记录实验标识"}
-                        <br />
-                        模型哈希：
-                        {c.model_snapshot?.model_hash ||
-                          c.model_manifest_hash ||
-                          "未记录"}
-                        <br />
-                        输入：
-                        {project?.assets.find(
-                          (a) => a.id === c.source_artifact_id,
-                        )?.sha256 || "源素材待重新链接"}
-                        <br />
-                        索引：
-                        {Number(
-                          (c.effective_parameters || c.parameters)
-                            ?.index_rate || 0,
-                        ) > 0
-                          ? c.model_snapshot?.index_hash ||
-                            c.parameters?.index_hash ||
-                            "旧版本未记录索引哈希"
-                          : "未使用检索"}
-                        <br />
-                        请求 F0：
-                        {c.requested_f0_hash ||
-                          project?.assets.find((a) => a.id === c.artifact_id)
-                            ?.requested_f0_hash ||
-                          "未记录"}
-                        <br />
-                        消费 F0：
-                        {c.consumed_f0_hash ||
-                          project?.assets.find((a) => a.id === c.artifact_id)
-                            ?.consumed_f0_hash ||
-                          "未记录"}
-                      </p>
-                      {candidateDiff(c).length > 0 && (
-                        <p>
-                          与当前设置不同：{candidateDiff(c).join("、")}
-                          。旧音频保持原版本。
-                        </p>
-                      )}
-                      <button
-                        className="text-button"
-                        onClick={() =>
-                          void guard(async () => {
-                            const m = await request<Bag>(
-                              `/catalog/models/${encodeURIComponent(c.model_id)}`,
-                            );
-                            await post(
-                              `/catalog/voices/${encodeURIComponent(m.voice_id)}/default`,
-                              { model_id: m.id },
-                            );
-                            setCatalogRevision((n) => n + 1);
-                            tell("已设为此声音的默认版本；现有工程绑定保留。");
-                          })
-                        }
-                      >
-                        设为此声音默认版本
-                      </button>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-            {versionTab === "archived" && <Card title={`归档版本 · ${archivedCandidates.length}`} className="card-pad">
-              <p>恢复后会保留在当前列表，不再自动归档；可以手动再次归档。</p>
-              {!archivedCandidates.length && <p className="info-inline">归档为空。生成超过两条候选后，旧版本会在这里保留。</p>}
-              {archivedCandidates.filter(c => !versionSearch || `${c.name} ${c.notes}`.toLowerCase().includes(versionSearch.toLowerCase())).slice().reverse().map(c => <div className="archived-version" key={c.id}>
-                <div><strong>{blind ? "已归档候选" : c.name}</strong><small>{c.archive_reason === "auto" ? "自动归档" : "手动归档"} · {c.preview_only ? "选区试听" : "完整版本"}{c.notes ? ` · ${c.notes}` : ""}</small></div>
-                <button className="button small" disabled={!!busy} onClick={() => void archiveCandidate(c, false)}>恢复并保留</button>
-              </div>)}
-            </Card>}
-            {!candidates.length && (
-              <Card>
-                <Empty title="第一版声音，值得认真试听" icon="headphones">
-                  <p>选择模型，先渲染当前选区。候选保留完整来源与参数。</p>
-                </Empty>
-              </Card>
-            )}
-            <Card className="card-pad">
-              {selectionControls}
-              <div className="row wrap space-top">
-                <button
-                  className="button primary"
-                  disabled={
-                    !vocal ||
-                    !currentModel ||
-                    !!busy ||
-                    (activePart !== "vocal" &&
-                      partBinding?.mode !== "convert") ||
-                    selection.end <= selection.start
-                  }
-                  onClick={() => void renderCandidate(true)}
-                >
-                  <Icon name="spark" />
-                  生成选区试听
-                </button>
+            <div className="render-actions">
+              <button
+                className="button primary"
+                disabled={
+                  !vocal ||
+                  !currentModel ||
+                  !!busy ||
+                  (activePart !== "vocal" && partBinding?.mode !== "convert")
+                }
+                onClick={() => void renderCandidate(false)}
+              >
+                生成当前声部完整版本
+              </button>
+              {bothPartsReady && (
                 <button
                   className="button ghost"
-                  disabled={
-                    !vocal ||
-                    !currentModel ||
-                    !!busy ||
-                    (activePart !== "vocal" && partBinding?.mode !== "convert")
+                  disabled={!!busy}
+                  onClick={() =>
+                    void guard(
+                      () =>
+                        job("convert_parts", {
+                          parts: ["lead_vocal", "backing_vocal"],
+                          mix_after: false,
+                        }),
+                      "生成双声部完整版本",
+                    )
                   }
-                  onClick={() => void renderCandidate(false)}
                 >
-                  生成整段候选
+                  按各自设置生成两声部
                 </button>
-                <button
-                  className="text-button"
-                  onClick={() => setModal("queue")}
-                >
-                  查看任务队列
-                </button>
-              </div>
-              <p className="info-inline">
-                选区试听包含前后文，并在原时间轴上对齐。短片段结果不保证逐采样等同整段渲染；修改参数后，上一版继续保留。
-              </p>
-            </Card>
-            {project &&
-              activePart === "vocal" &&
-              !hasVoiceParts &&
-              mode !== "quick" &&
-              !!candidates.length && (
-                <Card
-                  title="逐句拼选"
-                  icon="branch"
-                  aside={<Badge tone="purple">同源片段 · 交叉淡化</Badge>}
-                >
-                  <div className="card-pad">
-                    <Field label="基础候选（保留整段时间轴）">
-                      <select
-                        value={
-                          project.parameters.comp_base_candidate_id ||
-                          candidate?.id ||
-                          ""
-                        }
-                        onChange={(e) =>
-                          param({ comp_base_candidate_id: e.target.value })
-                        }
-                      >
-                        {candidates.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <p className="info-inline">
-                      当前采用的候选可覆盖所选句子。接缝在覆盖区间内部淡化，保留整段长度；不同来源或重叠区间会被拒绝。
-                    </p>
-                    <button
-                      className="button"
-                      disabled={!candidate || selection.end <= selection.start}
-                      onClick={() => {
-                        const segments: Bag[] =
-                          project.parameters.comp_segments || [];
-                        if (
-                          segments.some(
-                            (s) =>
-                              s.start_tick < selection.end &&
-                              s.end_tick > selection.start,
-                          )
-                        ) {
-                          tell("此选区与已有拼选片段重叠，请先调整边界。");
-                          return;
-                        }
-                        param({
-                          comp_base_candidate_id:
-                            project.parameters.comp_base_candidate_id ||
-                            candidate?.id,
-                          comp_segments: [
-                            ...segments,
-                            {
-                              candidate_id: candidate?.id,
-                              start_tick: selection.start,
-                              end_tick: selection.end,
-                              fade_ms: 20,
-                            },
-                          ],
-                        });
-                      }}
-                    >
-                      将当前候选用于选区
-                    </button>
-                    <div className="edit-list">
-                      {(project.parameters.comp_segments || []).map(
-                        (s: Bag, i: number) => (
-                          <div className="edit-row" key={i}>
-                            <span>
-                              {clock(seconds(s.start_tick))} —{" "}
-                              {clock(seconds(s.end_tick))}
-                            </span>
-                            <strong>
-                              {candidates.find((c) => c.id === s.candidate_id)
-                                ?.name || "候选缺失"}
-                            </strong>
-                            <label className="inline-check">
-                              淡化 ms{" "}
-                              <input
-                                className="comp-fade"
-                                type="number"
-                                min={1}
-                                max={200}
-                                value={s.fade_ms}
-                                aria-label={`拼选片段 ${i + 1} 淡化毫秒`}
-                                onChange={(e) =>
-                                  param({
-                                    comp_segments:
-                                      project.parameters.comp_segments.map(
-                                        (x: Bag, j: number) =>
-                                          i === j
-                                            ? {
-                                                ...x,
-                                                fade_ms: Math.max(
-                                                  1,
-                                                  Math.min(
-                                                    200,
-                                                    +e.target.value,
-                                                  ),
-                                                ),
-                                              }
-                                            : x,
-                                      ),
-                                  })
-                                }
-                              />
-                            </label>
-                            <button
-                              className="text-button"
-                              onClick={() =>
-                                param({
-                                  comp_segments:
-                                    project.parameters.comp_segments.filter(
-                                      (_x: Bag, j: number) => j !== i,
-                                    ),
-                                })
-                              }
-                            >
-                              移除
-                            </button>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                    <button
-                      className="button primary"
-                      disabled={
-                        !project.parameters.comp_segments?.length || !!busy
-                      }
-                      onClick={() =>
-                        void guard(
-                          () =>
-                            job("comp", {
-                              base_candidate_id:
-                                project.parameters.comp_base_candidate_id ||
-                                candidate?.id,
-                              segments: project.parameters.comp_segments,
-                            }),
-                          "提交片段拼选",
-                        )
-                      }
-                    >
-                      <Icon name="branch" />
-                      渲染拼选候选
-                    </button>
-                  </div>
-                </Card>
               )}
-            {waveformCard(
-              project?.tracks.filter((t) =>
-                activePart === "vocal"
-                  ? ["vocal", "vocals", "guide", "converted"].includes(
-                      t.role,
-                    ) && !t.voice_part
-                  : t.role === activePart || t.voice_part === activePart,
-              ),
+              <small>使用完整输入，音高编辑随当前声部进入生成。</small>
+            </div>
+            {project && (
+              <CandidateVersions
+                project={project}
+                blindLabels={blindLabels}
+                onToggleBlind={() => {
+                  if (blindLabels) {
+                    setBlindLabels(null);
+                    return;
+                  }
+                  const ids = scopedCandidates.map((c) => c.id);
+                  for (let i = ids.length - 1; i > 0; i--) {
+                    const j =
+                      crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+                    [ids[i], ids[j]] = [ids[j], ids[i]];
+                  }
+                  setBlindLabels(
+                    Object.fromEntries(
+                      ids.map((id, i) => [
+                        id,
+                        `盲听版本 ${String.fromCharCode(65 + i)}`,
+                      ]),
+                    ),
+                  );
+                }}
+                part={activePart}
+                selectedId={selectedCandidateId}
+                auditionId={candidate?.id}
+                busy={!!busy}
+                isCompatible={candidateCompatible}
+                stateOf={candidateState}
+                onAdopt={(c) => {
+                  update({ selected_candidate_id: c.id });
+                  setAuditionCandidateIds((v) => ({
+                    ...v,
+                    [auditionScope]: c.id,
+                  }));
+                  setListenId("");
+                  setAB("B");
+                }}
+                onListen={(c) => {
+                  setAuditionCandidateIds((v) => ({
+                    ...v,
+                    [auditionScope]: c.id,
+                  }));
+                  setListenId("");
+                  setAB("B");
+                }}
+                onArchive={(c, value) => void archiveCandidate(c, value)}
+                onUpdate={(c, changes) =>
+                  update({ candidates: [{ id: c.id, ...changes }] })
+                }
+              />
             )}
+            {mode === "expert" && activePart === "vocal" && !hasVoiceParts && (
+              <details className="archive-policy">
+                <summary>完整版本显式串联</summary>
+                <p>以上一完整候选为输入生成下一代，保留各代音频与来源。</p>
+                <button
+                  className="button"
+                  disabled={
+                    !candidate ||
+                    candidate.preview_only ||
+                    !currentModel ||
+                    !!busy
+                  }
+                  onClick={() => void renderCandidate(false, true)}
+                >
+                  以上一完整版本再生成一轮
+                </button>
+              </details>
+            )}
+            <details className="archive-policy">
+              <summary>版本自动归档规则</summary>
+              <label className="toggle-row">
+                <span>成功生成后，同来源同声部保留最近两个普通版本</span>
+                <input
+                  type="checkbox"
+                  checked={
+                    project?.view_preferences?.auto_archive_candidates !== false
+                  }
+                  onChange={(e) =>
+                    updateView({ auto_archive_candidates: e.target.checked })
+                  }
+                />
+              </label>
+              <p>收藏、恢复保留、正在采用、混音引用和比较批次受到保护。</p>
+            </details>
+            <Field label="A 通道对照">
+              <select
+                value={referenceCandidate?.id || ""}
+                onChange={(e) => {
+                  updateView({ ab_reference_candidate_id: e.target.value });
+                  setListenId("");
+                }}
+              >
+                <option value="">当前候选的原始输入</option>
+                {candidates
+                  .filter(
+                    (c) =>
+                      !c.preview_only &&
+                      c.id !== candidate?.id &&
+                      c.source_artifact_id === candidate?.source_artifact_id,
+                  )
+                  .map((c) => (
+                    <option value={c.id} key={c.id}>
+                      {blindLabels ? blindLabels[c.id] || "新版本" : c.name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
           </div>
           <aside className="inspector stack">
             <Card className="card-pad">
               {partModeControls}
               <RvcParameterPanel
+                section="conversion"
                 modelId={editorParameters.model_id}
                 task={project?.task || "speech"}
                 values={{
@@ -4491,97 +4204,7 @@ export default function App() {
                   consumed_f0_hash: comparisonB?.consumed_f0_hash,
                 }}
               />
-              {activePart === "vocal" &&
-                !hasVoiceParts &&
-                mode === "expert" && (
-                  <div className="advanced-block">
-                    <div className="warning-inline">
-                      显式串联会增加转换世代，也可能积累失真。
-                    </div>
-                    <button
-                      className="button full"
-                      disabled={!candidate || !currentModel || !!busy}
-                      onClick={() => void renderCandidate(false, true)}
-                    >
-                      以上一候选为输入，再转换一轮
-                    </button>
-                    <Field label="固定随机种子">
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={editorParameters.seed ?? 42}
-                        onChange={(e) => param({ seed: +e.target.value })}
-                      />
-                    </Field>
-                    <div className="line" />
-                    <strong className="track-heading">短片段参数实验</strong>
-                    <Field
-                      label="对比移调（半音，用逗号分隔）"
-                      hint="最多 8 组，同源输入、固定种子，按队列顺序执行；锁定人工曲线保持优先。"
-                    >
-                      <input
-                        value={experimentShifts}
-                        onChange={(e) => setExperimentShifts(e.target.value)}
-                        placeholder="-2,0,2"
-                      />
-                    </Field>
-                    <button
-                      className="button full"
-                      disabled={
-                        !currentModel ||
-                        !vocal ||
-                        !!busy ||
-                        selection.end <= selection.start
-                      }
-                      onClick={() =>
-                        void guard(async () => {
-                          const shifts = experimentShifts
-                            .split(/[,，]/)
-                            .map((s) => Number(s.trim()));
-                          if (
-                            !shifts.length ||
-                            shifts.length > 8 ||
-                            shifts.some(
-                              (n) => !Number.isFinite(n) || Math.abs(n) > 24,
-                            )
-                          )
-                            throw new Error(
-                              "请输入 1–8 个 −24 至 +24 之间的移调数值。",
-                            );
-                          await flush();
-                          const p = pRef.current!;
-                          const result = await post<Bag>(
-                            `/projects/${p.id}/experiments`,
-                            {
-                              revision: p.revision,
-                              idempotency_key: uid(),
-                              input_artifact_id: vocal?.id,
-                              range_ticks: [selection.start, selection.end],
-                              variants: shifts.map((transpose) => ({
-                                transpose,
-                                seed: p.parameters.seed ?? 42,
-                              })),
-                            },
-                          );
-                          setJobs((js) => [...result.jobs, ...js]);
-                          tell(`已加入 ${result.jobs.length} 个同源参数实验。`);
-                        }, "提交参数实验")
-                      }
-                    >
-                      生成对比候选组
-                    </button>
-                  </div>
-                )}
             </Card>
-            <div className="helper-box">
-              <strong>A/B 要在同一位置。</strong>
-              <p>
-                底部 A 是候选的输入，B
-                是当前候选，共用播放头与循环范围。响度匹配使用可用的实际 RMS
-                测量。
-              </p>
-            </div>
           </aside>
         </div>
       </>
@@ -4599,6 +4222,21 @@ export default function App() {
             (!["vocal", "vocals", "guide", "synthesized"].includes(t.role) &&
               !(t.role === "converted" && !t.voice_part))),
       ) || [];
+    const historicalIds = new Set<string>(
+      project?.candidates
+        .filter((c) => !c.selected)
+        .map((c) => c.artifact_id) || [],
+    );
+    for (const run of project?.separation_runs || [])
+      if (project?.selected_separations?.[run.operation] !== run.id)
+        for (const id of run.artifact_ids) historicalIds.add(id);
+    for (const binding of Object.values(parts))
+      if (binding?.selected_candidate_id && binding.mode === "convert")
+        historicalIds.add(binding.source_artifact_id);
+    if (!showHistoricalTracks)
+      mixTracks = mixTracks.filter(
+        (t) => !historicalIds.has(t.artifact_id) || !t.mute,
+      );
     if (!mixTracks.length) mixTracks = project?.tracks.filter(t => t.role === "original") || [];
     content = (
       <div className="layout-split">
@@ -4608,6 +4246,14 @@ export default function App() {
             icon="sliders"
             aside={<Badge tone="neutral">不叠加原始整曲</Badge>}
           >
+            <label className="inline-check card-pad">
+              <input
+                type="checkbox"
+                checked={showHistoricalTracks}
+                onChange={(e) => setShowHistoricalTracks(e.target.checked)}
+              />
+              显示历史音轨
+            </label>
             {mixTracks.length ? (
               <div className="mixer">
                 {mixTracks.map((t, i) => (
@@ -4645,13 +4291,39 @@ export default function App() {
                         }
                       />
                       <div className="fader-scale">
-                        {[12, 0, -24, -60].map(db => <span key={db} style={{ top: `${(12 - db) / 72 * 100}%` }}>{db > 0 ? "+" : ""}{db}</span>)}
+                        {[12, 0, -24, -60].map((db) => (
+                          <span
+                            key={db}
+                            style={{ top: `${((12 - db) / 72) * 100}%` }}
+                          >
+                            {db > 0 ? "+" : ""}
+                            {db}
+                          </span>
+                        ))}
                       </div>
-                      <div className={`channel-meter ${trackMeter(t.id) >= 0 ? "clipping" : ""}`} role="meter" aria-label={`${t.name}效果后电平`} aria-valuemin={-60} aria-valuemax={0} aria-valuenow={Math.max(-60, Math.min(0, trackMeter(t.id)))}>
-                        <i style={{ height: `${Math.max(0, Math.min(100, (trackMeter(t.id) + 60) / 60 * 100))}%` }} />
+                      <div
+                        className={`channel-meter ${trackMeter(t.id) >= 0 ? "clipping" : ""}`}
+                        role="meter"
+                        aria-label={`${t.name}效果后电平`}
+                        aria-valuemin={-60}
+                        aria-valuemax={0}
+                        aria-valuenow={Math.max(
+                          -60,
+                          Math.min(0, trackMeter(t.id)),
+                        )}
+                      >
+                        <i
+                          style={{
+                            height: `${Math.max(0, Math.min(100, ((trackMeter(t.id) + 60) / 60) * 100))}%`,
+                          }}
+                        />
                       </div>
                     </div>
-                    <small className="meter-readout">{trackMeter(t.id) > -120 ? `${trackMeter(t.id).toFixed(1)} dBFS` : "效果后电平 · 停止"}</small>
+                    <small className="meter-readout">
+                      {trackMeter(t.id) > -120
+                        ? `${trackMeter(t.id).toFixed(1)} dBFS`
+                        : "效果后电平 · 停止"}
+                    </small>
                     <div className="channel-level">
                       <input
                         aria-label={`${t.name}增益数值`}
@@ -4694,7 +4366,11 @@ export default function App() {
                           patchTrack(t.id, { pan: +e.target.value })
                         }
                       />
-                      <small>{t.pan ? `${t.pan < 0 ? "左" : "右"} ${Math.round(Math.abs(t.pan) * 100)}%` : "居中"}</small>
+                      <small>
+                        {t.pan
+                          ? `${t.pan < 0 ? "左" : "右"} ${Math.round(Math.abs(t.pan) * 100)}%`
+                          : "居中"}
+                      </small>
                     </Field>
                     <button
                       className="text-button"
@@ -4716,12 +4392,36 @@ export default function App() {
             )}
           </Card>
           <div className="highlight-strip">
-            <strong role="status">{mixPreviewState || "进入混音后，按当前选区自动生成试听。"}</strong>
-            <p>设置变化时暂停旧试听，更新完成后可播放新版本。完整成品请点击“渲染混音”。</p>
-            {currentMixPreview && currentMixPreview.measurements?.true_peak_dbfs > 0 && <p className="warning-inline">当前混音真峰值 {currentMixPreview.measurements.true_peak_dbfs.toFixed(1)} dBTP，超过满幅；请降低推子后导出整数格式。</p>}
+            <strong role="status">
+              {mixPreviewState || "进入混音后，按当前选区自动生成试听。"}
+            </strong>
+            <p>
+              设置变化时暂停旧试听，更新完成后可播放新版本。完整成品请点击“渲染混音”。
+            </p>
+            {currentMixPreview &&
+              currentMixPreview.measurements?.true_peak_dbfs > 0 && (
+                <p className="warning-inline">
+                  当前混音真峰值{" "}
+                  {currentMixPreview.measurements.true_peak_dbfs.toFixed(1)}{" "}
+                  dBTP，超过满幅；请降低推子后导出整数格式。
+                </p>
+              )}
             {selectionControls}
-            {mixMonitor && <button className="button small" onClick={() => setMixMonitor("")}>返回全部轨道混音试听</button>}
-            <button className="button small" disabled={!currentMixPreview} onClick={togglePlay}>{playing ? "暂停混音试听" : "播放当前混音选区"}</button>
+            {mixMonitor && (
+              <button
+                className="button small"
+                onClick={() => setMixMonitor("")}
+              >
+                返回全部轨道混音试听
+              </button>
+            )}
+            <button
+              className="button small"
+              disabled={!currentMixPreview}
+              onClick={togglePlay}
+            >
+              {playing ? "暂停混音试听" : "播放当前混音选区"}
+            </button>
           </div>
           <div className="row">
             <button
@@ -4765,6 +4465,13 @@ export default function App() {
                   name: "压缩器",
                   threshold_db: -18,
                   ratio: 3,
+                },
+                {
+                  type: "reverb",
+                  name: "房间混响",
+                  wet: 0.15,
+                  room_seconds: 0.65,
+                  predelay_ms: 18,
                 },
                 { type: "delay", name: "延迟", delay_ms: 120, decay: 0.2 },
                 { type: "limiter", name: "限制器", limit_db: -1 },
@@ -4815,6 +4522,9 @@ export default function App() {
                                   (
                                     {
                                       frequency: "截止频率 Hz",
+                                      wet: "混响湿声比例",
+                                      room_seconds: "混响长度（秒）",
+                                      predelay_ms: "预延迟 ms",
                                       threshold_db: "阈值 dB",
                                       ratio: "压缩比",
                                       delay_ms: "延迟 ms",
@@ -4827,7 +4537,11 @@ export default function App() {
                               >
                                 <input
                                   type="number"
-                                  step={k === "decay" ? 0.01 : 1}
+                                  step={
+                                    ["decay", "wet", "room_seconds"].includes(k)
+                                      ? 0.01
+                                      : 1
+                                  }
                                   value={effect[k as keyof typeof effect] ?? v}
                                   onChange={(e) =>
                                     patchTrack(t.id, {
@@ -4872,7 +4586,7 @@ export default function App() {
                   <option value="">当前最终候选 / 最新混音</option>
                   {project?.assets.filter(isAudio).map((a) => (
                     <option value={a.id} key={a.id}>
-                      {a.name} · {kindNames[a.processing_kind]}
+                      {artifactLabel(a)}
                     </option>
                   ))}
                 </select>
@@ -4894,11 +4608,21 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              {format === "wav" && <Field label="WAV 位深与采样格式" hint="16/24位整数需要峰值留量；32位浮点保留超满幅数据，播放仍需降低监听音量。">
-                <select value={wavSubtype} onChange={e => setWavSubtype(e.target.value)}>
-                  <option value="pcm_s16le">16-bit PCM</option><option value="pcm_s24le">24-bit PCM</option><option value="pcm_f32le">32-bit Float</option>
-                </select>
-              </Field>}
+              {format === "wav" && (
+                <Field
+                  label="WAV 位深与采样格式"
+                  hint="16/24位整数需要峰值留量；32位浮点保留超满幅数据，播放仍需降低监听音量。"
+                >
+                  <select
+                    value={wavSubtype}
+                    onChange={(e) => setWavSubtype(e.target.value)}
+                  >
+                    <option value="pcm_s16le">16-bit PCM</option>
+                    <option value="pcm_s24le">24-bit PCM</option>
+                    <option value="pcm_f32le">32-bit Float</option>
+                  </select>
+                </Field>
+              )}
               <Field label="文件名（不含扩展名）">
                 <input
                   value={exportName}
@@ -5018,8 +4742,7 @@ export default function App() {
                         e.id}
                     </strong>
                     <small>
-                      {e.format?.toUpperCase()} ·{" "}
-                      {e.codec} ·{" "}
+                      {e.format?.toUpperCase()} · {e.codec} ·{" "}
                       {e.processing_kind
                         ? kindNames[e.processing_kind]
                         : e.created_at}{" "}
@@ -5066,7 +4789,8 @@ export default function App() {
                     e.artifact_id === a?.id &&
                     e.measurements?.measurement_succeeded,
                 );
-              const measured = exportMeasurements || measuredExport?.measurements;
+              const measured =
+                exportMeasurements || measuredExport?.measurements;
               return (
                 <>
                   <div className="parameter-row">
@@ -5092,7 +4816,9 @@ export default function App() {
                     </strong>
                   </div>
                   <div className="parameter-row">
-                    <span>{exportSelection ? "选区综合响度" : "当前源综合响度"}</span>
+                    <span>
+                      {exportSelection ? "选区综合响度" : "当前源综合响度"}
+                    </span>
                     <strong>
                       {measured?.integrated_lufs != null
                         ? `${Number(measured.integrated_lufs).toFixed(1)} LUFS`
@@ -5100,15 +4826,26 @@ export default function App() {
                     </strong>
                   </div>
                   <div className="parameter-row">
-                    <span>{exportSelection ? "选区真峰值" : "当前源真峰值"}</span>
+                    <span>
+                      {exportSelection ? "选区真峰值" : "当前源真峰值"}
+                    </span>
                     <strong>
                       {measured?.true_peak_dbfs != null
                         ? `${Number(measured.true_peak_dbfs).toFixed(2)} dBTP`
                         : "未测量"}
                     </strong>
                   </div>
-                  {exportMeasurements && <p className="info-inline">已测量 {exportMeasurements.duration.toFixed(2)} 秒 · {exportMeasurements.measurement_engine}</p>}
-                  {!exportMeasurements && <p className="info-inline">正在测量所选音频的真实峰值与响度…</p>}
+                  {exportMeasurements && (
+                    <p className="info-inline">
+                      已测量 {exportMeasurements.duration.toFixed(2)} 秒 ·{" "}
+                      {exportMeasurements.measurement_engine}
+                    </p>
+                  )}
+                  {!exportMeasurements && (
+                    <p className="info-inline">
+                      正在测量所选音频的真实峰值与响度…
+                    </p>
+                  )}
                   {measuredExport && (
                     <div className="helper-box">
                       <strong>最近导出测量</strong>
@@ -5127,19 +4864,13 @@ export default function App() {
                 </>
               );
             })()}
-            <div className="helper-box space-top">
-              <strong>保留一个可以继续的版本。</strong>
-              <p>
-                配方包含编辑、候选与素材哈希。恢复时若缺少文件，重新链接相同素材；不会自动替换模型。
-              </p>
-            </div>
           </Card>
         </aside>
       </div>
     );
 
   return (
-    <div className={`app-shell density-${mode}`}>
+    <div className={`app-shell density-${mode} ui-${uiTheme}`}>
       <aside className="sidebar">
         <button className="brand" onClick={() => setStep(0)}>
           <span className="brand-mark">
@@ -5149,7 +4880,7 @@ export default function App() {
             SONORA<small>声 序 · 音 频 工 作 台</small>
           </span>
         </button>
-        <button className="project-picker" onClick={() => setModal("projects")}>
+        <button className="project-picker" onClick={() => void guard(async()=>{await flush(); const result=await request<{projects:Project[]}>("/projects");setProjects(result.projects);setModal("projects");})}>
           <span className="project-dot" />
           <span>
             <strong>{project?.name || "创建你的第一个工程"}</strong>
@@ -5170,6 +4901,7 @@ export default function App() {
                 className={`nav-step ${step === i ? "active" : ""} ${done ? "done" : ""}`}
                 onClick={() => setStep(i)}
                 key={title}
+                disabled={!project || connection !== "ready"}
                 aria-current={step === i ? "step" : undefined}
               >
                 <Icon name={icon} />
@@ -5198,25 +4930,12 @@ export default function App() {
           <Icon name="box" />
           声音与模型<span className="side-count">{models.length}</span>
         </button>
-        <button className="nav-secondary" onClick={() => setStep(3)}>
-          <Icon name="branch" />
-          候选与版本
-          <span className="side-count">{candidates.length || 0}</span>
-        </button>
-        <button className="nav-secondary" onClick={() => setModal("queue")}>
-          <Icon name="clock" />
-          任务队列<span className="side-count">{activeCount}</span>
-        </button>
         <div className="sidebar-bottom">
           <div className="local-status">
             <span className={connection === "ready" ? "" : "offline"} />
             {connection === "ready" ? "文件在本机处理" : "本地服务未连接"}
           </div>
-          <p>
-            保留原始素材
-            <br />
-            每一版都有来源
-          </p>
+
           <button className="text-button" onClick={() => setModal("settings")}>
             <Icon name="settings" />
             引擎与设置
@@ -5231,6 +4950,20 @@ export default function App() {
             <strong>{steps[step][1]}</strong>
           </div>
           <div className="top-actions">
+            <div className="segmented ui-switch" aria-label="界面风格">
+              <button
+                className={uiTheme === "classic" ? "active" : ""}
+                onClick={() => setUiTheme("classic")}
+              >
+                经典 UI
+              </button>
+              <button
+                className={uiTheme === "soft" ? "active" : ""}
+                onClick={() => setUiTheme("soft")}
+              >
+                柔和 UI
+              </button>
+            </div>
             <span
               className={`save-indicator ${saveState === "保存失败" ? "error-text" : ""}`}
               title={`工程修订 ${project?.revision || 0}`}
@@ -5267,7 +5000,7 @@ export default function App() {
             >
               {[
                 ["quick", "快速完成"],
-                ["expert", "专家设置"],
+                ["expert", "专业模式"],
               ].map(([id, title]) => (
                 <button
                   className={mode === id ? "active" : ""}
@@ -5364,8 +5097,7 @@ export default function App() {
                   ][step]
                 }
               </div>
-              <h1>{steps[step][2]}</h1>
-              <p className="page-subtitle">{steps[step][3]}</p>
+              <h1>{steps[step][1]}</h1>
             </div>
             <div className="page-head-right">
               <Badge tone={connection === "ready" ? "" : "orange"}>
@@ -5387,7 +5119,9 @@ export default function App() {
             stage={step}
             voicePart={activePart}
             catalogRevision={catalogRevision}
-            activityKey={jobs.map(j => `${j.id}:${j.state}:${j.stage}`).join("|")}
+            activityKey={jobs
+              .map((j) => `${j.id}:${j.state}:${j.stage}`)
+              .join("|")}
             disabled={!!busy || saveState !== "已保存"}
             onAction={workflowAction}
             onLoaded={setWorkflow}
@@ -5422,15 +5156,27 @@ export default function App() {
               {step < 5 && (
                 <button
                   className="button primary"
-                  disabled={!currentStage?.continuation || currentStage.continuation.disabled || !!busy || saveState !== "已保存"}
-                  title={saveState !== "已保存" ? saveState : currentStage?.continuation?.reason || "只切换页面，不执行任务"}
+                  disabled={
+                    !currentStage?.continuation ||
+                    currentStage.continuation.disabled ||
+                    !!busy ||
+                    saveState !== "已保存"
+                  }
+                  title={
+                    saveState !== "已保存"
+                      ? saveState
+                      : currentStage?.continuation?.reason ||
+                        "只切换页面，不执行任务"
+                  }
                   onClick={() => workflowAction(currentStage!.continuation)}
                 >
                   {currentStage?.continuation?.label || "继续"}
                   <Icon name="arrow" />
                 </button>
               )}
-              {currentStage?.continuation?.disabled && <small role="status">{currentStage.continuation.reason}</small>}
+              {currentStage?.continuation?.disabled && (
+                <small role="status">{currentStage.continuation.reason}</small>
+              )}
             </div>
           </div>
         </main>
@@ -5440,11 +5186,18 @@ export default function App() {
               <Icon name="wave" />
             </span>
             <div>
-              <strong>{listen?.name || (step === 4 ? "当前混音试听正在更新" : "暂无当前阶段的试听来源")}</strong>
+              <strong>
+                {listen?.name ||
+                  (step === 4
+                    ? "当前混音试听正在更新"
+                    : "暂无当前阶段的试听来源")}
+              </strong>
               <small>
                 {listen
-                  ? `${steps[step][1]} · ${step === 4 ? mixMonitor ? "单轨 · 推子/效果后" : "当前混音 · 推子/效果后" : step === 5 ? "当前导出源" : step === 3 ? `${ab} 通道 · ` + kindNames[listen.processing_kind] : kindNames[listen.processing_kind]}`
-                  : step === 4 ? "等待当前设置渲染完成" : `${steps[step][1]} · 请准备本阶段输入`}
+                  ? `${steps[step][1]} · ${step === 4 ? (mixMonitor ? "单轨 · 推子/效果后" : "当前混音 · 推子/效果后") : step === 5 ? "当前导出源" : step === 3 ? `${ab} 通道 · ` + kindNames[listen.processing_kind] : kindNames[listen.processing_kind]}`
+                  : step === 4
+                    ? "等待当前设置渲染完成"
+                    : `${steps[step][1]} · 请准备本阶段输入`}
                 {listenId && step !== 4 && step !== 5 ? " · 单轨原始产物" : ""}
               </small>
             </div>
@@ -5456,7 +5209,11 @@ export default function App() {
                 aria-label="循环选区"
                 aria-pressed={loop}
                 disabled={!loopValid}
-                title={loopValid ? "循环当前选区与试听源的交集" : "选区与试听音频需要至少50毫秒交集"}
+                title={
+                  loopValid
+                    ? "循环当前选区与试听源的交集"
+                    : "选区与试听音频需要至少50毫秒交集"
+                }
                 onClick={() => setLoop(!loop)}
               >
                 <Icon name="repeat" />
@@ -5537,15 +5294,24 @@ export default function App() {
                 onChange={(e) => setVolume(+e.target.value)}
               />
             </label>
-            <span className="monitor-meter" title="实际监听输出峰值，受监听音量影响">{playing ? `${meterDb.toFixed(0)} dBFS` : "监听停止"}</span>
+            <span
+              className="monitor-meter"
+              title="实际监听输出峰值，受监听音量影响"
+            >
+              {playing ? `${meterDb.toFixed(0)} dBFS` : "监听停止"}
+            </span>
           </div>
         </footer>
         <audio
           ref={audio}
-          onPlay={() => { if (audio.current?.dataset.projectId === pRef.current?.id) setPlaying(true); }}
+          onPlay={() => {
+            if (audio.current?.dataset.projectId === pRef.current?.id)
+              setPlaying(true);
+          }}
           onPause={() => {
             setPlaying(false);
-            if (audio.current?.dataset.projectId === pRef.current?.id) savePlayhead();
+            if (audio.current?.dataset.projectId === pRef.current?.id)
+              savePlayhead();
           }}
           onEnded={() => {
             if (audio.current?.dataset.projectId !== pRef.current?.id) return;
@@ -5554,7 +5320,8 @@ export default function App() {
           onTimeUpdate={() => {
             const a = audio.current!;
             if (a.dataset.projectId !== pRef.current?.id) return;
-            if (loop && loopValid && a.currentTime + listenOffset >= loopEnd) wrapLoop();
+            if (loop && loopValid && a.currentTime + listenOffset >= loopEnd)
+              wrapLoop();
             setPlayhead(a.currentTime + listenOffset);
             playRef.current = a.currentTime + listenOffset;
           }}
@@ -5653,10 +5420,25 @@ export default function App() {
         }}
       />
       {!!notices.length && (
-        <div className="toast show" role="status" key={notices[0].id} onMouseEnter={() => setToastPaused(true)} onMouseLeave={() => setToastPaused(false)}>
+        <div
+          className="toast show"
+          role="status"
+          key={notices[0].id}
+          onMouseEnter={() => setToastPaused(true)}
+          onMouseLeave={() => setToastPaused(false)}
+        >
           <span>{notices[0].text}</span>
           {notices.length > 1 && <small>另有 {notices.length - 1} 条</small>}
-          <button className="icon-button" aria-label="关闭当前提示" onClick={() => { setNotices(items => items.slice(1)); setToastPaused(false); }}>×</button>
+          <button
+            className="icon-button"
+            aria-label="关闭当前提示"
+            onClick={() => {
+              setNotices((items) => items.slice(1));
+              setToastPaused(false);
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
       {modal && (
@@ -5664,7 +5446,7 @@ export default function App() {
           title={
             (
               {
-                projects: "我的工程",
+                projects: "项目库",
                 models: "声音与模型",
                 queue: "本机任务队列",
                 settings: "引擎与设置",
@@ -5696,7 +5478,6 @@ export default function App() {
                         task: "cover",
                       });
                       applyProject(p);
-                      setProjects((ps) => [p, ...ps]);
                       setListenId("");
                       seek(0);
                       setModal("");
@@ -5707,33 +5488,56 @@ export default function App() {
                   创建工程
                 </button>
               </div>
+              {project && (
+                <Field label="当前项目名称">
+                  <input
+                    value={project.name}
+                    maxLength={120}
+                    onChange={(e) => update({ name: e.target.value })}
+                  />
+                </Field>
+              )}
+              <input
+                className="project-search"
+                aria-label="搜索项目"
+                value={projectSearch}
+                onChange={(e) => setProjectSearch(e.target.value)}
+                placeholder="搜索项目名称"
+              />
               <div className="project-list">
-                {projects.map((p) => (
-                  <button
-                    key={p.id}
-                    className="project-row"
-                    onClick={() =>
-                      void guard(async () => {
-                        await flush();
-                        audio.current?.pause();
-                        applyProject(
+                {projects
+                  .filter((p) =>
+                    p.name.toLowerCase().includes(projectSearch.toLowerCase()),
+                  )
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      className={`project-row ${p.id === project?.id ? "current" : ""}`}
+                      onClick={() =>
+                        void guard(async () => {
+                          await flush();
+                          audio.current?.pause();
+                          applyProject(
                           await request<Project>(`/projects/${p.id}`),
                         );
-                        setListenId("");
-                        setModal("");
-                      })
-                    }
-                  >
-                    <Icon name="wave" />
-                    <span>
-                      <strong>{p.name}</strong>
-                      <small>
-                        {p.updated_at} · 修订 {p.revision}
-                      </small>
-                    </span>
-                    <Icon name="arrow" />
-                  </button>
-                ))}
+                          setListenId("");
+                          setModal("");
+                        })
+                      }
+                    >
+                      <Icon name="wave" />
+                      <span>
+                        <strong>{p.name}</strong>
+                        <small>
+                          {p.tracks.length} 条音轨 ·{" "}
+                          {p.candidates.filter((c) => !c.preview_only).length}{" "}
+                          个完整版本 · {p.exports.length} 次导出 ·{" "}
+                          {steps[p.view_preferences?.stage || 0][1]}
+                        </small>
+                      </span>
+                      <Icon name="arrow" />
+                    </button>
+                  ))}
               </div>
               <button
                 className="button ghost full"
@@ -5814,7 +5618,11 @@ export default function App() {
                       {j.error && (
                         <div className="job-error">
                           {j.error.message}
-                          <small>{stalePitchJob(j) ? "点击右侧“重新检测并重试”，解除该任务的旧曲线绑定并按任务参数重新分析；保留手工编辑和已有音频。" : j.error.recovery}</small>
+                          <small>
+                            {stalePitchJob(j)
+                              ? "点击右侧“重新检测并重试”，解除该任务的旧曲线绑定并按任务参数重新分析；保留手工编辑和已有音频。"
+                              : j.error.recovery}
+                          </small>
                         </div>
                       )}
                     </div>
@@ -5836,7 +5644,12 @@ export default function App() {
                           className="button small"
                           onClick={() =>
                             void guard(async () => {
-                              await post(`/jobs/${j.id}/retry`, stalePitchJob(j) ? { reset_pitch_binding: true } : {});
+                              await post(
+                                `/jobs/${j.id}/retry`,
+                                stalePitchJob(j)
+                                  ? { reset_pitch_binding: true }
+                                  : {},
+                              );
                               tell("已加入重试队列。");
                             })
                           }

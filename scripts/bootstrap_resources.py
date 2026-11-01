@@ -147,10 +147,11 @@ def main():
         if not yaml.is_file(): continue
         dest=resources/'separation'/ckpt.name
         link_file(ckpt,dest); link_file(yaml,dest.with_name(yaml_name))
+        stem_roles = {'vocals':'vocal','other':'instrumental'} if ckpt.stem == 'melband_roformer_big_beta6x' else {'Vocals':'vocal','Instrumental':'instrumental'}
         separator_models.append({'id':ckpt.stem,'name':ckpt.stem,'path':str(dest),'config_path':str(dest.with_name(yaml_name)),
                                  'model_hash':sha256(ckpt),'config_hash':sha256(yaml),'license':'unconfirmed',
-                                 'task':'vocals_instrumental','native_stem_roles':{'Vocals':'vocal','Instrumental':'instrumental'},
-                                 'stem_roles':{'Vocals':'vocal','Instrumental':'instrumental'},'sample_rate':44100,'test_status':'unverified'})
+                                 'task':'vocals_instrumental','native_stem_roles':stem_roles,
+                                 'stem_roles':stem_roles,'sample_rate':44100,'test_status':'unverified'})
     harmony_manifest=ROOT/'engine-envs/harmony/model-manifest.json'
     default_harmony_model=None
     if harmony_manifest.exists():

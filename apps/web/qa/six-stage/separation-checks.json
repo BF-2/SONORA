@@ -1,0 +1,84 @@
+[
+  {
+    "id": "separation_64787ecc32ce499d8240",
+    "operation": "separate",
+    "outputs": [
+      {
+        "id": "artifact_a020430a102c486c925a",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.17989104986190796
+      },
+      {
+        "id": "artifact_009ae48cc0f443aea495",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.312004417181015
+      }
+    ]
+  },
+  {
+    "id": "separation_d7a8930ca2784833af09",
+    "operation": "separate_harmony",
+    "outputs": [
+      {
+        "id": "artifact_85f75cc1b6b44937a9f7",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.14719630777835846
+      },
+      {
+        "id": "artifact_8a5ea15aeb0f41788580",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.0943063348531723
+      }
+    ],
+    "independent_reconstruction_max_abs": 5.960464477539063e-08
+  },
+  {
+    "id": "separation_2ee3c0635c2845c1945c",
+    "operation": "separate",
+    "outputs": [
+      {
+        "id": "artifact_41925fe508e147e69614",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.1842796951532364
+      },
+      {
+        "id": "artifact_3581cba8b3774b5ebcc9",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.31103548407554626
+      }
+    ]
+  },
+  {
+    "id": "separation_7fc91b05c96348609d73",
+    "operation": "separate_harmony",
+    "outputs": [
+      {
+        "id": "artifact_6bbe8a5c77174e2093f9",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.1581292301416397
+      },
+      {
+        "id": "artifact_51af61a6ec3b44899d42",
+        "rate": 44100,
+        "samples": 10488979,
+        "finite": true,
+        "rms": 0.08247899264097214
+      }
+    ],
+    "independent_reconstruction_max_abs": 5.960464477539063e-08
+  }
+]

@@ -178,7 +178,7 @@ def test_readonly_workflow_does_not_resolve_or_write_catalog():
     project=_select(catalog,project,'model-a')
     before=list(catalog.calls)
     value=describe_workflow(project,quick_manifest(catalog,project['parameters']))
-    assert value['stages'][3]['recommendation']['id']=='preview'
+    assert value['stages'][3]['recommendation']['id']=='render_full'
     assert catalog.calls==before
     assert project['parameters']['model_id']=='model-a'  # Never silently replaced by canonical/default ID.
 

@@ -1,0 +1,22 @@
+{
+  "frames": 11416576,
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "duration": 237.84533333333334,
+  "finite": true,
+  "peak": 0.8167375326156616,
+  "source_file_sha256": "6c5094ff0935a566cbdaf6ea7ab576de2a003b37599d0ff2fb1f80fc8254042c",
+  "files": [
+    {
+      "path": "E:\\voice\\aponyvoice\\runtime\\exports\\six-stage-running-for-your-life\\RUNNING_FOR_YOUR_LIFE_SONORA_FINAL.mp3",
+      "bytes": 9516524,
+      "sha256": "c3c2dd5b2ae3255e28c4001fdaa92f0c2f8944d3c27bc2b1937656b11114df26"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\runtime\\exports\\six-stage-running-for-your-life\\RUNNING_FOR_YOUR_LIFE_SONORA_FINAL.wav",
+      "bytes": 68499558,
+      "sha256": "5cad711ff31f9e89250a17ce01c8fa41dc67aee6485cb2619e87e3e1af4a0b71"
+    }
+  ]
+}

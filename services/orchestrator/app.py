@@ -122,6 +122,17 @@ def create_project(body:dict):
 @app.get('/api/v1/projects/{pid}')
 def project(pid:str): return store.get('projects',pid)
 
+@app.get('/api/v1/projects/{pid}/separations')
+def separation_versions(pid:str):
+    from .separation_versions import list_runs
+    return {'runs': list_runs(store.get('projects',pid))}
+
+@app.post('/api/v1/projects/{pid}/separations/{run_id}/{action}')
+def update_separation_version(pid:str,run_id:str,action:str,body:dict):
+    from .separation_versions import change_run
+    if type(body.get('revision')) is not int:raise ValueError('需要当前工程版本号。')
+    return store.change(pid,lambda p: change_run(p,run_id,action),revision=body['revision'])
+
 @app.post('/api/v1/projects/{pid}/pitch-target')
 def preview_pitch_target(pid:str,body:dict):
     """Read-only target preview, using the exact numerical path used by RVC."""
@@ -570,6 +581,8 @@ async def restore(file:UploadFile=File(...)):
         project['selected_candidate_id']=source.get('selected_candidate_id') if any(c['id']==source.get('selected_candidate_id') for c in project['candidates']) else None
         project['voice_parts']=remap_parts(source.get('voice_parts',{}),mapping,{c['id'] for c in project['candidates']})
         project['graph']=[{**node,'artifact_refs':[mapping.get(ref,ref) for ref in node.get('artifact_refs',[])],'input_refs':[mapping.get(ref,ref) for ref in node.get('input_refs',[])]} for node in source.get('graph',[]) if isinstance(node,dict)]
+        from .separation_versions import restore_runs
+        restore_runs(project, source, mapping)
         project['missing_media']=missing
         project['restore_pending']={'source':source,'mapping':mapping}
         model_ids={m['id'] for m in catalog.list_models(limit=250,include_aliases=True)['models']}

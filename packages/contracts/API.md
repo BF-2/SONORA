@@ -68,6 +68,14 @@ Presentation changes (`playhead`, `mode`, `view_preferences`, active voice-part 
 
 ## Worker disk protocol (unchanged transport)
 
+### Six-stage project and generation management
+
+- `GET /projects/{id}/separations` returns project-owned separation sets with `selected`, `protected`, `outputs` and actual `model_id`. Older projects derive these sets from existing graph nodes on a read-only copy.
+- `POST /projects/{id}/separations/{runId}/adopt|archive|restore` accepts `{revision}` and returns the updated project. Adoption switches the complete pair and its upstream dependency, preserves per-set voice-part edits for later restoration, and invalidates the mix. Active or referenced sets are protected from archive.
+- Optional project fields `separation_runs` and `selected_separations` persist set identity and selection. Recipe restoration remaps complete pairs and their saved voice-part bindings.
+- Full conversion and full Epoch comparison use `parameters.full_source=true` with `ignore_clip_bindings=true`. The new conversion UI always requests full input. Pitch-editor auditions retain bounded `range_ticks` and carry `preview_purpose=pitch_edit`.
+- Track effect `reverb` accepts `wet` in 0–0.5, `room_seconds` in 0.1–3 and `predelay_ms` in 0–100. Preview and final rendering use the same deterministic 24-reflection FFmpeg processing chain.
+
 ### Editor improvements (additive v1 fields)
 
 - `POST /projects/{id}/pitch-target {pitch_artifact_id,source_artifact_id,parameters,pitch_edits,notes}` is a read-only numerical preview. It verifies project/source ownership and applies the same target processing used by RVC. Returned frame centers are already in project time (`timeline_offset_ticks:0`); it neither saves a revision nor loads a model.

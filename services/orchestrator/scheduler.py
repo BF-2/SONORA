@@ -66,13 +66,16 @@ class Scheduler:
                     source=source or params.get('source_artifact_id')
                     params,source=resolve_binding(p,params,source)
                     if source and source not in [a['id'] for a in p['assets']]:raise ValueError('绑定输入不属于当前工程。')
+            if operation in ('convert','compare_versions') and overrides.get('full_source'):
+                params.pop('range_ticks',None)
+                params['ignore_clip_bindings']=True
             # An explicit reset must win over a saved track/clip F0 binding.
             if 'pitch_artifact_id' in overrides:params['pitch_artifact_id']=overrides['pitch_artifact_id']
             if operation=='compare_versions':
                 selected=params.get('model_ids')
                 if not isinstance(selected,list) or not 2<=len(selected)<=8 or len(set(selected))!=len(selected):raise ValueError('请选择同一训练实验的2–8个不同推理版本。')
                 region=params.get('range_ticks')
-                if not isinstance(region,list) or len(region)!=2 or any(type(v) is not int for v in region) or region[0]<0 or not 4800<=region[1]-region[0]<=60*TIMEBASE:raise ValueError('版本对比需要0.1–60秒的明确同源选区，建议8–15秒。')
+                if not params.get('full_source') and (not isinstance(region,list) or len(region)!=2 or any(type(v) is not int for v in region) or region[0]<0 or not 4800<=region[1]-region[0]<=60*TIMEBASE):raise ValueError('版本对比需要0.1–60秒的明确同源选区，建议8–15秒。')
             if operation=='convert_parts':
                 if params.get('range_ticks'):raise ValueError('双声部批处理采用完整声部；短试听请在对应声部单独运行。')
                 selected=params.get('parts',list(VOICE_PARTS))
@@ -150,6 +153,11 @@ class Scheduler:
 
     def attach(self,job,artifacts,add_tracks=True,parameters=None):
         def mutate(p):
+            roles={a.get('stem_role') for a in artifacts}
+            if add_tracks and roles in ({'vocal','instrumental'},set(VOICE_PARTS)):
+                from .separation_versions import register
+                register(p,job,artifacts)
+                return
             is_pair=any(a['stem_role'] in VOICE_PARTS for a in artifacts)
             before=job['project_snapshot']
             can_bind=not is_pair or (p.get('voice_parts',{})==before.get('voice_parts',{}) and
@@ -402,6 +410,9 @@ class Scheduler:
             unchanged=all(p.get(k)==before.get(k) for k in ('parameters','pitch_edits','notes','lyrics','selected_candidate_id'))
             current_tracks={t['id']:t for t in p['tracks']}
             if job['operation']=='pipeline':
+                routing_keys={'source_artifact_id','harmony_source_artifact_id','active_voice_part','pitch_artifact_id'}
+                unchanged=(all(p.get(k)==before.get(k) for k in ('pitch_edits','notes','lyrics','selected_candidate_id')) and
+                           {k:v for k,v in p['parameters'].items() if k not in routing_keys}=={k:v for k,v in before['parameters'].items() if k not in routing_keys})
                 unchanged=unchanged and p.get('last_user_audio_edit')==before.get('last_user_audio_edit') and all(current_tracks.get(t['id'])==t for t in before['tracks'] if t['role'] not in ('vocal','instrumental'))
             else:unchanged=unchanged and all(current_tracks.get(t['id'])==t for t in before['tracks'])
             unchanged=unchanged and not p.get('voice_parts')
@@ -486,8 +497,9 @@ class Scheduler:
         if params.get('chain_candidate_id'):raise ValueError('Epoch对比必须从同一原始输入开始，串联请另行操作。')
         source=self.source(job)
         if source.get('stem_role')=='converted':raise ValueError('Epoch对比不能把上一轮转换结果作为默认输入。')
-        region=params['range_ticks'];track=next((t for t in job['project_snapshot']['tracks'] if t['artifact_id']==source['id']),{})
+        region=params.get('range_ticks');track=next((t for t in job['project_snapshot']['tracks'] if t['artifact_id']==source['id']),{})
         offset=track.get('offset_ticks',0);end=offset+round(source['sample_count']*TIMEBASE/source['sample_rate'])
+        if params.get('full_source'):region=[max(0,offset),end]
         if region[0]<max(offset,0) or region[1]>end:raise ValueError('版本对比选区超出输入音频。')
         models=[];chosen_index=params.get('index_id')
         for identifier in params['model_ids']:

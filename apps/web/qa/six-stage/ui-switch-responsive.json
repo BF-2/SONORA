@@ -1,0 +1,38 @@
+[
+  {
+    "clientWidth": 1425,
+    "indexRate": "0.35",
+    "queueVisible": true,
+    "scrollWidth": 1425,
+    "stageCount": 6,
+    "theme": "classic",
+    "width": 1440
+  },
+  {
+    "clientWidth": 375,
+    "indexRate": "0.35",
+    "queueVisible": true,
+    "scrollWidth": 375,
+    "stageCount": 6,
+    "theme": "classic",
+    "width": 390
+  },
+  {
+    "clientWidth": 1425,
+    "indexRate": "0.35",
+    "queueVisible": true,
+    "scrollWidth": 1425,
+    "stageCount": 6,
+    "theme": "soft",
+    "width": 1440
+  },
+  {
+    "clientWidth": 375,
+    "indexRate": "0.35",
+    "queueVisible": true,
+    "scrollWidth": 375,
+    "stageCount": 6,
+    "theme": "soft",
+    "width": 390
+  }
+]

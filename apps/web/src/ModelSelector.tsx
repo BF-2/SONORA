@@ -628,7 +628,7 @@ export function ModelSelector(props: SelectionProps) {
             <details className="version-compare">
               <summary>比较同一实验的多个版本</summary>
               <p className="info-inline">
-                勾选2–8个实际导出，使用同一输入、同一F0与选区；按队列顺序生成。
+                勾选2–8个实际导出，使用同一输入、同一F0与完整输入；按队列顺序生成。
               </p>
               <div className="version-checks">
                 {sorted.map((m) => (

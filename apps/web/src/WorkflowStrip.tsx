@@ -57,7 +57,6 @@ export function WorkflowStrip({
       : workflow?.voice_part === voicePart)
       ? workflow?.stages?.find((s: Bag) => s.id === stage)
       : undefined;
-  const action = step?.recommendation;
   const range = step?.input?.range_ticks;
   const start = Array.isArray(range) ? range[0] : range?.start,
     end = Array.isArray(range) ? range[1] : range?.end;
@@ -89,13 +88,6 @@ export function WorkflowStrip({
             <p>确认任务 → 选择素材角色 → 导入音频 → 检查素材。</p>
             <small>先选语音变声或歌曲翻唱，原始文件只读保留。</small>
           </div>
-          <button
-            className="button primary workflow-primary"
-            onClick={() => onAction({ id: "setup", label: "确认任务与角色" })}
-          >
-            <Icon name="import" />
-            确认任务与角色
-          </button>
         </div>
       </section>
     );
@@ -124,16 +116,6 @@ export function WorkflowStrip({
             </small>
           )}
         </div>
-        {action && (
-          <button
-            className="button primary workflow-primary"
-            disabled={disabled || !!action.disabled}
-            onClick={() => onAction(action)}
-          >
-            <Icon name={action.operation ? "play" : "arrow"} />
-            {action.label}
-          </button>
-        )}
       </div>
       {step?.sequence && (
         <ol className="workflow-sequence">
@@ -157,6 +139,7 @@ export function WorkflowStrip({
               {b.repair?.label && (
                 <button
                   className="text-button"
+                  disabled={disabled}
                   onClick={() => onAction(b.repair)}
                 >
                   {b.repair.label}
@@ -172,7 +155,8 @@ export function WorkflowStrip({
             <span key={o.id || o.artifact_id || i}>
               <i />
               {o.name || o.label || o.role || "已提交产物"} ·{" "}
-              {o.freshness || o.freshness_label ||
+              {o.freshness ||
+                o.freshness_label ||
                 o.confirmation_label ||
                 o.state_label ||
                 (o.stale

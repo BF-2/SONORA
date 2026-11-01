@@ -97,6 +97,7 @@ function NumericParameter({
 }
 
 export function RvcParameterPanel({
+  section = "all",
   modelId,
   task,
   values,
@@ -109,6 +110,7 @@ export function RvcParameterPanel({
   busy,
   onSchema,
 }: {
+  section?: "all" | "pitch" | "conversion";
   modelId?: string;
   task: string;
   values: Bag;
@@ -129,6 +131,18 @@ export function RvcParameterPanel({
     [helpId, setHelpId] = useState(""),
     [presetName, setPresetName] = useState(""),
     [savingPreset, setSavingPreset] = useState(false);
+  const detectionIds = new Set([
+    "context_seconds",
+    "pitch_algorithm",
+    "f0_min",
+    "f0_max",
+    "threshold",
+    "silence_db",
+    "hop_length",
+  ]);
+  const inSection = (id: string) =>
+    section === "all" ||
+    (section === "pitch" ? detectionIds.has(id) : !detectionIds.has(id));
   const valuesKey = JSON.stringify(values);
   useEffect(() => {
     let live = true;
@@ -180,7 +194,12 @@ export function RvcParameterPanel({
     if (!schema) return;
     const changes: Bag = {};
     for (const p of schema.parameters) {
-      if (p.supported && !p.read_only && p.type !== "diagnostic") {
+      if (
+        inSection(p.id) &&
+        p.supported &&
+        !p.read_only &&
+        p.type !== "diagnostic"
+      ) {
         const val = recommended ? p.recommendation?.value : p.default;
         if (val !== undefined) changes[p.id] = val;
       }
@@ -191,7 +210,9 @@ export function RvcParameterPanel({
     const p = presets.find((p) => p.id === id);
     if (p)
       onChange(
-        p.parameters,
+        Object.fromEntries(
+          Object.entries(p.parameters).filter(([id]) => inSection(id)),
+        ),
         p.kind === "personal" || p.source === "personal"
           ? "personal_preset"
           : "task_preset",
@@ -227,6 +248,7 @@ export function RvcParameterPanel({
   const filtered = (group: string) =>
     schema?.parameters.filter(
       (p) =>
+        inSection(p.id) &&
         p.group === group &&
         (!query ||
           `${p.id} ${p.label} ${p.label_en} ${p.help}`
@@ -234,10 +256,13 @@ export function RvcParameterPanel({
             .includes(query.toLowerCase())),
     ) || [];
   return (
-    <section className="rvc-parameter-panel" aria-label="实际 RVC 参数">
+    <section
+      className="rvc-parameter-panel"
+      aria-label={section === "pitch" ? "音高检测参数" : "实际 RVC 参数"}
+    >
       <div className="inspector-heading">
-        <strong>实际生效参数</strong>
-        <span>RVC</span>
+        <strong>{section === "pitch" ? "音高检测参数" : "转换生效参数"}</strong>
+        <span>{section === "pitch" ? "F0" : "RVC"}</span>
       </div>
       <div className="f0-source-summary">
         <strong>音高来源</strong>
@@ -258,7 +283,7 @@ export function RvcParameterPanel({
           参数说明暂不可用：{error}。保留已保存值，不开放未知控制。
         </div>
       )}
-      {!modelId && (
+      {section !== "pitch" && !modelId && (
         <p className="info-inline">
           先选择并校验模型版本，才能确定索引、说话人和编码器的适用条件。
         </p>
@@ -270,14 +295,16 @@ export function RvcParameterPanel({
           disabled={!schema || busy}
         >
           <option value="">选择一个有说明的起点</option>
-          {presets.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-              {p.kind === "personal" || p.source === "personal"
-                ? " · 个人"
-                : ""}
-            </option>
-          ))}
+          {presets
+            .filter((p) => section !== "conversion" || p.id !== "quick-v2")
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.kind === "personal" || p.source === "personal"
+                  ? " · 个人"
+                  : ""}
+              </option>
+            ))}
         </select>
         {values.preset_id && (
           <small>
@@ -311,7 +338,10 @@ export function RvcParameterPanel({
           />
         </Field>
       )}
-      {["basic", "advanced", "diagnostic"].map((group) => {
+      {(section === "pitch"
+        ? ["basic", "advanced"]
+        : ["basic", "advanced", "diagnostic"]
+      ).map((group) => {
         const rows = filtered(group);
         if (!rows.length && group !== "diagnostic") return null;
         const opened = query ? true : isOpen(group);
