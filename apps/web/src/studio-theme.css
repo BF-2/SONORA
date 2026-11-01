@@ -617,6 +617,29 @@
 .ui-soft .page-bottom {
   border-color: #e5d9ed;
 }
+.ui-soft .export-card,
+.ui-soft .job {
+  background: #f8f4fc;
+  border-color: #ded1e9;
+  color: #684f7a;
+}
+.ui-soft .export-card.active {
+  background: #eadef5;
+  border-color: #a68abb;
+}
+.ui-soft .export-card strong,
+.ui-soft .export-row strong {
+  color: #604873;
+}
+.ui-soft .export-card small,
+.ui-soft .export-row small,
+.ui-soft .job small {
+  color: #877193;
+}
+.ui-soft .export-row,
+.ui-soft .separation-panel details {
+  border-color: #e2d6eb;
+}
 .ui-soft .bottom-note {
   color: #95809f;
 }

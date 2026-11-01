@@ -109,7 +109,7 @@ export function WorkflowStrip({
               </Badge>
             )}
           </div>
-          {typeof start === "number" && typeof end === "number" && (
+          {[2, 4].includes(stage) && typeof start === "number" && typeof end === "number" && (
             <small>
               源区间 {clock(seconds(start))} — {clock(seconds(end))}
               {step.input.stale ? " · 上游结果已变化" : ""}

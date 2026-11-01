@@ -557,5 +557,87 @@
     "project summary refresh",
     "mobile queue entry"
   ],
-  "quality_scope": "Functional, numerical, lineage and browser playback validation; subjective vocal quality requires listening review."
+  "quality_scope": "Functional, numerical, lineage and browser playback validation; subjective vocal quality requires listening review.",
+  "main_handoff": {
+    "endpoint": "http://127.0.0.1:8765",
+    "project_id": "project_a291a8e4f4404264a198",
+    "project_name": "RUNNING FOR YOUR LIFE · 双 UI 全流程",
+    "project_count": 16,
+    "validated_models": [
+      {
+        "part": "lead_vocal",
+        "model_id": "twilight_sparkle_pony_singing_r18m_20260914",
+        "model_hash": "a11738d9901f173edd8e902b4f7f3aea1e300218bf253fc1a91374c30ca334fe"
+      },
+      {
+        "part": "backing_vocal",
+        "model_id": "model_8c0b6de9317a7e307671a8b1",
+        "model_hash": "a6be0458aa38647791f2f290d845ab74f4d75baf72a7203a6933383f1ad30637"
+      }
+    ],
+    "separation_runs": 4,
+    "exports": 2,
+    "export_download_http": 206,
+    "audio_playback_http": 206,
+    "stage_states": [
+      {
+        "title": "导入诊断",
+        "state": "ready",
+        "completed": true
+      },
+      {
+        "title": "人声整理",
+        "state": "ready",
+        "completed": true
+      },
+      {
+        "title": "音高与歌词",
+        "state": "ready",
+        "completed": true
+      },
+      {
+        "title": "声音转换",
+        "state": "ready",
+        "completed": true
+      },
+      {
+        "title": "混音",
+        "state": "ready",
+        "completed": true
+      },
+      {
+        "title": "导出",
+        "state": "ready",
+        "completed": true
+      }
+    ],
+    "feature_commit": "a5f9b82",
+    "browser_playback": {
+      "currentTime": 37.653396,
+      "duration": 237.845333,
+      "paused": false,
+      "readyState": 4
+    },
+    "browser_console_errors": [],
+    "screenshots": [
+      "primary-soft-export.png",
+      "primary-classic-export.png"
+    ],
+    "frontend_bundle": "assets/index-DKBdWDB_.js",
+    "frontend_bundle_sha256": "c50cd410cf2bc626f4b339011d058778d0780522fb3b8e76c99ad618fe6bd7f0"
+  },
+  "database_import": {
+    "project_id": "project_a291a8e4f4404264a198",
+    "primary_database": "E:\\voice\\aponyvoice\\runtime\\sonora.sqlite",
+    "backup": "E:\\voice\\aponyvoice\\runtime\\backups\\before-six-stage-20261101-b631d589.sqlite",
+    "existing_project_count": 15,
+    "existing_project_rows_preserved": true,
+    "imported_artifacts": 25,
+    "imported_jobs": 19,
+    "imported_history_states": 52,
+    "source_media_retained_at": "E:\\voice\\aponyvoice\\runtime\\six-stage-qa",
+    "cache_files_linked": 47,
+    "primary_cache_paths_remapped": true,
+    "primary_export_paths_remapped": true
+  }
 }
