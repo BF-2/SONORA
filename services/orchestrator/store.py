@@ -92,7 +92,7 @@ class Store:
         db.execute('INSERT INTO history VALUES(?,?,?)',(p['id'],position,encode(p)))
         db.execute('INSERT INTO cursors VALUES(?,?) ON CONFLICT(project_id) DO UPDATE SET position=excluded.position',(p['id'],position))
 
-    def change(self, identifier, mutation, revision=None, history=True):
+    def change(self, identifier, mutation, revision=None, history=True, auto_archive=False):
         with self.lock,self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             row=db.execute('SELECT body FROM projects WHERE id=?',(identifier,)).fetchone()
@@ -100,7 +100,11 @@ class Store:
             p=json.loads(row[0])
             if revision is not None and revision != p['revision']: raise Conflict('工程已更新，请刷新后重试。')
             before=edit_state(p)
+            previous_candidates={c['id'] for c in p.get('candidates',[])}
             mutation(p)
+            if auto_archive and p.get('view_preferences',{}).get('auto_archive_candidates',True) and any(c['id'] not in previous_candidates for c in p.get('candidates',[])):
+                from .candidate_archive import archive_older
+                archive_older(p)
             p['revision'] += 1
             p['updated_at'] = now()
             validate_project(p)

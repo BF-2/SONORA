@@ -1,0 +1,200 @@
+- complementary:
+  - button "SONORA 声 序 · 音 频 工 作 台":
+    - text: SONORA
+    - generic: 声 序 · 音 频 工 作 台
+  - button "编辑与分离改进 · 浏览器验收副本 本地工程 · 已保存 ⌄":
+    - strong: 编辑与分离改进 · 浏览器验收副本
+    - generic: 本地工程 · 已保存
+    - generic: ⌄
+  - text: 制作流程
+  - generic: "06"
+  - navigation "制作步骤":
+    - button "导入诊断 ✓":
+      - generic: 导入诊断
+      - generic "已有已完成产物": ✓
+    - button "人声整理 ✓":
+      - generic: 人声整理
+      - generic "已有已完成产物": ✓
+    - button "音高与歌词 ✓":
+      - generic: 音高与歌词
+      - generic "已有已完成产物": ✓
+    - button "声音转换 04":
+      - generic: 声音转换
+      - generic "可编辑": "04"
+    - button "混音 05":
+      - generic: 混音
+      - generic "可编辑": "05"
+    - button "导出 ✓":
+      - generic: 导出
+      - generic "已有已完成产物": ✓
+  - button "声音与模型 180":
+    - text: 声音与模型
+    - generic: "180"
+  - button "候选与版本 3":
+    - text: 候选与版本
+    - generic: "3"
+  - button "任务队列 0":
+    - text: 任务队列
+    - generic: "0"
+  - generic: 文件在本机处理
+  - button "引擎与设置":
+    - text: 引擎与设置
+- banner:
+  - strong: 音高与歌词
+  - button "撤销":
+  - button "重做":
+  - group "编辑信息密度":
+    - button "快速完成"
+    - button "专家设置"
+- main:
+  - generic: STEP 03 / PITCH & LYRICS
+  - heading "保留表达，修好值得修的地方。" [level=1]
+  - paragraph: 检测、目标编辑与实际输出分别保存。
+  - generic: 本地服务已连接
+  - button "配方含 2 项高级调整"
+  - region "本阶段操作指引":
+    - strong: 当前输入：lead_vocal.wav
+    - generic: 可继续
+    - generic: 源区间 00:02.0 — 00:10.0
+    - button "检查目标并选择模型版本":
+      - text: 检查目标并选择模型版本
+    - list:
+      - generic: "1"
+      - text: 确认人声源
+      - generic: "2"
+      - text: 检测音高
+      - generic: "3"
+      - text: 检查与编辑
+      - generic: "4"
+      - text: 锁定目标曲线
+    - generic: 音高分析与当前目标 · 保留的版本
+    - paragraph: 修改目标后需要重新渲染试听，旧音频不会假装实时改变。
+  - strong: 当前编辑声部
+  - generic: 模型、音高、音符和候选分别保存
+  - group "当前编辑声部":
+    - button "完整人声"
+    - button "主唱"
+    - button "和声"
+  - generic: 已有转换候选
+  - button "音高曲线"
+  - button "人工音符"
+  - heading "音高编辑器" [level=2]:
+    - text: 音高编辑器
+  - generic: rmvpe · 实际检测
+  - button "选择区间"
+  - button "连续绘制目标"
+  - generic: 目标编辑在重新渲染后生效
+  - button "时间轴缩小": −
+  - button "时间轴放大": ＋
+  - button "全曲"
+  - button "缩放到选区"
+  - button "定位播放头"
+  - button "适配音域" [active]
+  - generic: 00:04.200–00:05.800 · 16.3× · 每帧 10 ms
+  - text: 窗口起点（秒）
+  - spinbutton "音高窗口起点": "4.2"
+  - text: 窗口长度（秒）
+  - spinbutton "音高窗口长度": "1.6"
+  - text: 音域范围
+  - combobox "音域范围":
+    - option "1 个八度"
+    - option "2 个八度" [selected]
+    - option "3 个八度"
+    - option "5 个八度"
+    - option "7 个八度"
+  - text: 音域中心（MIDI）
+  - spinbutton "音域中心": "68"
+  - generic: 时间轴平移
+  - button "向前平移时间轴": ‹
+  - slider "时间轴平移": "4.2"
+  - button "向后平移时间轴": ›
+  - application "音高时间轴：拖动框选或绘制，左右键移动播放头，加减键缩放"
+  - generic: 原始检测
+  - generic: 实际转换目标 F0
+  - generic: 已选候选输出复测
+  - status: 选区 00:02.000–00:10.000 · 696 帧发生变化 · 有声帧平均 +180.6 音分
+  - paragraph: 点击时间尺定位，拖动框选；绘制工具可连续改写曲线，整笔可撤销。目标 F0 控制转换时的音高，最终音色与咬字仍需生成试听确认。
+  - generic: 选区起点（秒）
+  - spinbutton "选区起点（秒）": "2"
+  - generic: 选区终点（秒）
+  - spinbutton "选区终点（秒）": "10"
+  - button "循环试听":
+    - text: 循环试听
+  - button "选择整段"
+  - strong: 编辑 → 生成选区试听 → 对比实际输出
+  - paragraph: 绿色曲线包含移调、滤波、自动音准、人工音符和锁定编辑；旧音频不会随编辑自动改变。
+  - generic: 音高编辑对照候选
+  - combobox "音高编辑对照候选":
+    - option "尚未生成试听"
+    - option "主唱 · 候选 6 · Epoch 300 · 片段" [selected]
+    - option "主唱 · 候选 5 · Epoch 300 · 片段"
+    - option "主唱 · 候选 1 · 完整"
+  - button "生成编辑后的选区试听"
+  - button "A · 原始人声"
+  - button "B · 转换结果"
+  - button "复测输出音高"
+  - status: 对照：主唱 · 候选 6 · Epoch 300。请结合输出复测曲线与实际试听判断效果。
+  - heading "目标编辑记录" [level=2]
+  - generic: 独立于检测缓存 · 可撤销
+  - generic: 1. 00:02.0–00:10.0
+  - strong: +2 半音
+  - button "未锁定"
+  - button "恢复此处"
+  - generic: 2. 00:04.3–00:04.9
+  - strong: 连续绘制 · 56 帧
+  - button "未锁定"
+  - button "恢复此处"
+  - complementary:
+    - strong: 音高检查器
+    - generic: TARGET F0
+    - generic: 音高检测算法
+    - combobox "音高检测算法 F0 是连续音高估计；无旋律参考时不评价音准。":
+      - option "rmvpe" [selected]
+      - option "fcpe"
+      - option "crepe"
+      - option "crepe-tiny"
+      - option "pyin"
+      - option "harvest"
+      - option "dio"
+    - generic: F0 是连续音高估计；无旋律参考时不评价音准。
+    - status:
+      - strong: 自动匹配当前分析
+      - paragraph: 当前分析与检测参数一致。
+      - button "按当前参数重新检测"
+      - button "清除旧绑定并重新试听"
+      - button "清除固定分析绑定" [disabled]
+      - text: 重新检测和清除绑定均保留手工音高编辑、锁定区及旧音频；旧试听可在候选卡片中移除。
+    - generic: 选区移调
+    - slider "选区移调": "0"
+    - spinbutton "选区移调数值": "0"
+    - generic: st
+    - button "应用到目标曲线"
+    - button "降低八度"
+    - button "升高八度"
+    - generic: 目标音高（Hz）
+    - spinbutton "目标音高（Hz）": "220"
+    - button "设定选区"
+    - button "设为清音"
+    - generic: 锁定新增人工编辑
+    - checkbox "锁定新增人工编辑" [checked]
+    - button "渲染选区试听":
+      - text: 渲染选区试听
+  - text: 编辑自动保存 · 原素材保持不变
+  - button "上一步"
+  - button "继续 · 声音转换":
+    - text: 继续 · 声音转换
+- contentinfo "音频播放控制":
+  - strong: lead_vocal.wav
+  - generic: 音高与歌词 · 模型推理
+  - button "循环选区":
+  - button "播放音频":
+  - button "回到选区起点": ↤
+  - text: 00:09.6
+  - emphasis: / 00:26.0
+  - slider "播放位置": "9.58"
+  - button "原始 A" [disabled]
+  - button "候选 B" [disabled]
+  - generic "声音转换页对同一选区测量RMS后启用；测量期间不匹配响度":
+    - checkbox "等响" [disabled]
+    - text: 等响
+  - slider "监听音量": "0.75"

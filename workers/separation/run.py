@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import logging
 from common import worker_main, resource_config, environment, safe_torch, device_name, sha256, audio_metadata
+from separation.options import separation_options
 
 
 def probe():
@@ -57,14 +58,22 @@ def harmony_demix(separator,request,manifest,target):
     source_peak=float(np.max(np.abs(mix)))
     model_input_gain=1/max(1.,source_peak)
     mix=mix*model_input_gain
-    chunk_size=441*(separator.model_instance.segment_size-1)
+    cfg=getattr(separator.model_instance,'model_data_cfgdict',None)
+    stft_hop=getattr(getattr(cfg,'model',None),'stft_hop_length',441)
+    chunk_size=int(stft_hop)*(separator.model_instance.segment_size-1)
     padding=max(0,chunk_size-mix.shape[1])
     if padding: mix=np.pad(mix,((0,0),(0,padding)),mode='reflect' if mix.shape[1]>1 else 'edge')
     # Call the installed inference implementation directly to avoid individual
     # output normalization breaking source = lead + backing.
     predicted=separator.model_instance.demix(mix)
     if not isinstance(predicted,dict) or target not in predicted: raise RuntimeError('Model did not return its registered target')
-    lead=np.asarray(predicted[target],dtype=np.float32)[:,:expected].T/model_input_gain
+    estimate=np.asarray(predicted[target],dtype=np.float32)
+    options=separation_options(request.get('parameters',{}))
+    if options['separation_algorithm']=='tta':
+        swapped=separator.model_instance.demix(mix[::-1].copy())[target]
+        inverted=separator.model_instance.demix(-mix)[target]
+        estimate=(estimate+np.asarray(swapped)[::-1]-np.asarray(inverted))/3
+    lead=estimate[:,:expected].T/model_input_gain*options['primary_gain']
     if channels==1: lead=lead.mean(axis=1,keepdims=True)
     if lead.shape!=source.shape or not np.isfinite(lead).all(): raise ValueError('Invalid lead estimate shape or samples')
     backing=source-lead
@@ -78,6 +87,9 @@ def harmony_demix(separator,request,manifest,target):
               'right_context_padding_samples':padding,'neural_target_native_stem':target,
               'complement_method':f'{secondary_role} = resampled_input - neural_{primary_role}_estimate',
               'model_input_gain':model_input_gain,'input_gain_restored_before_commit':True,'input_sample_peak':source_peak,
+              'inference_passes':3 if options['separation_algorithm']=='tta' else 1,
+              'primary_gain':options['primary_gain'],'chunk_seconds':chunk_size/target_sr,
+              'effective_step_seconds':min(options['overlap_step_seconds'],chunk_size/target_sr),
               'independent_stem_normalization':False,'reconstruction_max_abs':float(np.max(np.abs(residual))),
               'reconstruction_rms':float(np.sqrt(np.mean(residual**2))),
               'stem_rms':{primary_role:float(np.sqrt(np.mean(lead.astype(np.float64)**2))),
@@ -104,10 +116,9 @@ def render(request):
     model_data['is_roformer']=True
     from audio_separator.separator import Separator
     device=device_name(params)
-    segment_size=int(params.get('segment_size',801 if task=='lead_backing' else 256))
-    overlap=int(params.get('overlap',4))
-    if not 64<=segment_size<=1024 or not 1<=overlap<=16: raise ValueError('Invalid separation segment_size/overlap')
-    torch.set_num_threads(max(1,min(8,int(params.get('cpu_threads',4)))))
+    options=separation_options(params)
+    segment_size=options['segment_size'];overlap=options['overlap_step_seconds']
+    torch.set_num_threads(options['cpu_threads'])
     separator=Separator(output_dir=request['output_dir'],model_file_dir=section['model_dir'],output_format='WAV',
                         sample_rate=manifest['sample_rate'],normalization_threshold=1.0,amplification_threshold=0,
                         use_soundfile=True,log_level=logging.INFO,
@@ -136,7 +147,7 @@ def render(request):
                                        native_stem=next(k for k,v in mapping.items() if v==role),
                                        time_map={'source_rate':source_info.samplerate,'output_rate':sr,'source_offset':source_offset,'output_offset':0}))
     metadata={'model_id':manifest['id'],'config_hash':manifest['config_hash'],'device':device,'separation_task':task,
-              'engine_version':section['version'],'stem_roles':mapping,'effective_parameters':{**params,'segment_size':segment_size,'overlap_step_seconds':overlap},**task_metadata}
+              'engine_version':section['version'],'stem_roles':mapping,'effective_parameters':{**params,**options},**task_metadata}
     if device.startswith('cuda'):metadata['peak_cuda_bytes']=torch.cuda.max_memory_allocated()
     warnings=list(manifest.get('warnings',[])) if task=='lead_backing' else ['人声/伴奏分离不等于主唱/和声分离；请检查重叠声部与接缝。']
     if task=='lead_backing':

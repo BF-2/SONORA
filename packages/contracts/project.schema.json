@@ -23,7 +23,7 @@
     "lyrics": {"type": "array", "items": {"$ref": "#/$defs/Lyric"}},
     "candidates": {"type": "array", "items": {"$ref": "#/$defs/Candidate"}},
     "parameters": {"type": "object"},
-    "view_preferences": {"type":"object","properties":{"stage":{"type":"integer","minimum":0,"maximum":5},"expanded_panels":{"type":"object"}}},
+    "view_preferences": {"type":"object","properties":{"stage":{"type":"integer","minimum":0,"maximum":5},"expanded_panels":{"type":"object"},"auto_archive_candidates":{"type":"boolean","default":true},"pitch_views":{"type":"object","additionalProperties":{"type":"object","properties":{"start":{"type":"number","minimum":0},"span":{"type":"number","minimum":0.05},"center":{"type":"number"},"range":{"type":"number","minimum":1}}}}}},
     "model_bindings": {"type":"object","properties":{"project":{"type":"object"},"tracks":{"type":"object"},"clips":{"type":"object"}}},
     "comparisons": {"type":"array","items":{"type":"object"}},
     "exports": {"type": "array", "items": {"type": "object"}},
@@ -61,7 +61,7 @@
       "properties": {
         "id": {"$ref": "#/$defs/Id"}, "start_tick": {"$ref": "#/$defs/Tick"}, "end_tick": {"$ref": "#/$defs/Tick"},
         "operation": {"enum": ["transpose", "set_hz", "unvoiced"]}, "semitones": {"type": "number", "minimum": -36, "maximum": 36},
-        "hz": {"type": "number", "minimum": 20, "maximum": 2000}, "locked": {"type": "boolean"}, "snapshot": {"type": "object"}
+        "hz": {"type": "number", "minimum": 20, "maximum": 2000}, "locked": {"type": "boolean"}, "snapshot": {"type": "object"}, "stroke_id": {"$ref":"#/$defs/Id"}
       }
     },
     "Note": {
@@ -82,7 +82,7 @@
     },
     "Candidate": {
       "type": "object", "required": ["id", "source_artifact_id", "artifact_id", "generation_depth"],
-      "properties": {"id": {"$ref": "#/$defs/Id"}, "source_artifact_id": {"$ref": "#/$defs/Id"}, "artifact_id": {"$ref": "#/$defs/Id"}, "generation_depth": {"type": "integer", "minimum": 1}, "parameters": {"type": "object"}, "archived": {"type": "boolean", "default": false}}
+      "properties": {"id": {"$ref": "#/$defs/Id"}, "source_artifact_id": {"$ref": "#/$defs/Id"}, "artifact_id": {"$ref": "#/$defs/Id"}, "generation_depth": {"type": "integer", "minimum": 1}, "parameters": {"type": "object"}, "archived": {"type": "boolean", "default": false}, "archive_reason":{"enum":["auto","manual",null]}, "archived_at":{"type":["string","null"]}, "archive_retained":{"type":"boolean"}}
     }
   }
 }

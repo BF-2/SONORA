@@ -56,5 +56,22 @@ class HarmonyContracts(unittest.TestCase):
             cancel=Path(directory)/'cancel';cancel.write_text('cancel')
             with self.assertRaises(KeyboardInterrupt):download(entry,cancel)
 
+    def test_three_pass_average_restores_polarity_channels_and_shared_gain(self):
+        import numpy as np
+        import soundfile as sf
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory);source=np.column_stack([np.linspace(-1.2,1.2,4410),np.linspace(.9,-.9,4410)]).astype('float32')
+            sf.write(p/'source.wav',source,44100,subtype='FLOAT');calls=[]
+            def demix(mix):calls.append(mix.copy());return {'Vocals':mix*.4}
+            instance=types.SimpleNamespace(segment_size=64,demix=demix)
+            outputs,metadata=harmony_demix(types.SimpleNamespace(model_instance=instance),
+                {'input_path':str(p/'source.wav'),'output_dir':str(p),'parameters':{'separation_algorithm':'tta','primary_gain':.8}},self.manifest,'Vocals')
+            lead,sr=sf.read(outputs[0],dtype='float32',always_2d=True);backing,_=sf.read(outputs[1],dtype='float32',always_2d=True)
+            assert len(calls)==3 and metadata['inference_passes']==3
+            np.testing.assert_array_equal(calls[1],calls[0][::-1])
+            np.testing.assert_array_equal(calls[2],-calls[0])
+            np.testing.assert_allclose(lead,source*.32,rtol=1e-6,atol=1e-7)
+            np.testing.assert_allclose(lead+backing,source,rtol=0,atol=1.2e-7)
+
 
 if __name__=='__main__':unittest.main()

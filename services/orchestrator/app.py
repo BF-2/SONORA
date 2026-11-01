@@ -22,7 +22,7 @@ from . import media
 from .config import DATA, ROOT, TIMEBASE, TOKEN, ORIGINS, resources, scoped_path
 from .scheduler import Scheduler
 from .store import Store, Conflict, now, uid
-from .editing import freeze_locks
+from .editing import freeze_locks, note_edits, apply_target_parameters, shift_pitch_to_project
 from .midi import read_midi,write_midi
 from .catalog_api import make_catalog_router
 from .rvc_service import make_rvc_router,quick_manifest,resolve_selection,selection_fields,pin_parameter_delta,builtin_presets,PARAMETER_KEYS,ANALYSIS_KEYS,VIEW_PARAMETER_KEYS
@@ -122,6 +122,31 @@ def create_project(body:dict):
 @app.get('/api/v1/projects/{pid}')
 def project(pid:str): return store.get('projects',pid)
 
+@app.post('/api/v1/projects/{pid}/pitch-target')
+def preview_pitch_target(pid:str,body:dict):
+    """Read-only target preview, using the exact numerical path used by RVC."""
+    p=store.get('projects',pid)
+    artifact=next((a for a in p['assets'] if a['id']==body.get('pitch_artifact_id') and a.get('stem_role')=='pitch'),None)
+    if not artifact:raise ValueError('请选择属于当前工程的音高分析。')
+    params=copy.deepcopy(body.get('parameters',{}))
+    edits=body.get('pitch_edits',[]);notes=body.get('notes',[])
+    validate_patch(p,{'pitch_edits':edits,'notes':notes,'parameters':{k:v for k,v in params.items() if k in PARAMETER_KEYS}})
+    source=next((a for a in p['assets'] if a['id']==body.get('source_artifact_id')),None)
+    if not source or source['id'] not in artifact.get('input_artifact_ids',[]):raise ValueError('曲线与当前人声来源不一致。')
+    track=next((t for t in p['tracks'] if t['artifact_id']==source['id']),None)
+    offset=track.get('offset_ticks',0) if track else source.get('timeline_offset_ticks',0)
+    raw=json.loads(media.validate_artifact(artifact).read_text(encoding='utf-8'))
+    raw.pop('target_layer',None)
+    target=apply_target_parameters(shift_pitch_to_project(raw,offset),{**params,'pitch_edits':note_edits(notes)+edits})
+    # frame_center_offset is already in project time. Do not add it twice.
+    target['timeline_offset_ticks']=0
+    return target
+
+@app.post('/api/v1/projects/{pid}/candidates/archive-older')
+def archive_old_candidates(pid:str,body:dict):
+    from .candidate_archive import archive_older
+    return store.change(pid,archive_older,revision=body.get('revision'))
+
 @app.get('/api/v1/projects/{pid}/workflow')
 def workflow(pid:str,voice_part:str|None=None):
     p=store.get('projects',pid);_,parameters,_=scoped_context(p,voice_part)
@@ -199,9 +224,13 @@ def validate_patch(p,patch):
     if params.get('source_artifact_id') and params['source_artifact_id'] not in owned:raise ValueError('所选输入不属于当前工程。')
     if 'view_preferences' in patch:
         if not isinstance(patch['view_preferences'],dict):raise ValueError('视图偏好必须为对象。')
+        if 'auto_archive_candidates' in patch['view_preferences'] and type(patch['view_preferences']['auto_archive_candidates']) is not bool:raise ValueError('自动归档设置必须为布尔值。')
         stage=patch['view_preferences'].get('stage',0)
         if type(stage) is not int or not 0<=stage<=5:raise ValueError('无效阶段偏好。')
     if params.get('active_voice_part','vocal') not in ('vocal',*VOICE_PARTS):raise ValueError('未知的编辑声部。')
+    from workers.separation.options import separation_options
+    for key,task in [('separation_settings','vocals_instrumental'),('harmony_settings','lead_backing')]:
+        if key in params:separation_options({key:params[key],'separation_task':task})
     for key,lo,hi in [('transpose',-36,36),('index_rate',0,1),('protect',0,.5),('volume_envelope',0,1),('segment_size',32,2048),('overlap',1,16)]:
         if key in params: media.bounded(params[key],lo,hi)
     if 'candidates' in patch:
@@ -258,6 +287,9 @@ def patch_project(pid:str,body:dict):
                         if identifier in selected_ids:raise ValueError('该候选正在被采用；请先采用另一候选，再移除。')
                         if any(not t.get('mute') and t['artifact_id']==current_candidate['artifact_id'] for t in p['tracks']):raise ValueError('该候选仍用于混音；请先静音对应轨道，再移除。')
                 current_candidates[identifier]={**current_candidate,**{key:incoming[key] for key in ('name','notes','favorite','archived') if key in incoming}}
+                if 'archived' in incoming and incoming['archived']!=bool(current_candidate.get('archived')):
+                    current_candidates[identifier].update(archive_reason='manual' if incoming['archived'] else None,
+                        archived_at=now() if incoming['archived'] else None, archive_retained=not incoming['archived'])
             patch['candidates']=[current_candidates[c['id']] for c in p['candidates']]
         scoped_parameter_changes=[]
         if 'model_parameter_updates' in patch:

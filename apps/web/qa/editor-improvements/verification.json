@@ -1,0 +1,119 @@
+{
+  "project_id": "project_editor_improvements_qa",
+  "original_project_untouched": true,
+  "regression": {
+    "passed": 89
+  },
+  "pitch": {
+    "target_hash": "4a5bbdac8f1f41048be3db8f7e7d8f4cdabfa53b805831d5027b79b9ffb2bd84",
+    "candidate_id": "candidate_0a2f84e64a3e48cfa413",
+    "requested_f0_hash": "4a5bbdac8f1f41048be3db8f7e7d8f4cdabfa53b805831d5027b79b9ffb2bd84",
+    "consumed_f0_hash": "e3d877ba9ec63803b60a56a691ddaafff9742d4fbedd7bfb875ffe48240b3c80",
+    "preview_matches_conversion": true,
+    "range_ticks": [
+      96000,
+      480000
+    ],
+    "output_pitch_artifact_id": "artifact_d344bc5eb6194c5cad4a",
+    "stroke_frames": 56,
+    "strokes_undo_redo_verified": true,
+    "locked_edit_guard_verified": true
+  },
+  "archive": {
+    "active": 4,
+    "archived": 1,
+    "active_current_part": 3,
+    "archived_current_part": 2,
+    "restore_retention_verified": true,
+    "manual_rearchive_verified": true,
+    "search_verified": true,
+    "refresh_persistence_verified": true
+  },
+  "separation": {
+    "job_id": "job_487b2f9af04c4d648cf0",
+    "state": "succeeded",
+    "model_id": "melband-karaoke-gabox-v2",
+    "model_hash": "ec34be50327aeaf1a996c27977f5c30d1ac80c0076d69683d3e5184c31ea29d3",
+    "effective_parameters": {
+      "segment_size": 801,
+      "overlap_step_seconds": 1.0,
+      "separation_algorithm": "tta",
+      "primary_gain": 1.0
+    },
+    "inference_passes": 3,
+    "sample_rate": 44100,
+    "sample_count": 1146600,
+    "seconds": 26.0,
+    "reconstruction_max_abs": 2.9802322387695312e-08,
+    "lead_rms": 0.20735089384719926,
+    "backing_rms": 0.1111435512794876,
+    "quality_claim": "signal integrity only; no ground-truth separation quality score"
+  },
+  "real_conversion_jobs": [
+    {
+      "id": "job_8796c49aadc14f159508",
+      "state": "succeeded",
+      "range_ticks": [
+        96000,
+        480000
+      ]
+    },
+    {
+      "id": "job_c8d18aaf46ea48c498ae",
+      "state": "succeeded",
+      "range_ticks": [
+        96000,
+        480000
+      ]
+    },
+    {
+      "id": "job_02f4abb30d874a14ad09",
+      "state": "succeeded",
+      "range_ticks": [
+        96000,
+        480000
+      ]
+    }
+  ],
+  "checks": {
+    "regression": 89,
+    "separation_adapter_unit": 7,
+    "final_targeted_regression": 26,
+    "frontend_build": "passed",
+    "diff_check": "passed"
+  },
+  "browser": {
+    "engine": "Chrome",
+    "control": "DOM + tab-scoped CDP input only",
+    "desktop_mouse_used": false,
+    "window_seconds": 2,
+    "ctrl_wheel": {
+      "before_span": 2,
+      "after_span": 1.6,
+      "before_canvas_width": 705,
+      "after_canvas_width": 705
+    },
+    "playback": {
+      "duration": 8,
+      "first_time": 0.032158,
+      "later_time": 6.7776,
+      "ready_state": 4,
+      "media_error": null
+    },
+    "screenshots": [
+      "pitch-controls.png",
+      "pitch-curves.png",
+      "separation.png",
+      "archive.png"
+    ]
+  },
+  "build": {
+    "core-DV6XEvTN.js": "bcca1f6d2bb9e96b04c14c1e11cb231a0a8dd0d455b39a7d4cbedee2349cd683",
+    "index-D17f66uN.js": "d4e80412aaec1e84755569971c801cfbfb974535be82c56ac88de517f52cc7da"
+  },
+  "cleanup": {
+    "qa_service_stopped": true,
+    "ephemeral_session_file_removed": true,
+    "original_service_preserved": true
+  }
+}

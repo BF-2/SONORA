@@ -3,6 +3,7 @@ import type { ChangeEvent, ReactNode } from "react";
 import { ModelSelector, CatalogManager, versionLabel } from "./ModelSelector";
 import { RvcParameterPanel } from "./RvcParameterPanel";
 import type { RvcCatalog } from "./RvcParameterPanel";
+import { SeparationPanel } from "./SeparationPanel";
 import { WorkflowStrip } from "./WorkflowStrip";
 import {
   ApiError,
@@ -351,6 +352,10 @@ export default function App() {
   );
   const [relinkHash, setRelinkHash] = useState("");
   const [pitchTool, setPitchTool] = useState("select");
+  const [versionTab, setVersionTab] = useState("active");
+  const [versionSearch, setVersionSearch] = useState("");
+  const [previewTargetHash, setPreviewTargetHash] = useState("");
+  const seenCandidate = useRef({ scope: "", id: "" });
   const [targetHz, setTargetHz] = useState(220);
   const [semitones, setSemitones] = useState(0);
   const [lock, setLock] = useState(true);
@@ -706,6 +711,12 @@ export default function App() {
     activePart === "vocal"
       ? project?.pitch_edits || []
       : partBinding?.pitch_edits || [];
+  const editorEditGroups = Object.values(editorPitchEdits.reduce((groups: Record<string, Bag>, e: Bag) => {
+    const id = e.stroke_id || e.id;
+    if (!groups[id]) groups[id] = { ...e, member_ids: [e.id] };
+    else { groups[id].member_ids.push(e.id); groups[id].start_tick = Math.min(groups[id].start_tick, e.start_tick); groups[id].end_tick = Math.max(groups[id].end_tick, e.end_tick); }
+    return groups;
+  }, {})) as Bag[];
   const editorNotes =
     activePart === "vocal" ? project?.notes || [] : partBinding?.notes || [];
   const vocal =
@@ -724,6 +735,14 @@ export default function App() {
       : partBinding?.selected_candidate_id;
   const renderedCandidates=blind?[...candidates].sort((a,b)=>blindOrder.indexOf(a.id)-blindOrder.indexOf(b.id)):candidates;
   const auditionScope = `${project?.id || ""}:${activePart}`;
+  const newestCandidate = candidates[candidates.length - 1];
+  useEffect(() => {
+    if (seenCandidate.current.scope === auditionScope && seenCandidate.current.id && newestCandidate?.id && newestCandidate.id !== seenCandidate.current.id) {
+      setAuditionCandidateIds(previous => ({ ...previous, [auditionScope]: newestCandidate.id }));
+      if (step === 2) { setListenId(newestCandidate.artifact_id); setAB("B"); }
+    }
+    seenCandidate.current = { scope: auditionScope, id: newestCandidate?.id || "" };
+  }, [auditionScope, newestCandidate?.id]);
   const adoptedCandidate = candidates.find((c) => c.id === selectedCandidateId);
   const candidate =
     candidates.find((c) => c.id === auditionCandidateIds[auditionScope]) ||
@@ -800,7 +819,7 @@ export default function App() {
   const activeCount = jobs.filter(activeJob).length;
   const mode = project?.mode || "quick";
   const dirty =
-    editorPitchEdits.length + editorNotes.length +
+    editorEditGroups.length + editorNotes.length +
     (rvcCatalog?.parameters || []).filter(p=>p.group==='advanced' && p.supported && !p.read_only &&
       JSON.stringify(editorParameters[p.id] ?? p.current_value ?? p.default)!==JSON.stringify(p.default)).length;
   const svsEngine = engines.find((e) => e.id === "svs");
@@ -1560,7 +1579,7 @@ export default function App() {
       setListenId("");
       setAB("A");
     }
-    tell(archived ? "已移出片段列表，音频与血缘保留；可从已移除列表恢复或撤销。" : "片段已恢复。");
+    tell(archived ? "已归档，音频与配方保留；可在归档版本中恢复或撤销。" : "片段已恢复。");
   }, archived ? "移除片段" : "恢复片段");
   const pitchRecovery = (
     <div className={pitchAnalysis?.state === "stale" ? "warning-inline" : "info-inline"} role="status">
@@ -1913,7 +1932,7 @@ export default function App() {
     combinedSources.find((a) => a.id === harmonySourceId) ||
     combinedSources.at(-1);
   const activeHarmonyModel =
-    harmonyModels.find((m) => m.id === harmonyModelId) ||
+    harmonyModels.find((m) => m.id === (project?.parameters.harmony_model_id || harmonyModelId)) ||
     harmonyModels.find((m) => m.status === "ready") ||
     harmonyModels[0];
   const parts = project?.voice_parts || {};
@@ -1981,6 +2000,7 @@ export default function App() {
             </select>
           </Field>
         </div>
+        <SeparationPanel harmony parameters={project?.parameters || {}} onChange={globalParam} />
         {activeHarmonyModel && (
           <p className="info-inline">
             {activeHarmonyModel.semantic_warning ||
@@ -2548,6 +2568,9 @@ export default function App() {
       tell("先选择一段非零长度的区间。");
       return;
     }
+    if (editorPitchEdits.some(e => e.locked && e.start_tick < selection.end && e.end_tick > selection.start)) {
+      setError("选区包含已锁定区域。请先在目标编辑记录中解除锁定，再应用修改。"); return;
+    }
     update({
       pitch_edits: [
         ...(editorPitchEdits || []),
@@ -2922,6 +2945,7 @@ export default function App() {
         <div className="stack">
           {waveformCard()}
           <Card className="card-pad">
+            <SeparationPanel parameters={project?.parameters || {}} onChange={globalParam} models={separationEngine?.models || []} />
             {selectionControls}
             <div className="row wrap space-top">
               <button
@@ -3073,7 +3097,7 @@ export default function App() {
                       disabled={!pitchData}
                       onClick={() => setPitchTool("point")}
                     >
-                      绘制目标节点
+                      连续绘制目标
                     </button>
                   </div>
                   <span className="mini-note">目标编辑在重新渲染后生效</span>
@@ -3082,7 +3106,15 @@ export default function App() {
                   <PitchCanvas
                     data={pitchData}
                     outputData={outputPitchData}
-                    transpose={editorParameters.transpose || 0}
+                    projectId={project!.id}
+                    pitchId={lastPitch!.id}
+                    sourceId={vocal!.id}
+                    parameters={editorParameters}
+                    stale={pitchAnalysis?.state === "stale"}
+                    onTargetHash={setPreviewTargetHash}
+                    onSeek={seek}
+                    view={project?.view_preferences?.pitch_views?.[activePart] || {}}
+                    onView={(v) => update({ view_preferences: { ...pRef.current?.view_preferences, pitch_views: { ...pRef.current?.view_preferences?.pitch_views, [activePart]: v } } })}
                     timelineDuration={maxDuration}
                     selection={selection}
                     edits={editorPitchEdits || []}
@@ -3090,22 +3122,12 @@ export default function App() {
                     playhead={playhead}
                     onSelect={(s) => update({ selection: s })}
                     tool={pitchTool}
-                    onPoint={(t, hz) =>
-                      update({
-                        pitch_edits: [
-                          ...(editorPitchEdits || []),
-                          {
-                            id: uid(),
-                            start_tick: t,
-                            end_tick:
-                              t + ticks(pitchData.hop / pitchData.sample_rate),
-                            operation: "set_hz",
-                            hz: +hz.toFixed(3),
-                            locked: lock,
-                          },
-                        ],
-                      })
-                    }
+                    onStroke={(stroke) => {
+                      if (stroke.some(e => editorPitchEdits.some(old => old.locked && old.start_tick < e.end_tick && old.end_tick > e.start_tick))) {
+                        setError("绘制范围包含已锁定区域。请先在目标编辑记录中解除该区域锁定，再绘制。"); return;
+                      }
+                      const strokeId = uid(); update({ pitch_edits: [...editorPitchEdits,
+                      ...stroke.map(e => ({ ...e, id: uid(), stroke_id: strokeId, locked: lock }))] }); }}
                   />
                 ) : (
                   <Empty title="先检测真实的人声音高" icon="note">
@@ -3132,7 +3154,20 @@ export default function App() {
                     </button>
                   </Empty>
                 )}
-                <div className="card-pad">{selectionControls}</div>
+                <div className="card-pad">{selectionControls}
+                  <div className="pitch-preview-flow">
+                    <strong>编辑 → 生成选区试听 → 对比实际输出</strong>
+                    <p>绿色曲线包含移调、滤波、自动音准、人工音符和锁定编辑；旧音频不会随编辑自动改变。</p>
+                    <Field label="音高编辑对照候选"><select value={candidate?.id || ""} onChange={e => { setAuditionCandidateIds(previous => ({ ...previous, [auditionScope]: e.target.value })); setListenId(""); }}><option value="">尚未生成试听</option>{[...candidates].reverse().map(c => <option key={c.id} value={c.id}>{c.name}{c.preview_only ? " · 片段" : " · 完整"}</option>)}</select></Field>
+                    <div className="row wrap">
+                      <button className="button primary" disabled={!currentModel || !pitchData || !!busy || selection.end <= selection.start || (activePart !== "vocal" && partBinding?.mode !== "convert")} onClick={() => void refreshPitchPreview()}>生成编辑后的选区试听</button>
+                      <button className="button small" disabled={!vocal} onClick={() => { setListenId(vocal!.id); setLoop(true); seek(seconds(selection.start)); }}>A · 原始人声</button>
+                      <button className="button small" disabled={!comparisonB} onClick={() => { setListenId(comparisonB!.id); setLoop(true); seek(seconds(selection.start)); }}>B · 转换结果</button>
+                      <button className="button small" disabled={!comparisonB || !!busy} onClick={() => void guard(() => job("pitch", { pitch_algorithm: editorParameters.pitch_algorithm || "rmvpe" }, comparisonB!.id), "复测输出音高")}>复测输出音高</button>
+                    </div>
+                    <p role="status">{candidate ? `对照：${candidate.name}。${(candidateDiff(candidate).length || (previewTargetHash && candidate.requested_f0_hash !== previewTargetHash)) ? "目标或设置已有变化，请重新生成试听；当前 B 是历史音频。" : "请结合输出复测曲线与实际试听判断效果。"}` : "请先选择声音模型，再生成当前选区。"}</p>
+                  </div>
+                </div>
               </Card>
               <Card
                 title="目标编辑记录"
@@ -3146,14 +3181,14 @@ export default function App() {
                       尚无人工修改。检测曲线保留为原始参考。
                     </p>
                   ) : (
-                    editorPitchEdits.map((e, i) => (
+                    editorEditGroups.map((e, i) => (
                       <div className="edit-row" key={e.id}>
                         <span>
                           {i + 1}. {clock(seconds(e.start_tick))}–
                           {clock(seconds(e.end_tick))}
                         </span>
                         <strong>
-                          {e.operation === "transpose"
+                          {e.stroke_id ? `连续绘制 · ${e.member_ids.length} 帧` : e.operation === "transpose"
                             ? `${e.semitones > 0 ? "+" : ""}${e.semitones} 半音`
                             : e.operation === "set_hz"
                               ? `${Number(e.hz).toFixed(1)} Hz`
@@ -3164,7 +3199,7 @@ export default function App() {
                           onClick={() =>
                             update({
                               pitch_edits: editorPitchEdits.map((x) =>
-                                x.id === e.id ? { ...x, locked: !x.locked } : x,
+                                e.member_ids.includes(x.id) ? { ...x, locked: !x.locked, snapshot: undefined } : x,
                               ),
                             })
                           }
@@ -3176,7 +3211,7 @@ export default function App() {
                           onClick={() =>
                             update({
                               pitch_edits: editorPitchEdits.filter(
-                                (x) => x.id !== e.id,
+                                (x) => !e.member_ids.includes(x.id),
                               ),
                             })
                           }
@@ -3914,7 +3949,7 @@ export default function App() {
                   <strong>
                     {lastPitch ? "已检测 / 目标编辑" : "等待独立音高分析"}
                   </strong>
-                  <small>{editorPitchEdits.length || 0} 项人工调整</small>
+                  <small>{editorEditGroups.length || 0} 笔人工调整</small>
                 </div>
                 <span>→</span>
                 <div className="pipeline-node">
@@ -3942,8 +3977,14 @@ export default function App() {
                 {renderedCandidates.filter(c=>c.id!==candidate?.id && c.source_artifact_id===candidate?.source_artifact_id).map(c=><option key={c.id} value={c.id}>{blind?`盲听候选 ${String.fromCharCode(65+renderedCandidates.indexOf(c))}`:c.name}</option>)}
               </select>
             </Field>
+            <div className="candidate-management">
+              <label className="toggle-row"><span>自动归档旧版本 · 保留最近两条</span><input type="checkbox" checked={project?.view_preferences?.auto_archive_candidates !== false} onChange={e => update({ view_preferences: { ...pRef.current?.view_preferences, auto_archive_candidates: e.target.checked } })} /></label>
+              <p className="info-inline">每次成功生成后整理同来源、同声部旧版本；收藏、恢复保留、正在采用或混音中的版本及最新对比批次受保护。归档保留音频与配方。</p>
+              <div className="row wrap"><button className={`chip ${versionTab === "active" ? "active" : ""}`} onClick={() => setVersionTab("active")}>当前版本（{candidates.length}）</button><button className={`chip ${versionTab === "archived" ? "active" : ""}`} onClick={() => setVersionTab("archived")}>归档版本（{archivedCandidates.length}）</button><button className="button small" disabled={!!busy} onClick={() => void guard(async () => { await flush(); const p = pRef.current!; applyProject(await post<Project>(`/projects/${p.id}/candidates/archive-older`, { revision: p.revision })); tell("旧版本已整理，受保护版本保留。"); })}>立即整理旧版本</button></div>
+              <input aria-label="搜索音频版本" placeholder="搜索版本名称或备注" value={versionSearch} onChange={e => setVersionSearch(e.target.value)} />
+            </div>
             <div className="version-grid" id="candidate-list">
-              {renderedCandidates.map((c, i) => (
+              {(versionTab === "active" ? renderedCandidates.filter(c => !versionSearch || `${c.name} ${c.notes}`.toLowerCase().includes(versionSearch.toLowerCase())) : []).map((c, i) => (
                 <div
                   className={`version-card ${candidate?.id === c.id ? "selected" : ""}`}
                   key={c.id}
@@ -4002,7 +4043,7 @@ export default function App() {
                   <div className="version-actions space-top">
                     <button className="text-button" disabled={!!busy || c.id === selectedCandidateId || !!project?.tracks.some(t => t.artifact_id === c.artifact_id && !t.mute)}
                       title="移出列表并保留音频与历史，可恢复或撤销；正在采用或混音的候选需先取消使用。"
-                      onClick={() => void archiveCandidate(c, true)}>{c.preview_only ? "移除试听片段" : "移除候选"}</button>
+                      onClick={() => void archiveCandidate(c, true)}>{"归档此版本"}</button>
                     {c.preview_only && (
                       <>
                         <button
@@ -4195,18 +4236,14 @@ export default function App() {
                 </div>
               ))}
             </div>
-            {!!archivedCandidates.length && (
-              <details className="candidate-provenance">
-                <summary>已移除片段与候选（{archivedCandidates.length}）</summary>
-                <p>音频、版本哈希和历史仍保留；恢复片段或撤销即可重新试听。</p>
-                {archivedCandidates.map((c) => (
-                  <div className="row wrap" key={c.id}>
-                    <span>{blind ? "已移除候选" : c.name}</span>
-                    <button className="text-button" disabled={!!busy} onClick={() => void archiveCandidate(c, false)}>恢复片段</button>
-                  </div>
-                ))}
-              </details>
-            )}
+            {versionTab === "archived" && <Card title={`归档版本 · ${archivedCandidates.length}`} className="card-pad">
+              <p>恢复后会保留在当前列表，不再自动归档；可以手动再次归档。</p>
+              {!archivedCandidates.length && <p className="info-inline">归档为空。生成超过两条候选后，旧版本会在这里保留。</p>}
+              {archivedCandidates.filter(c => !versionSearch || `${c.name} ${c.notes}`.toLowerCase().includes(versionSearch.toLowerCase())).slice().reverse().map(c => <div className="archived-version" key={c.id}>
+                <div><strong>{blind ? "已归档候选" : c.name}</strong><small>{c.archive_reason === "auto" ? "自动归档" : "手动归档"} · {c.preview_only ? "选区试听" : "完整版本"}{c.notes ? ` · ${c.notes}` : ""}</small></div>
+                <button className="button small" disabled={!!busy} onClick={() => void archiveCandidate(c, false)}>恢复并保留</button>
+              </div>)}
+            </Card>}
             {!candidates.length && (
               <Card>
                 <Empty title="第一版声音，值得认真试听" icon="headphones">

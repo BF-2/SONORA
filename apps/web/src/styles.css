@@ -3922,3 +3922,23 @@ button:disabled, input:disabled, select:disabled { opacity: .55; cursor: not-all
   .workspace main { padding-bottom: 175px; }
   .toast.show { bottom: 152px; }
 }
+/* Detailed pitch navigation and reversible candidate organization. */
+.pitch-navigation { padding: 14px 18px; border-bottom: 1px solid var(--border, #344238); }
+.pitch-view-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.pitch-view-fields label { display: grid; gap: 5px; color: #aabbac; font-size: 12px; }
+.pitch-view-fields input, .pitch-view-fields select { width: 100%; min-width: 0; }
+.pitch-pan { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-top: 10px; }
+.pitch-pan input { flex: 1; min-width: 80px; }
+.pitch-editor .pitch-canvas { height: 360px; touch-action: none; width: 100%; display: block; }
+.pitch-readout { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 10px 18px; color: #c5eb85; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pitch-editor > .info-inline { padding: 0 18px 12px; }
+.pitch-preview-flow { border-top: 1px solid #354238; margin-top: 16px; padding-top: 16px; }
+.pitch-preview-flow p { color: #aabbac; font-size: 13px; line-height: 1.6; }
+.separation-panel { border: 1px solid #354238; padding: 14px; border-radius: 10px; margin-bottom: 16px; }
+.separation-presets { margin: 8px 0 16px; }
+.separation-panel details > summary { cursor: pointer; color: #c5eb85; padding: 10px 0; }
+.candidate-management { padding: 16px; border: 1px solid #354238; border-radius: 10px; margin: 14px 0; }
+.candidate-management > input { margin-top: 12px; width: 100%; }
+.archived-version { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #354238; }
+.archived-version small { display: block; color: #aabbac; margin-top: 5px; }
+@media (max-width: 1050px) { .pitch-view-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -18,6 +18,7 @@ from .candidate_assembly import assemble_preview
 from .mixing import mix_tracks,preview_key
 from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash,pitch_parameter_subset
 from workers.pitch.engine import apply_target_parameters,shift_pitch_to_project
+from workers.separation.options import separation_options
 from .voices import VOICE_PARTS,PART_NAMES,voice_part,new_binding,sync_part_tracks,resolve_part,part_unchanged,invalidate_mix,mix_signature,covers_source
 
 OPERATIONS={'separate','separate_harmony','pitch','convert','compare_versions','adopt_preview','convert_parts','mix','mix_preview','export','pipeline','comp','export_stems','svs'}
@@ -202,6 +203,7 @@ class Scheduler:
             source_track=next((t for t in job['project_snapshot']['tracks'] if t['artifact_id']==source['id']),None)
             parameters['source_timeline_offset_ticks']=source_track.get('offset_ticks',0) if source_track else source.get('timeline_offset_ticks',0)
         if engine=='separation':
+            parameters.update(separation_options(parameters))
             harmony=parameters.get('separation_task')=='lead_backing'
             selected=parameters.get('harmony_model_id',config['separation'].get('default_harmony_model')) if harmony else parameters.get('separation_model_id',config['separation']['default_model'])
             sep=next((m for m in config['separation']['models'] if m['id']==selected),None)
@@ -222,9 +224,9 @@ class Scheduler:
                          'worker_code':{name:digest for name,digest in source_files.items() if name.startswith('workers/pitch/') or name in ('workers/common.py','workers/rvc_parameters.py')},
                          'runtime':config.get('pitch',config.get('applio',{})),'predictor_bundle':config.get('applio',{}).get('source_hash')}
         elif engine=='separation':
-            fingerprint={'source':source['sha256'],'engine':'separation','worker_code':{name:digest for name,digest in source_files.items() if name in ('workers/separation/run.py','workers/common.py')},
+            fingerprint={'source':source['sha256'],'engine':'separation','worker_code':{name:digest for name,digest in source_files.items() if name.startswith('workers/separation/') or name=='workers/common.py'},
                          'model_hash':sep['model_hash'],'config_hash':sep['config_hash'],'runtime':config.get('separation',{}).get('version'),
-                         'parameters':{key:parameters.get(key) for key in ('separation_task','segment_size','overlap','overlap_step_seconds','device','cpu_threads')}}
+                         'parameters':{key:parameters.get(key) for key in ('separation_task','segment_size','overlap_step_seconds','separation_algorithm','primary_gain','device','cpu_threads')}}
         elif engine=='rvc':
             fingerprint={'source':source['sha256'],'engine':'rvc','worker_code':source_files,'runtime':config.get('applio',{}),
                          'model_hash':model['model_hash'],'index_hash':model.get('index_hash') if parameters['index_rate']>0 else None,
@@ -415,7 +417,7 @@ class Scheduler:
                     if t['role'] in ('vocal','guide','synthesized','converted','original','mix'): t['mute']=True
             p['candidates'].append(candidate)
             p['tracks'].append(dict(id=uid('track'),candidate_id=candidate['id'],name=candidate['name'],role='converted',artifact_id=outputs[0]['id'],gain_db=0,pan=0,mute=not unchanged,solo=False,offset_ticks=outputs[0].get('timeline_offset_ticks',timeline_offset),effects=[]))
-        self.store.change(job['project_id'],mutate)
+        self.store.change(job['project_id'],mutate,auto_archive=True)
         return outputs
 
     def execute(self,job,cancel):
@@ -474,7 +476,7 @@ class Scheduler:
                 for t in project['tracks']:
                     if t['role'] in ('converted','original','vocal','guide','mix'):t['mute']=True
                 project['tracks'].append(dict(id=uid('track'),name='片段拼选',role='converted',artifact_id=a['id'],gain_db=0,pan=0,mute=False,solo=False,offset_ticks=0,effects=[]))
-            self.store.change(job['project_id'],add_comp)
+            self.store.change(job['project_id'],add_comp,auto_archive=True)
             return [a]
         if op=='export_stems': return self.export_stems(job,cancel)
         raise ValueError('未知操作。')
@@ -566,7 +568,7 @@ class Scheduler:
                     for track in project['tracks']:
                         if track['role'] in ('original','vocal','guide','synthesized','converted','mix'):track['mute']=track['artifact_id']!=artifact['id']
                 invalidate_mix(project,'已局部采用指定Epoch试听版本')
-        self.store.change(job['project_id'],mutate)
+        self.store.change(job['project_id'],mutate,auto_archive=True)
         return [artifact]
 
     def convert_parts(self,job,cancel):
