@@ -718,3 +718,204 @@
     animation: none;
   }
 }
+
+.timeline-track-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.timeline-track-tools .track-label {
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+}
+.timeline-track-tools .track-label strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.timeline-archive-button {
+  min-height: 28px;
+}
+.timeline-archive-list {
+  margin: 10px 20px 16px;
+  border-top: 1px solid var(--line);
+}
+.timeline-archive-list > summary {
+  cursor: pointer;
+  padding: 13px 0;
+  color: var(--text);
+}
+.timeline-archive-list > p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.timeline-archived-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.timeline-archived-row > span {
+  min-width: 0;
+}
+.timeline-archived-row strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.timeline-archived-row small {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.timeline-archived-row > button {
+  flex-shrink: 0;
+}
+
+/* Canvas backgrounds and their painted content use the same theme. */
+.ui-soft .stat,
+.ui-soft .segment-band,
+.ui-soft .parameter-readonly,
+.ui-soft .parameter-explanation,
+.ui-soft .catalog-detail,
+.ui-soft .catalog-scan {
+  background: #f4eff8;
+  border-color: #dcd0e7;
+  color: #665373;
+}
+.ui-soft .stat strong,
+.ui-soft .segment-band strong,
+.ui-soft .parameter-readonly output,
+.ui-soft .parameter-explanation strong,
+.ui-soft .edit-row > strong,
+.ui-soft .track-label strong {
+  color: #574166;
+}
+.ui-soft .issue-text strong,
+.ui-soft .issue-text p,
+.ui-soft .check-line,
+.ui-soft .success-line {
+  color: #685872;
+}
+.ui-soft code,
+.ui-soft kbd {
+  background: #f0e8f6;
+  color: #654a79;
+}
+.ui-soft .drop-zone {
+  background: #faf6fd;
+  border-color: #cdbbdf;
+}
+.ui-soft .drop-zone.dragging { background: #eee2f8; }
+.ui-soft .drop-zone p { color: #7d6b8a; }
+.ui-soft .drop-icon {
+  background: #eee4f7;
+  border-color: #d8c5e8;
+  color: #806197;
+}
+.ui-soft .risk-card {
+  background: #fff5e7;
+  border-color: #e7d2b4;
+  color: #805525;
+}
+.ui-soft .risk-card strong,
+.ui-soft .risk-card h3 { color: #805525; }
+.ui-soft .risk-card p { color: #846440; }
+.ui-soft .risk-icon { border-color: #d9bc91; color: #91632d; }
+.ui-soft .stat span,
+.ui-soft .stat small,
+.ui-soft .segment-band > span,
+.ui-soft .parameter-readonly small,
+.ui-soft .parameter-explanation p,
+.ui-soft .track-label small,
+.ui-soft .edit-row > span,
+.ui-soft .wave-ruler {
+  color: #786386;
+}
+.ui-soft .wave-canvas,
+.ui-soft .pitch-canvas,
+.ui-soft .wave-canvas-wrap {
+  background: #fbf8fd;
+  border-color: #d7c9e2;
+}
+.ui-soft .wave-row {
+  border-color: #e2d8e9;
+}
+.ui-soft .wave-row.selected {
+  background: #f1e9f7;
+}
+.ui-soft .wave-scroll {
+  scrollbar-color: #bca5cc #f4edf9;
+}
+.ui-soft .track-role {
+  background: #f3edf8;
+  border-color: #d9cbe4;
+  color: #705683;
+}
+.ui-soft .pitch-navigation {
+  border-color: #ded1e7;
+}
+.ui-soft .pitch-view-fields label,
+.ui-soft .pitch-pan,
+.ui-soft .pitch-legend,
+.ui-soft .pitch-readout,
+.ui-soft .pitch-preview-flow p,
+.ui-soft .separation-panel details > summary,
+.ui-soft .version-compare summary,
+.ui-soft .catalog-scan summary,
+.ui-soft .personal-preset summary,
+.ui-soft .binding-scope summary,
+.ui-soft .inline-check,
+.ui-soft .toggle-row {
+  color: #6c537c;
+}
+.ui-soft .separation-panel {
+  background: #fcf9fe;
+  border-color: #ded1e7;
+}
+.ui-soft .pitch-readout {
+  background: #f4edf9;
+}
+.ui-soft .track-actions button {
+  background: #f0e7f7;
+  color: #705284;
+  border-color: #d8c5e7;
+}
+.ui-soft .track-actions button.active {
+  background: #e2d2ef;
+  color: #58356d;
+}
+.ui-soft th {
+  background: #f0e8f6;
+  color: #624772;
+  border-color: #dfd1e8;
+}
+.ui-soft td {
+  color: #6b517b;
+  border-color: #e6dcee;
+}
+@media (max-width: 700px) {
+  .timeline-track-tools {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .timeline-track-tools .track-label {
+    flex: 1;
+    min-width: 0;
+  }
+  .timeline-archived-row {
+    flex-wrap: wrap;
+  }
+}

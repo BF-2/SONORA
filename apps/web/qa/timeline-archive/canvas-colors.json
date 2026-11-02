@@ -1,0 +1,20 @@
+{
+  "import": {
+    "canvas": "rgb(251, 248, 253)",
+    "issueText": "rgb(104, 88, 114)",
+    "rows": 1,
+    "stat": "rgb(244, 239, 248)"
+  },
+  "soft": {
+    "background": "rgb(251, 248, 253)",
+    "target": "rgb(110, 79, 155)",
+    "targetPixels": 23940,
+    "theme": "soft"
+  },
+  "classic": {
+    "background": "rgb(26, 33, 28)",
+    "target": "rgb(197, 235, 133)",
+    "targetPixels": 24809,
+    "theme": "classic"
+  }
+}

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { request } from "./api";
 import { clock, duration, seconds, ticks } from "./types";
 import type { Artifact, Bag } from "./types";
+import { CANVAS_PALETTES } from "./canvasPalette";
 
 const paths: Record<string, ReactNode> = {
   wave: <path d="M3 10v4m4-8v12m5-16v20m5-17v14m4-9v4" />,
@@ -247,6 +248,7 @@ export function Waveform({
   zoom = 1,
   timelineDuration,
   offset = 0,
+  light = false,
 }: {
   artifact: Artifact;
   selection: { start: number; end: number };
@@ -257,6 +259,7 @@ export function Waveform({
   zoom?: number;
   timelineDuration?: number;
   offset?: number;
+  light?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [peaks, setPeaks] = useState<number[][]>([]);
@@ -267,6 +270,7 @@ export function Waveform({
   const drag = useRef<number | null>(null);
   const clipDuration = duration(artifact);
   const dur = Math.max(0.001, timelineDuration || clipDuration + offset);
+  const palette = CANVAS_PALETTES[light ? "soft" : "classic"];
   useEffect(() => {
     let live = true;
     setPeaks([]);
@@ -295,7 +299,7 @@ export function Waveform({
       const w = r.width,
         h = r.height;
       ctx.clearRect(0, 0, w, h);
-      ctx.strokeStyle = "#303a35";
+      ctx.strokeStyle = palette.grid;
       ctx.lineWidth = 1;
       for (let i = 0; i <= 10; i++) {
         ctx.beginPath();
@@ -323,9 +327,9 @@ export function Waveform({
       const s = local || selection;
       const x = (seconds(s.start) / dur) * w,
         end = (seconds(s.end) / dur) * w;
-      ctx.fillStyle = "#c5eb8515";
+      ctx.fillStyle = palette.selection;
       ctx.fillRect(x, 0, end - x, h);
-      ctx.strokeStyle = "#c5eb8599";
+      ctx.strokeStyle = palette.selectionEdge;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, h);
@@ -333,7 +337,7 @@ export function Waveform({
       ctx.lineTo(end, h);
       ctx.stroke();
       const p = (playhead / dur) * w;
-      ctx.strokeStyle = "#f2f3ed";
+      ctx.strokeStyle = palette.playhead;
       ctx.beginPath();
       ctx.moveTo(p, 0);
       ctx.lineTo(p, h);
@@ -353,6 +357,7 @@ export function Waveform({
     zoom,
     offset,
     clipDuration,
+    palette,
   ]);
   const xAt = (clientX: number) => {
     const r = canvas.current!.getBoundingClientRect();

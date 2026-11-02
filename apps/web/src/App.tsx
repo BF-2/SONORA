@@ -6,6 +6,8 @@ import type { RvcCatalog } from "./RvcParameterPanel";
 import { SeparationPanel } from "./SeparationPanel";
 import { SeparationVersions } from "./SeparationVersions";
 import { CandidateVersions } from "./CandidateVersions";
+import { timelineRows, timelineVisibility } from "./timeline";
+import { CANVAS_PALETTES } from "./canvasPalette";
 import { WorkflowStrip } from "./WorkflowStrip";
 import {
   ApiError,
@@ -2259,15 +2261,29 @@ export default function App() {
       })}
     </div>
   ) : null;
-  const waveformCard = (tracks?: Track[]) => {
-    const rows = (
-      tracks ||
-      project?.tracks.filter((t) => !["pitch"].includes(t.role)) ||
-      []).filter((t) => !t.mute || !project?.candidates.some(c => c.archived && c.artifact_id === t.artifact_id) || project?.candidates.some(c => !c.archived && c.artifact_id === t.artifact_id));
+  const waveformCard = (tracks?: Track[], available?: Track[]) => {
+    const timeline = timelineRows(project, step, tracks, available);
+    const rows = timeline.visible;
+    const palette = CANVAS_PALETTES[uiTheme === "soft" ? "soft" : "classic"];
+    const archiveTrack = (track: Track, archived: boolean) => {
+      updateView(
+        timelineVisibility(
+          pRef.current?.view_preferences || {},
+          track.id,
+          archived,
+        ),
+      );
+      tell(
+        archived
+          ? "音轨已从时间轴归档，可在归档音轨中重新加入。"
+          : "音轨已重新加入时间轴。",
+      );
+    };
     return (
       <Card
         title="同一条时间轴"
         icon="wave"
+        className="project-timeline"
         aside={
           <div className="row">
             <span className="mini-note">拖动选择区间 · 单击定位</span>
@@ -2290,8 +2306,16 @@ export default function App() {
         }
       >
         {!rows.length ? (
-          <Empty title="这里还没有音频">
-            <p>导入音频后，真实波形会显示在这里。</p>
+          <Empty
+            title={
+              timeline.archived.length ? "本阶段音轨已收起" : "本阶段暂无音轨"
+            }
+          >
+            <p>
+              {timeline.archived.length
+                ? "展开下方归档音轨，可以逐条重新加入。"
+                : "准备本阶段素材后，真实波形会显示在这里。"}
+            </p>
           </Empty>
         ) : (
           <div className="wave-editor">
@@ -2302,44 +2326,95 @@ export default function App() {
                 <div
                   className={`wave-row ${selectedTrack === track.id ? "selected" : ""}`}
                   key={track.id}
+                  data-track-id={track.id}
                 >
-                  <button
-                    className="track-label"
-                    onClick={() => {
-                      setSelectedTrack(track.id);
-                      if (step === 4) setMixMonitor(track.id);
-                      else setListenId(a.id);
-                    }}
-                    onDoubleClick={() => {
-                      if (step === 4) setMixMonitor(track.id);
-                      else { setListenId(a.id); void prepareAudioGraph().then(() => audio.current?.play()).catch(() => {}); }
-                    }}
-                  >
-                    <strong>
-                      {track.name || roleNames[track.role] || track.role}
-                    </strong>
-                    <small>{kindNames[a.processing_kind]}</small>
-                    <span className="track-role">
-                      {roleNames[track.role] || track.role}
-                    </span>
-                  </button>
+                  <div className="timeline-track-tools">
+                    <button
+                      className="track-label"
+                      title={artifactLabel(a)}
+                      onClick={() => {
+                        setSelectedTrack(track.id);
+                        if (step === 4) setMixMonitor(track.id);
+                        else setListenId(a.id);
+                      }}
+                      onDoubleClick={() => {
+                        if (step === 4) setMixMonitor(track.id);
+                        else {
+                          setListenId(a.id);
+                          void prepareAudioGraph()
+                            .then(() => audio.current?.play())
+                            .catch(() => {});
+                        }
+                      }}
+                    >
+                      <strong>{artifactLabel(a)}</strong>
+                      <small>{kindNames[a.processing_kind]}</small>
+                      <span className="track-role">
+                        {roleNames[track.role] || track.role}
+                      </span>
+                    </button>
+                    <button
+                      className="text-button timeline-archive-button"
+                      aria-label={`归档时间轴音轨 ${artifactLabel(a)}`}
+                      disabled={!!busy}
+                      onClick={() => archiveTrack(track, true)}
+                    >
+                      归档
+                    </button>
+                  </div>
                   <Waveform
                     artifact={a}
                     selection={selection}
                     playhead={playhead}
-                    timelineDuration={maxDuration}
+                    timelineDuration={timeline.duration}
+                    light={uiTheme === "soft"}
                     offset={seconds(
                       track.offset_ticks ?? a.timeline_offset_ticks ?? 0,
                     )}
                     onSelect={(s) => update({ selection: s })}
                     onSeek={seek}
                     zoom={zoom}
-                    color={["#c5eb85", "#8bb9d3", "#b9a6db", "#e6ae7f"][i % 4]}
+                    color={
+                      palette.tracks[(project?.tracks.indexOf(track) ?? i) % 4]
+                    }
                   />
                 </div>
               );
             })}
           </div>
+        )}
+        {!!timeline.archived.length && (
+          <details className="timeline-archive-list">
+            <summary>归档音轨（{timeline.archived.length}）</summary>
+            <p>归档收起时间轴显示。混音采用与音量由混音台独立控制。</p>
+            {timeline.archived.map((track) => {
+              const artifact = project!.assets.find(
+                (item) => item.id === track.artifact_id,
+              )!;
+              return (
+                <div
+                  className="timeline-archived-row"
+                  key={track.id}
+                  data-archived-track-id={track.id}
+                >
+                  <span>
+                    <strong>{artifactLabel(artifact)}</strong>
+                    <small>
+                      {roleNames[track.role] || track.role} ·{" "}
+                      {clock(duration(artifact))}
+                    </small>
+                  </span>
+                  <button
+                    className="button small"
+                    disabled={!!busy}
+                    onClick={() => archiveTrack(track, false)}
+                  >
+                    重新加入时间轴
+                  </button>
+                </div>
+              );
+            })}
+          </details>
         )}
         <div className="segment-band">
           选区{" "}
@@ -3095,6 +3170,7 @@ export default function App() {
                 </div>
                 {pitchData && lastPitch && vocal ? (
                   <PitchCanvas
+                    light={uiTheme === "soft"}
                     key={`${project!.id}:${activePart}:${lastPitch.id}`}
                     data={pitchData}
                     outputData={outputPitchData}
@@ -4222,6 +4298,7 @@ export default function App() {
             (!["vocal", "vocals", "guide", "synthesized"].includes(t.role) &&
               !(t.role === "converted" && !t.voice_part))),
       ) || [];
+    const availableMixTracks = mixTracks.length ? mixTracks : project?.tracks.filter(t => t.role === "original") || [];
     const historicalIds = new Set<string>(
       project?.candidates
         .filter((c) => !c.selected)
@@ -4444,7 +4521,7 @@ export default function App() {
               添加伴奏
             </button>
           </div>
-          {waveformCard(mixTracks)}
+          {waveformCard(mixTracks, availableMixTracks)}
         </div>
         <aside className="inspector stack">
           <Card className="card-pad">

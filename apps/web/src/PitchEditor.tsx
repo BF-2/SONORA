@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { post } from "./api";
 import { seconds, ticks } from "./types";
 import type { Bag, PitchData } from "./types";
+import { CANVAS_PALETTES } from "./canvasPalette";
 
 const midi = (hz: number) => 69 + 12 * Math.log2(hz / 440);
 const hzAt = (note: number) => Math.min(2000, Math.max(20, 440 * 2 ** ((note - 69) / 12)));
@@ -10,14 +11,15 @@ const noteName = (n: number) => `${["C", "C♯", "D", "D♯", "E", "F", "F♯", 
 const frameTime = (d: PitchData, i: number) => (i * d.hop + d.frame_center_offset) / d.sample_rate + seconds(d.timeline_offset_ticks || 0);
 
 export function PitchCanvas({ data, outputData, selection, edits, notes, playhead, onSelect, onSeek, onStroke, tool,
-  timelineDuration, projectId, pitchId, sourceId, parameters, view, onView, stale, onTargetHash }: {
+  timelineDuration, projectId, pitchId, sourceId, parameters, view, onView, stale, onTargetHash, light = false }: {
   data: PitchData; outputData?: PitchData | null; selection: { start: number; end: number }; edits: Bag[]; notes: Bag[];
   playhead: number; onSelect: (s: { start: number; end: number }) => void; onSeek: (t: number) => void;
   onStroke: (edits: Bag[]) => void; tool: string; timelineDuration: number; projectId: string; pitchId: string;
   sourceId: string; parameters: Bag; view: Bag; onView: (v: Bag) => void;
-  stale?: boolean; onTargetHash: (hash: string) => void;
+  light?: boolean; stale?: boolean; onTargetHash: (hash: string) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const palette = CANVAS_PALETTES[light ? "soft" : "classic"];
   const wheel = useRef<(event: WheelEvent) => void>(() => {});
   const [target, setTarget] = useState<PitchData | null>(null);
   const [targetKey, setTargetKey] = useState("");
@@ -95,19 +97,19 @@ export function PitchCanvas({ data, outputData, selection, edits, notes, playhea
       const y = (n: number) => top + (hi - n) / range * h;
       ctx.font = "11px system-ui";
       for (let n = Math.ceil(lo); n <= hi; n++) {
-        ctx.strokeStyle = n % 12 === 0 ? "#607265" : "#293b32";
+        ctx.strokeStyle = n % 12 === 0 ? palette.majorGrid : palette.grid;
         ctx.beginPath(); ctx.moveTo(left, y(n)); ctx.lineTo(r.width, y(n)); ctx.stroke();
-        if (range <= 24 || n % 3 === 0) { ctx.fillStyle = "#9aaa9a"; ctx.fillText(noteName(n), 3, y(n) - 2); }
+        if (range <= 24 || n % 3 === 0) { ctx.fillStyle = palette.text; ctx.fillText(noteName(n), 3, y(n) - 2); }
       }
       const ideal = span / Math.max(2, Math.floor(w / 100));
       const power = 10 ** Math.floor(Math.log10(ideal));
       const step = ([1, 2, 5, 10].find(v => v * power >= ideal) || 10) * power;
       for (let t = Math.ceil(start / step) * step; t <= end + .00001; t += step) {
-        ctx.strokeStyle = "#33453b"; ctx.beginPath(); ctx.moveTo(x(t), top); ctx.lineTo(x(t), r.height); ctx.stroke();
-        ctx.fillStyle = "#aabbac"; ctx.fillText(time(Math.max(0, t)), Math.max(left, Math.min(r.width - 78, x(t) + 3)), 17);
+        ctx.strokeStyle = palette.grid; ctx.beginPath(); ctx.moveTo(x(t), top); ctx.lineTo(x(t), r.height); ctx.stroke();
+        ctx.fillStyle = palette.axis; ctx.fillText(time(Math.max(0, t)), Math.max(left, Math.min(r.width - 78, x(t) + 3)), 17);
       }
       ctx.save(); ctx.beginPath(); ctx.rect(left, top, w, h); ctx.clip();
-      for (const [d, color] of [[data, "#839ba9"], [currentTarget, "#c5eb85"], [outputData, "#e6ae7f"]] as const) {
+      for (const [d, color] of [[data, palette.source], [currentTarget, palette.target], [outputData, palette.output]] as const) {
         if (!d) continue;
         ctx.strokeStyle = color; ctx.lineWidth = d === currentTarget ? 2 : 1.5; ctx.beginPath();
         let pen = false;
@@ -119,17 +121,17 @@ export function PitchCanvas({ data, outputData, selection, edits, notes, playhea
         }
         ctx.stroke();
       }
-      for (const note of notes) { ctx.fillStyle = "#b9a6db35"; ctx.fillRect(x(seconds(note.start)), y(note.pitch_midi_float) - 4, x(seconds(note.end)) - x(seconds(note.start)), 8); }
+      for (const note of notes) { ctx.fillStyle = palette.notes; ctx.fillRect(x(seconds(note.start)), y(note.pitch_midi_float) - 4, x(seconds(note.end)) - x(seconds(note.start)), 8); }
       const selected = localSelection || selection;
-      ctx.fillStyle = "#c5eb851b"; ctx.fillRect(x(seconds(selected.start)), top, (seconds(selected.end - selected.start) / span) * w, h);
-      ctx.strokeStyle = "#c5eb8588";
+      ctx.fillStyle = palette.selection; ctx.fillRect(x(seconds(selected.start)), top, (seconds(selected.end - selected.start) / span) * w, h);
+      ctx.strokeStyle = palette.selectionEdge;
       for (const edge of [selected.start, selected.end]) { ctx.beginPath(); ctx.moveTo(x(seconds(edge)), top); ctx.lineTo(x(seconds(edge)), r.height); ctx.stroke(); }
-      ctx.strokeStyle = "#f3f6eb"; ctx.beginPath(); ctx.moveTo(x(playhead), top); ctx.lineTo(x(playhead), r.height); ctx.stroke();
-      if (stroke.length) { ctx.strokeStyle = "#e4ffb4"; ctx.lineWidth = 3; ctx.beginPath(); stroke.forEach((p, i) => i ? ctx.lineTo(x(p.t), y(p.note)) : ctx.moveTo(x(p.t), y(p.note))); ctx.stroke(); }
+      ctx.strokeStyle = palette.playhead; ctx.beginPath(); ctx.moveTo(x(playhead), top); ctx.lineTo(x(playhead), r.height); ctx.stroke();
+      if (stroke.length) { ctx.strokeStyle = palette.stroke; ctx.lineWidth = 3; ctx.beginPath(); stroke.forEach((p, i) => i ? ctx.lineTo(x(p.t), y(p.note)) : ctx.moveTo(x(p.t), y(p.note))); ctx.stroke(); }
       ctx.restore();
     };
     draw(); const ro = new ResizeObserver(draw); ro.observe(c); return () => ro.disconnect();
-  }, [data, currentTarget, outputData, notes, selection, localSelection, start, span, hi, lo, range, playhead, stroke]);
+  }, [data, currentTarget, outputData, notes, selection, localSelection, start, span, hi, lo, range, playhead, stroke, palette]);
   const point = (clientX: number, clientY: number) => {
     const r = canvas.current!.getBoundingClientRect();
     return { t: Math.max(start, Math.min(end, start + (clientX - r.left - 48) / (r.width - 48) * span)),
@@ -171,7 +173,7 @@ export function PitchCanvas({ data, outputData, selection, edits, notes, playhea
       onPointerMove={e => { const p = point(e.clientX, e.clientY); setHover(p); if (drag.current) { if (tool === "point") { drag.current.push(p); setStroke([...drag.current]); } else setLocalSelection({ start: ticks(Math.min(drag.current[0].t, p.t)), end: ticks(Math.max(drag.current[0].t, p.t)) }); } }}
       onPointerUp={e => { if (!drag.current) return; const p = point(e.clientX, e.clientY); if (tool === "point") finishStroke([...drag.current, p]); else if (Math.abs(p.t - drag.current[0].t) < hop / 2) onSeek(p.t); else onSelect({ start: ticks(Math.min(drag.current[0].t, p.t)), end: ticks(Math.max(drag.current[0].t, p.t)) }); drag.current = null; setStroke([]); setLocalSelection(null); }}
       onPointerCancel={() => { drag.current = null; setStroke([]); setLocalSelection(null); }} onPointerLeave={() => setHover(null)} />
-    <div className="pitch-legend"><span><i style={{ background: "#839ba9" }} />原始检测</span><span><i style={{ background: "#c5eb85" }} />{currentTarget ? stale ? "旧检测上的目标预览 · 需重新检测" : "实际转换目标 F0" : "目标计算中…"}</span>{outputData && <span><i style={{ background: "#e6ae7f" }} />已选候选输出复测</span>}</div>
+    <div className="pitch-legend"><span><i style={{ background: palette.source }} />原始检测</span><span><i style={{ background: palette.target }} />{currentTarget ? stale ? "旧检测上的目标预览 · 需重新检测" : "实际转换目标 F0" : "目标计算中…"}</span>{outputData && <span><i style={{ background: palette.output }} />已选候选输出复测</span>}</div>
     <div className="pitch-readout" role="status">{error ? `目标计算失败：${error}` : stats ? `选区 ${time(seconds(selection.start))}–${time(seconds(selection.end))} · ${stats.changed} 帧发生变化 · 有声帧平均 ${stats.mean >= 0 ? "+" : ""}${stats.mean.toFixed(1)} 音分` : "正在计算与转换一致的目标曲线…"}{hover && <span>光标 {time(hover.t)} · {noteName(hover.note)} · {hzAt(hover.note).toFixed(1)} Hz</span>}</div>
     <p className="info-inline">点击时间尺定位，拖动框选；绘制工具可连续改写曲线，整笔可撤销。目标 F0 控制转换时的音高，最终音色与咬字仍需生成试听确认。</p>
   </div>;

@@ -70,6 +70,8 @@ Presentation changes (`playhead`, `mode`, `view_preferences`, active voice-part 
 
 ### Six-stage project and generation management
 
+- `view_preferences.timeline_archived_track_ids` stores visually hidden timeline rows. `timeline_included_track_ids` explicitly includes available historical rows. IDs must belong to the project's tracks or its pending recipe tracks. Both fields are persisted view state and excluded from audio edit history and mix signatures. Stage filtering is applied before these visibility preferences.
+
 - `GET /projects/{id}/separations` returns project-owned separation sets with `selected`, `protected`, `outputs` and actual `model_id`. Older projects derive these sets from existing graph nodes on a read-only copy.
 - `POST /projects/{id}/separations/{runId}/adopt|archive|restore` accepts `{revision}` and returns the updated project. Adoption switches the complete pair and its upstream dependency, preserves per-set voice-part edits for later restoration, and invalidates the mix. Active or referenced sets are protected from archive.
 - Optional project fields `separation_runs` and `selected_separations` persist set identity and selection. Recipe restoration remaps complete pairs and their saved voice-part bindings.

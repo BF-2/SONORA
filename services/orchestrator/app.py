@@ -236,6 +236,16 @@ def validate_patch(p,patch):
     if 'view_preferences' in patch:
         if not isinstance(patch['view_preferences'],dict):raise ValueError('视图偏好必须为对象。')
         if 'auto_archive_candidates' in patch['view_preferences'] and type(patch['view_preferences']['auto_archive_candidates']) is not bool:raise ValueError('自动归档设置必须为布尔值。')
+        track_ids = {track['id'] for track in p['tracks']}
+        track_ids.update(track['id'] for track in p.get('restore_pending', {}).get('source', {}).get('tracks', []))
+        for key in ('timeline_archived_track_ids', 'timeline_included_track_ids'):
+            if key not in patch['view_preferences']:
+                continue
+            identifiers = patch['view_preferences'][key]
+            if not isinstance(identifiers, list) or any(not isinstance(identifier, str) for identifier in identifiers):
+                raise ValueError('时间轴显示状态必须为音轨 ID 列表。')
+            if len(identifiers) != len(set(identifiers)) or set(identifiers) - track_ids:
+                raise ValueError('时间轴显示状态只能引用当前项目的音轨，且不能重复。')
         stage=patch['view_preferences'].get('stage',0)
         if type(stage) is not int or not 0<=stage<=5:raise ValueError('无效阶段偏好。')
     if params.get('active_voice_part','vocal') not in ('vocal',*VOICE_PARTS):raise ValueError('未知的编辑声部。')
