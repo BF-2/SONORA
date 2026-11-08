@@ -45,6 +45,14 @@ def resource_config(request=None):
     return resolve_resources(read_json((request or {}).get("resource_config_path") or ROOT / "engine-envs" / "resources.json"), ROOT)
 
 
+def configure_media_tools(config):
+    """Third-party workers also invoke ffmpeg/ffprobe by executable name."""
+    executable = config.get('ffmpeg')
+    if executable:
+        tool_directory = str(Path(executable).resolve().parent)
+        os.environ['PATH'] = tool_directory + os.pathsep + os.environ.get('PATH', '')
+
+
 def verify_environment_lock(engine):
     """Detect updates to reused runtimes instead of silently running a new version."""
     import importlib.metadata as metadata
@@ -141,6 +149,7 @@ def worker_main(engine, render, probe):
     started = time.perf_counter()
     try:
         request = read_json(args.request)
+        configure_media_tools(resource_config(request))
         if request.get("protocol_version") != PROTOCOL_VERSION:
             raise ValueError("Unsupported worker protocol")
         verify_environment_lock(engine)

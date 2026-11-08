@@ -142,6 +142,18 @@ def test_mirrors_keep_pinned_revision_and_index_path():
         url, 'https://hf-mirror.com/owner/repo/resolve/commit123/folder/model.index']
 
 
+def test_worker_finds_bundled_ffmpeg_without_system_path(tmp_path, monkeypatch):
+    import os
+    import shutil
+    from workers.common import configure_media_tools
+    tools=tmp_path/'resources/tools';tools.mkdir(parents=True)
+    ffmpeg=tools/('ffmpeg.exe' if os.name=='nt' else 'ffmpeg')
+    ffmpeg.write_bytes(b'project-local-tool');ffmpeg.chmod(0o755)
+    monkeypatch.setenv('PATH','')
+    configure_media_tools({'ffmpeg':str(ffmpeg)})
+    assert Path(shutil.which(ffmpeg.name)).resolve()==ffmpeg.resolve()
+
+
 def test_packaging_excludes_private_runtime_models_and_credentials(tmp_path):
     spec = importlib.util.spec_from_file_location('portable_builder', ROOT / 'scripts/build-portable.py')
     builder = importlib.util.module_from_spec(spec); spec.loader.exec_module(builder)
