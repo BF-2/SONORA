@@ -1,0 +1,122 @@
+{
+  "revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+  "upstream": "https://github.com/IAHispano/Applio",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha256": "72c54bda40795cf382097befa7f63d8c38c6adf9ceb9861e12424fc048d0f18a"
+    },
+    {
+      "path": "rvc/configs/24000.json",
+      "sha256": "ad860bdefa0235b3d2523dd0be8db8ad936e9792fd9f5ef414443b91d78c12a2"
+    },
+    {
+      "path": "rvc/configs/32000.json",
+      "sha256": "505d742040ebd82cfc3735654c375c2af49e57da38649a48e816f0f04a7033af"
+    },
+    {
+      "path": "rvc/configs/40000.json",
+      "sha256": "b8c1e217d6ae8bba95fb41bdaf796a453769eb1c0ba1e40c093e322246ea1b77"
+    },
+    {
+      "path": "rvc/configs/48000.json",
+      "sha256": "1e18a2ce2567f8a60e12b8c7a9c5cc8515f9ec7ec2dd3f19fffee3e6af1ba1bc"
+    },
+    {
+      "path": "rvc/configs/config.py",
+      "sha256": "f21962c7b45d51acd3ccd45c5b98a158a478178e062af286b0e1b3d22271d499"
+    },
+    {
+      "path": "rvc/infer/pipeline.py",
+      "sha256": "9c146b4bca8f6c7373c204f46e1c30edcd97c5b567d30851e33e945b55a8978a"
+    },
+    {
+      "path": "rvc/lib/algorithm/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rvc/lib/algorithm/attentions.py",
+      "sha256": "ae000916e1167b318eb826903e320c5f7954d50a5fc6f7114a595fc3fb2ad3d5"
+    },
+    {
+      "path": "rvc/lib/algorithm/commons.py",
+      "sha256": "6c46bcaa281eda218f1138beb5dc0704b2f4890d7f9033f2f6ecb8c425b6a1e9"
+    },
+    {
+      "path": "rvc/lib/algorithm/discriminators.py",
+      "sha256": "e936ec7254a22b9b1f449fa1b6b2a6441717cb7f2336478b5acd652fb1f36044"
+    },
+    {
+      "path": "rvc/lib/algorithm/encoders.py",
+      "sha256": "3f5fddd682166d6257c04b3bec94acd1bd0a81c78ae8e8803d62b9150a7546b8"
+    },
+    {
+      "path": "rvc/lib/algorithm/generators/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rvc/lib/algorithm/generators/hifigan.py",
+      "sha256": "69cb9d1f758abc7e68b5e13db80ef8d6113fbd3956f0449bbee1b06183586504"
+    },
+    {
+      "path": "rvc/lib/algorithm/generators/hifigan_mrf.py",
+      "sha256": "ad18870a4d4cdb11574d41908b118d75961256533575d27cfec6b668122c7a82"
+    },
+    {
+      "path": "rvc/lib/algorithm/generators/hifigan_nsf.py",
+      "sha256": "a7853908f64c4f928e61255e950f748f3551c50433be70dc7602587a1808cb07"
+    },
+    {
+      "path": "rvc/lib/algorithm/generators/refinegan.py",
+      "sha256": "5beeb49cc462d7d5b5423bffff3f8512cb008743846b9ed227cd95d3fcba4703"
+    },
+    {
+      "path": "rvc/lib/algorithm/modules.py",
+      "sha256": "0c4258eda66d40b810a2b6319f6ea34e0512e6363b8730d28dd7f718ef7dbd78"
+    },
+    {
+      "path": "rvc/lib/algorithm/normalization.py",
+      "sha256": "0f076772bb69c65907928d671d0f5fe56c8a98e7df3fb1a0cd73fa61a392571a"
+    },
+    {
+      "path": "rvc/lib/algorithm/residuals.py",
+      "sha256": "d5ec8f61440bc640e6d25dc04f81c0f54bbd5348aba6520cc192f377a41820a6"
+    },
+    {
+      "path": "rvc/lib/algorithm/synthesizers.py",
+      "sha256": "79447e987f624aa78f12f707a97ce2ac36b25da623a7e807a4b3518009c225c9"
+    },
+    {
+      "path": "rvc/lib/platform.py",
+      "sha256": "3ef5a87f6395bcee941fc48bb006e40f9caac12f2e42968f3446f3f5dc5bee6f"
+    },
+    {
+      "path": "rvc/lib/predictors/f0.py",
+      "sha256": "7aed5c2f59b9c8748b766c3282726e82cb79ab77aafb4aca6bd93a68a2566f15"
+    },
+    {
+      "path": "rvc/lib/predictors/F0Extractor.py",
+      "sha256": "34c097710c10b622463c55a5bb07a1c69493663e63133dbe73586f885707f779"
+    },
+    {
+      "path": "rvc/lib/predictors/FCPE.py",
+      "sha256": "53de04823df43186f89a541ff9594d2961c714a32ae6d5d96a563752cc089fd8"
+    },
+    {
+      "path": "rvc/lib/predictors/RMVPE.py",
+      "sha256": "9f2886c516bdf10ce639fbf8d6c1f3fe20ef455fc2a97203ad85863d40dee30e"
+    },
+    {
+      "path": "rvc/lib/utils.py",
+      "sha256": "c374d066e2bc30feee24b95fc6a03c321a77121d92d5d40541bde247ae69273c"
+    },
+    {
+      "path": "rvc/lib/zluda.py",
+      "sha256": "8d11178f07e41422e218a15772b5bc938c10437f39ec4879dc7d1b68e0c44383"
+    },
+    {
+      "path": "TERMS_OF_USE.md",
+      "sha256": "f69d6a9b365f5aea516531d70851d0c893563e37046f186f12e2ec895bc5a4dd"
+    }
+  ]
+}

@@ -40,13 +40,15 @@ def write_json(path, value):
 
 
 def resource_config(request=None):
-    return read_json((request or {}).get("resource_config_path") or ROOT / "engine-envs" / "resources.json")
+    sys.path.insert(0, str(ROOT))
+    from services.orchestrator.resource_paths import resolve_resources
+    return resolve_resources(read_json((request or {}).get("resource_config_path") or ROOT / "engine-envs" / "resources.json"), ROOT)
 
 
 def verify_environment_lock(engine):
     """Detect updates to reused runtimes instead of silently running a new version."""
     import importlib.metadata as metadata
-    locks=read_json(ROOT/'engine-envs/locked-environments.json')
+    locks=read_json(resource_config().get('environment_lock_path') or ROOT/'engine-envs/locked-environments.json')
     key='separation' if engine in ('separation','svs') else 'rvc'
     expected=locks[key]['packages']
     differences=[]

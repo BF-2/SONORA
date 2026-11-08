@@ -50,6 +50,8 @@ def render(request):
         raise ValueError('Retrieval index changed; re-register model')
     if index_rate:
         import faiss
+        from workers.faiss_io import enable_unicode_paths
+        enable_unicode_paths(faiss)
         check_index=faiss.read_index(model['index_path'])
         if check_index.d!=model['content_dim'] or check_index.ntotal<8:
             raise ValueError('Retrieval index dimension/count incompatible with model')

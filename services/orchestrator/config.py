@@ -2,6 +2,7 @@ from pathlib import Path
 import json
 import os
 import shutil
+from .resource_paths import resolve_resources
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = Path(os.environ.get('SONORA_DATA', str(ROOT / 'runtime'))).resolve()
@@ -18,7 +19,7 @@ for folder in ('cache', 'jobs', 'exports', 'uploads', 'backups'):
 
 def resources():
     p = ROOT / 'engine-envs/resources.json'
-    return json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}
+    return resolve_resources(json.loads(p.read_text(encoding='utf-8')), ROOT) if p.exists() else {}
 
 def binary(name):
     configured = resources().get(name)

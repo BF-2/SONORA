@@ -8,6 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $sonoraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $sonoraPython = Join-Path $sonoraRoot '.venv\Scripts\python.exe'
+$sonoraPythons = @($sonoraPython, (Join-Path $sonoraRoot '.tools\runtimes\core\python.exe'))
+if (Test-Path -LiteralPath $sonoraPythons[1]) { $sonoraPython = $sonoraPythons[1] }
 if (-not $DataRoot) { $DataRoot = Join-Path $sonoraRoot 'runtime' }
 $sonoraDb = Join-Path ([IO.Path]::GetFullPath($DataRoot)) 'sonora.sqlite'
 $sonoraEndpoint = "http://127.0.0.1:$Port/api/v1"
@@ -39,7 +41,7 @@ function Get-SonoraTargets {
         for ($depth = 0; $depth -lt 8 -and $null -ne $cursor; $depth++) {
             if ($seen.ContainsKey([int]$cursor.ProcessId)) { break }
             $seen[[int]$cursor.ProcessId] = $true
-            if ($cursor.ExecutablePath -ieq $sonoraPython -and (Test-SonoraCommand $cursor)) {
+            if ($cursor.ExecutablePath -in $sonoraPythons -and (Test-SonoraCommand $cursor)) {
                 $verified = $true
                 $target = $cursor
             }

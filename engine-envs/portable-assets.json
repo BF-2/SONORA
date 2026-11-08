@@ -1,0 +1,732 @@
+{
+  "schema_version": 1,
+  "python_version": "3.12.12",
+  "uv": {
+    "version": "0.13.7",
+    "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-pc-windows-msvc.zip",
+    "sha256": "0cdc5b38fe5a8168ed6a25814f5ba43c21d313dd3187314fccb37b7cec46e021",
+    "executable_sha256": "1791d7a9ed5b6df13ccf80f102e025c333010d96326b4ff0262aa3b578835c5a",
+    "bytes": 15236317
+  },
+  "python_probe": "20260211/cpython-3.12.12%2B20260211-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+  "mirrors": {
+    "github": [
+      "https://ghfast.top/",
+      "https://gh-proxy.com/"
+    ],
+    "huggingface": [
+      "https://hf-mirror.com"
+    ],
+    "pypi": [
+      "https://pypi.tuna.tsinghua.edu.cn/simple",
+      "https://mirrors.aliyun.com/pypi/simple"
+    ],
+    "npm": [
+      "https://registry.npmmirror.com"
+    ]
+  },
+  "ffmpeg": {
+    "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip",
+    "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba",
+    "bytes": 114768076
+  },
+  "node": {
+    "version": "22.23.4",
+    "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-x64.zip",
+    "mirrors": [
+      "https://npmmirror.com/mirrors/node/v22.23.4/node-v22.23.4-win-x64.zip"
+    ],
+    "sha256": "cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20"
+  },
+  "files": [
+    {
+      "id": "pytorch_model.bin",
+      "groups": [
+        "rvc-base"
+      ],
+      "path": "resources/applio/rvc/models/embedders/contentvec/pytorch_model.bin",
+      "url": "https://huggingface.co/IAHispano/Applio/resolve/3ff370b7023086f57e200ef86a9a251ddf4da472/Resources/embedders/contentvec/pytorch_model.bin",
+      "bytes": 378342945,
+      "sha256": "d8dd400e054ddf4e6be75dab5a2549db748cc99e756a097c496c099f65a4854e"
+    },
+    {
+      "id": "rmvpe.pt",
+      "groups": [
+        "rvc-base"
+      ],
+      "path": "resources/applio/rvc/models/predictors/rmvpe.pt",
+      "url": "https://huggingface.co/IAHispano/Applio/resolve/3ff370b7023086f57e200ef86a9a251ddf4da472/Resources/predictors/rmvpe.pt",
+      "bytes": 181184272,
+      "sha256": "6d62215f4306e3ca278246188607209f09af3dc77ed4232efdd069798c4ec193"
+    },
+    {
+      "id": "fcpe.pt",
+      "groups": [
+        "rvc-base"
+      ],
+      "path": "resources/applio/rvc/models/predictors/fcpe.pt",
+      "url": "https://huggingface.co/IAHispano/Applio/resolve/3ff370b7023086f57e200ef86a9a251ddf4da472/Resources/predictors/fcpe.pt",
+      "bytes": 43362881,
+      "sha256": "8544427eebbf2baef6213cc9a05057e46961617a8e5bd96975a0d42da6a09059"
+    },
+    {
+      "id": "contentvec-config.json",
+      "groups": [
+        "rvc-base"
+      ],
+      "path": "resources/applio/rvc/models/embedders/contentvec/config.json",
+      "url": "bundled:vendor/model-configs/contentvec-config.json",
+      "bytes": 1388,
+      "sha256": "2ddde063b795d38d9051a7215a092fecf4cfe148b54251e38de51d88d356898b"
+    },
+    {
+      "id": "mel_band_roformer_vocals_fv4_gabox",
+      "groups": [
+        "base"
+      ],
+      "path": "resources/separation/mel_band_roformer_vocals_fv4_gabox.ckpt",
+      "url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_vocals_fv4_gabox.ckpt",
+      "bytes": 913026650,
+      "sha256": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc"
+    },
+    {
+      "id": "config_mel_band_roformer_vocals_gabox.yaml",
+      "groups": [
+        "base"
+      ],
+      "path": "resources/separation/config_mel_band_roformer_vocals_gabox.yaml",
+      "url": "bundled:vendor/model-configs/config_mel_band_roformer_vocals_gabox.yaml",
+      "bytes": 968,
+      "sha256": "32419582fa8c313199ab49be8f5cb2b5e3860769ca045b4788a960d72140cd39"
+    },
+    {
+      "id": "melband-karaoke-aufr33-viperx-10.1956",
+      "groups": [
+        "base"
+      ],
+      "path": "resources/separation/harmony/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+      "url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+      "bytes": 913096801,
+      "sha256": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813"
+    },
+    {
+      "id": "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "groups": [
+        "base"
+      ],
+      "path": "resources/separation/harmony/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "url": "bundled:vendor/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "bytes": 1726,
+      "sha256": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b"
+    },
+    {
+      "id": "melband-karaoke-gabox-v2",
+      "groups": [
+        "base"
+      ],
+      "path": "resources/separation/harmony/mel_band_roformer_karaoke_gabox_v2.ckpt",
+      "url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_gabox_v2.ckpt",
+      "bytes": 913090472,
+      "sha256": "ec34be50327aeaf1a996c27977f5c30d1ac80c0076d69683d3e5184c31ea29d3"
+    },
+    {
+      "id": "config_mel_band_roformer_karaoke_gabox.yaml",
+      "groups": [
+        "base"
+      ],
+      "path": "resources/separation/harmony/config_mel_band_roformer_karaoke_gabox.yaml",
+      "url": "bundled:vendor/model-configs/config_mel_band_roformer_karaoke_gabox.yaml",
+      "bytes": 1811,
+      "sha256": "16b726891076fd0bebab9ce038240b51afb22b04eac6026a7f0356178dcb65b7"
+    },
+    {
+      "id": "haysay_twilight_sparkle-weights",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/twilight_sparkle/MLP03TwilightSparkle.pth",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Twilight%20Sparkle/MLP03TwilightSparkle.pth",
+      "bytes": 57588542,
+      "sha256": "1d35ff6051c8326717e74f9406e05d5e336d25f3c2b4df75dd291368c4d48f5e"
+    },
+    {
+      "id": "haysay_twilight_sparkle-index",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/twilight_sparkle/added_IVF302_Flat_nprobe_1_MLP03TwilightSparkle_v2.index",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Twilight%20Sparkle/added_IVF302_Flat_nprobe_1_MLP03TwilightSparkle_v2.index",
+      "bytes": 37246579,
+      "sha256": "9a8bea0665b8c71a142c88ed644537dfecde7ea4255b45b8b9f18f171d836b74"
+    },
+    {
+      "id": "haysay_rainbow_dash-weights",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/rainbow_dash/MLP05RainbowDash.pth",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Rainbow%20Dash/MLP05RainbowDash.pth",
+      "bytes": 57586706,
+      "sha256": "d1636e0dca6d58f2411e4de57686d18699a272f531fe961dd147385fb4c3e8f8"
+    },
+    {
+      "id": "haysay_rainbow_dash-index",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/rainbow_dash/added_IVF207_Flat_nprobe_1_MLP05RainbowDash_v2.index",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Rainbow%20Dash/added_IVF207_Flat_nprobe_1_MLP05RainbowDash_v2.index",
+      "bytes": 25576459,
+      "sha256": "50cfc2d3a3a3760a5531d38376f9e03b83944becb180236250616654e4aa34c7"
+    },
+    {
+      "id": "haysay_fluttershy-weights",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/fluttershy/Fluttershy_e500.pth",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Fluttershy/Fluttershy_e500.pth",
+      "bytes": 55226951,
+      "sha256": "5b32656d67eb0fa5883c0de38ef43094b6cf116bce607d1a7e6b4317d63c6729"
+    },
+    {
+      "id": "haysay_fluttershy-index",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/fluttershy/added_IVF3345_Flat_nprobe_1.index",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Fluttershy/added_IVF3345_Flat_nprobe_1.index",
+      "bytes": 412184219,
+      "sha256": "eb0cba497a1fcddb77cf9386e8512c006ca58acfad82e32c270f93eb4b51e4c6"
+    },
+    {
+      "id": "haysay_rarity-weights",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/rarity/MLP06Rarity.pth",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Rarity/MLP06Rarity.pth",
+      "bytes": 57584411,
+      "sha256": "869f1809004b82af7d08e0ce25947859139488199bd5b252e2acd4ca8dc966c2"
+    },
+    {
+      "id": "haysay_rarity-index",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/rarity/added_IVF293_Flat_nprobe_1_MLP06Rarity_v2.index",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Rarity/added_IVF293_Flat_nprobe_1_MLP06Rarity_v2.index",
+      "bytes": 36137779,
+      "sha256": "a041af9fe4af2c9ba5b9c48a9efcd784a93e72aae79993234650675a1cfcf05c"
+    },
+    {
+      "id": "haysay_pinkie_pie-weights",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/pinkie_pie/MLP07PinkiePie.pth",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Pinkie%20Pie%20%28alt%202%29/MLP07PinkiePie.pth",
+      "bytes": 57585788,
+      "sha256": "898127371bc0921f4ac8dc4309fed87a26fff3cbd18018065e9ee27f4eadd189"
+    },
+    {
+      "id": "haysay_pinkie_pie-index",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/pinkie_pie/added_IVF382_Flat_nprobe_1_MLP07PinkiePie_v2.index",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Pinkie%20Pie%20%28alt%202%29/added_IVF382_Flat_nprobe_1_MLP07PinkiePie_v2.index",
+      "bytes": 47102579,
+      "sha256": "80bfd4fe671e6122f671200917c5c740d92089fe6e4687667ef6e5fb6cb08ff5"
+    },
+    {
+      "id": "haysay_applejack-weights",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/applejack/MLP04Applejack.pth",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Applejack%20%28alt%202%29/MLP04Applejack.pth",
+      "bytes": 57579388,
+      "sha256": "311bf5744a41fb75dac5f1c31f7201d56e5003832c9e3f053f7623ca0500e900"
+    },
+    {
+      "id": "haysay_applejack-index",
+      "groups": [
+        "m6"
+      ],
+      "path": "resources/models/haysay/applejack/added_IVF390_Flat_nprobe_1_MLP04Applejack_v2.index",
+      "url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Applejack%20%28alt%202%29/added_IVF390_Flat_nprobe_1_MLP04Applejack_v2.index",
+      "bytes": 48085099,
+      "sha256": "acff23b9092161554a8d2f5d950753977ea072978d97b3ab69a62980cf1b5087"
+    }
+  ],
+  "separators": [
+    {
+      "id": "mel_band_roformer_vocals_fv4_gabox",
+      "name": "mel_band_roformer_vocals_fv4_gabox",
+      "model_hash": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc",
+      "config_hash": "32419582fa8c313199ab49be8f5cb2b5e3860769ca045b4788a960d72140cd39",
+      "stem_roles": {
+        "Vocals": "vocal",
+        "Instrumental": "instrumental"
+      },
+      "sample_rate": 44100,
+      "path": "./resources/separation/mel_band_roformer_vocals_fv4_gabox.ckpt",
+      "config_path": "./resources/separation/config_mel_band_roformer_vocals_gabox.yaml",
+      "test_status": "hash_verified",
+      "task": "vocals_instrumental"
+    },
+    {
+      "id": "melband-karaoke-aufr33-viperx-10.1956",
+      "name": "MelBand RoFormer Karaoke · aufr33 & viperx",
+      "task": "lead_backing",
+      "engine_id": "audio-separator",
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "sample_rate": 44100,
+      "native_stem_roles": {
+        "Vocals": "lead_vocal",
+        "Instrumental": "backing_vocal"
+      },
+      "stem_roles": {
+        "Vocals": "lead_vocal",
+        "Instrumental": "backing_vocal"
+      },
+      "native_target": "Vocals",
+      "residual_native_stem": "Instrumental",
+      "required_input_role": "combined_vocals",
+      "semantic_sources": [
+        "https://mvsep.com/algorithms/76",
+        "https://raw.githubusercontent.com/nomadkaraoke/python-audio-separator/v0.44.2/audio_separator/models.json",
+        "https://raw.githubusercontent.com/nomadkaraoke/python-audio-separator/v0.44.2/audio_separator/ensemble_presets.json"
+      ],
+      "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+      "config_source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "path": "./resources/separation/harmony/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+      "config_path": "./resources/separation/harmony/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "test_status": "hash_verified"
+    },
+    {
+      "id": "melband-karaoke-gabox-v2",
+      "name": "MelBand RoFormer Karaoke V2 · Gabox",
+      "task": "lead_backing",
+      "engine_id": "audio-separator",
+      "model_hash": "ec34be50327aeaf1a996c27977f5c30d1ac80c0076d69683d3e5184c31ea29d3",
+      "config_hash": "16b726891076fd0bebab9ce038240b51afb22b04eac6026a7f0356178dcb65b7",
+      "sample_rate": 44100,
+      "native_stem_roles": {
+        "Vocals": "lead_vocal",
+        "Instrumental": "backing_vocal"
+      },
+      "stem_roles": {
+        "Vocals": "lead_vocal",
+        "Instrumental": "backing_vocal"
+      },
+      "native_target": "Vocals",
+      "residual_native_stem": "Instrumental",
+      "required_input_role": "combined_vocals",
+      "semantic_sources": [
+        "https://github.com/nomadkaraoke/python-audio-separator/blob/v0.44.2/audio_separator/models.json",
+        "https://github.com/nomadkaraoke/python-audio-separator/blob/main/docs/deton24-model-mapping-and-ensemble-guide.md"
+      ],
+      "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_gabox_v2.ckpt",
+      "config_source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/config_mel_band_roformer_karaoke_gabox.yaml",
+      "architecture": "MelBand RoFormer",
+      "path": "./resources/separation/harmony/mel_band_roformer_karaoke_gabox_v2.ckpt",
+      "config_path": "./resources/separation/harmony/config_mel_band_roformer_karaoke_gabox.yaml",
+      "test_status": "hash_verified"
+    }
+  ],
+  "voices": [
+    {
+      "engine_id": "rvc",
+      "architecture": "RVC-v2",
+      "sample_rate": 48000,
+      "content_dim": 768,
+      "f0_conditioned": true,
+      "vocoder": "HiFi-GAN",
+      "embedding_speaker_capacity": 109,
+      "epoch": 200,
+      "epoch_source": "checkpoint_info",
+      "metadata_globals": [
+        "collections OrderedDict",
+        "torch HalfStorage",
+        "torch._utils _rebuild_tensor_v2"
+      ],
+      "speaker_ids": [
+        0
+      ],
+      "speaker_ids_trained": [
+        0
+      ],
+      "speaker_metadata_status": "verified_inference_profile",
+      "capabilities": {
+        "voice_conversion": true,
+        "singing_conversion": true,
+        "external_f0": true,
+        "svs": false,
+        "streaming": false,
+        "local_segment_render": false,
+        "notes": false,
+        "phoneme_timing": false,
+        "training": false,
+        "cancel_mode": "terminate_process"
+      },
+      "model_hash": "1d35ff6051c8326717e74f9406e05d5e336d25f3c2b4df75dd291368c4d48f5e",
+      "id": "haysay_twilight_sparkle",
+      "name": "暮光闪闪 · Twilight Sparkle · Hay Say",
+      "provider": "haysay",
+      "role": "twilight_sparkle",
+      "index_hash": "9a8bea0665b8c71a142c88ed644537dfecde7ea4255b45b8b9f18f171d836b74",
+      "origin_url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Twilight%20Sparkle/MLP03TwilightSparkle.pth",
+      "source_repository": "hydrusbeta/hay_say_reuploaded_models",
+      "source_revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+      "engine_revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+      "inference_schema_version": 1,
+      "embedder_model": "contentvec",
+      "embedder_verified": true,
+      "path": "./resources/models/haysay/twilight_sparkle/MLP03TwilightSparkle.pth",
+      "index_path": "./resources/models/haysay/twilight_sparkle/added_IVF302_Flat_nprobe_1_MLP03TwilightSparkle_v2.index",
+      "origin_path": "./resources/models/haysay/twilight_sparkle/MLP03TwilightSparkle.pth",
+      "test_status": "safe_probe_passed",
+      "inference_profile": {
+        "model_sha256": "1d35ff6051c8326717e74f9406e05d5e336d25f3c2b4df75dd291368c4d48f5e",
+        "status": "verified_local_inference",
+        "supported_speaker_ids": [
+          0
+        ],
+        "embedder_model": "contentvec",
+        "evidence": {
+          "repository": "hydrusbeta/hay_say_reuploaded_models",
+          "revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+          "source": "Hash-pinned Hay Say model and paired index"
+        }
+      }
+    },
+    {
+      "engine_id": "rvc",
+      "architecture": "RVC-v2",
+      "sample_rate": 48000,
+      "content_dim": 768,
+      "f0_conditioned": true,
+      "vocoder": "HiFi-GAN",
+      "embedding_speaker_capacity": 109,
+      "epoch": 200,
+      "epoch_source": "checkpoint_info",
+      "metadata_globals": [
+        "collections OrderedDict",
+        "torch HalfStorage",
+        "torch._utils _rebuild_tensor_v2"
+      ],
+      "speaker_ids": [
+        0
+      ],
+      "speaker_ids_trained": [
+        0
+      ],
+      "speaker_metadata_status": "verified_inference_profile",
+      "capabilities": {
+        "voice_conversion": true,
+        "singing_conversion": true,
+        "external_f0": true,
+        "svs": false,
+        "streaming": false,
+        "local_segment_render": false,
+        "notes": false,
+        "phoneme_timing": false,
+        "training": false,
+        "cancel_mode": "terminate_process"
+      },
+      "model_hash": "d1636e0dca6d58f2411e4de57686d18699a272f531fe961dd147385fb4c3e8f8",
+      "id": "haysay_rainbow_dash",
+      "name": "云宝 · Rainbow Dash · Hay Say",
+      "provider": "haysay",
+      "role": "rainbow_dash",
+      "index_hash": "50cfc2d3a3a3760a5531d38376f9e03b83944becb180236250616654e4aa34c7",
+      "origin_url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Rainbow%20Dash/MLP05RainbowDash.pth",
+      "source_repository": "hydrusbeta/hay_say_reuploaded_models",
+      "source_revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+      "engine_revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+      "inference_schema_version": 1,
+      "embedder_model": "contentvec",
+      "embedder_verified": true,
+      "path": "./resources/models/haysay/rainbow_dash/MLP05RainbowDash.pth",
+      "index_path": "./resources/models/haysay/rainbow_dash/added_IVF207_Flat_nprobe_1_MLP05RainbowDash_v2.index",
+      "origin_path": "./resources/models/haysay/rainbow_dash/MLP05RainbowDash.pth",
+      "test_status": "safe_probe_passed",
+      "inference_profile": {
+        "model_sha256": "d1636e0dca6d58f2411e4de57686d18699a272f531fe961dd147385fb4c3e8f8",
+        "status": "verified_local_inference",
+        "supported_speaker_ids": [
+          0
+        ],
+        "embedder_model": "contentvec",
+        "evidence": {
+          "repository": "hydrusbeta/hay_say_reuploaded_models",
+          "revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+          "source": "Hash-pinned Hay Say model and paired index"
+        }
+      }
+    },
+    {
+      "engine_id": "rvc",
+      "architecture": "RVC-v2",
+      "sample_rate": 40000,
+      "content_dim": 768,
+      "f0_conditioned": true,
+      "vocoder": "HiFi-GAN",
+      "embedding_speaker_capacity": 109,
+      "epoch": 500,
+      "epoch_source": "checkpoint_info",
+      "metadata_globals": [
+        "collections OrderedDict",
+        "torch HalfStorage",
+        "torch._utils _rebuild_tensor_v2"
+      ],
+      "speaker_ids": [
+        0
+      ],
+      "speaker_ids_trained": [
+        0
+      ],
+      "speaker_metadata_status": "verified_inference_profile",
+      "capabilities": {
+        "voice_conversion": true,
+        "singing_conversion": true,
+        "external_f0": true,
+        "svs": false,
+        "streaming": false,
+        "local_segment_render": false,
+        "notes": false,
+        "phoneme_timing": false,
+        "training": false,
+        "cancel_mode": "terminate_process"
+      },
+      "model_hash": "5b32656d67eb0fa5883c0de38ef43094b6cf116bce607d1a7e6b4317d63c6729",
+      "id": "haysay_fluttershy",
+      "name": "柔柔 · Fluttershy · Hay Say",
+      "provider": "haysay",
+      "role": "fluttershy",
+      "index_hash": "eb0cba497a1fcddb77cf9386e8512c006ca58acfad82e32c270f93eb4b51e4c6",
+      "origin_url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Fluttershy/Fluttershy_e500.pth",
+      "source_repository": "hydrusbeta/hay_say_reuploaded_models",
+      "source_revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+      "engine_revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+      "inference_schema_version": 1,
+      "embedder_model": "contentvec",
+      "embedder_verified": true,
+      "path": "./resources/models/haysay/fluttershy/Fluttershy_e500.pth",
+      "index_path": "./resources/models/haysay/fluttershy/added_IVF3345_Flat_nprobe_1.index",
+      "origin_path": "./resources/models/haysay/fluttershy/Fluttershy_e500.pth",
+      "test_status": "safe_probe_passed",
+      "inference_profile": {
+        "model_sha256": "5b32656d67eb0fa5883c0de38ef43094b6cf116bce607d1a7e6b4317d63c6729",
+        "status": "verified_local_inference",
+        "supported_speaker_ids": [
+          0
+        ],
+        "embedder_model": "contentvec",
+        "evidence": {
+          "repository": "hydrusbeta/hay_say_reuploaded_models",
+          "revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+          "source": "Hash-pinned Hay Say model and paired index"
+        }
+      }
+    },
+    {
+      "engine_id": "rvc",
+      "architecture": "RVC-v2",
+      "sample_rate": 48000,
+      "content_dim": 768,
+      "f0_conditioned": true,
+      "vocoder": "HiFi-GAN",
+      "embedding_speaker_capacity": 109,
+      "epoch": 200,
+      "epoch_source": "checkpoint_info",
+      "metadata_globals": [
+        "collections OrderedDict",
+        "torch HalfStorage",
+        "torch._utils _rebuild_tensor_v2"
+      ],
+      "speaker_ids": [
+        0
+      ],
+      "speaker_ids_trained": [
+        0
+      ],
+      "speaker_metadata_status": "verified_inference_profile",
+      "capabilities": {
+        "voice_conversion": true,
+        "singing_conversion": true,
+        "external_f0": true,
+        "svs": false,
+        "streaming": false,
+        "local_segment_render": false,
+        "notes": false,
+        "phoneme_timing": false,
+        "training": false,
+        "cancel_mode": "terminate_process"
+      },
+      "model_hash": "869f1809004b82af7d08e0ce25947859139488199bd5b252e2acd4ca8dc966c2",
+      "id": "haysay_rarity",
+      "name": "珍奇 · Rarity · Hay Say",
+      "provider": "haysay",
+      "role": "rarity",
+      "index_hash": "a041af9fe4af2c9ba5b9c48a9efcd784a93e72aae79993234650675a1cfcf05c",
+      "origin_url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Rarity/MLP06Rarity.pth",
+      "source_repository": "hydrusbeta/hay_say_reuploaded_models",
+      "source_revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+      "engine_revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+      "inference_schema_version": 1,
+      "embedder_model": "contentvec",
+      "embedder_verified": true,
+      "path": "./resources/models/haysay/rarity/MLP06Rarity.pth",
+      "index_path": "./resources/models/haysay/rarity/added_IVF293_Flat_nprobe_1_MLP06Rarity_v2.index",
+      "origin_path": "./resources/models/haysay/rarity/MLP06Rarity.pth",
+      "test_status": "safe_probe_passed",
+      "inference_profile": {
+        "model_sha256": "869f1809004b82af7d08e0ce25947859139488199bd5b252e2acd4ca8dc966c2",
+        "status": "verified_local_inference",
+        "supported_speaker_ids": [
+          0
+        ],
+        "embedder_model": "contentvec",
+        "evidence": {
+          "repository": "hydrusbeta/hay_say_reuploaded_models",
+          "revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+          "source": "Hash-pinned Hay Say model and paired index"
+        }
+      }
+    },
+    {
+      "engine_id": "rvc",
+      "architecture": "RVC-v2",
+      "sample_rate": 48000,
+      "content_dim": 768,
+      "f0_conditioned": true,
+      "vocoder": "HiFi-GAN",
+      "embedding_speaker_capacity": 109,
+      "epoch": 200,
+      "epoch_source": "checkpoint_info",
+      "metadata_globals": [
+        "collections OrderedDict",
+        "torch HalfStorage",
+        "torch._utils _rebuild_tensor_v2"
+      ],
+      "speaker_ids": [
+        0
+      ],
+      "speaker_ids_trained": [
+        0
+      ],
+      "speaker_metadata_status": "verified_inference_profile",
+      "capabilities": {
+        "voice_conversion": true,
+        "singing_conversion": true,
+        "external_f0": true,
+        "svs": false,
+        "streaming": false,
+        "local_segment_render": false,
+        "notes": false,
+        "phoneme_timing": false,
+        "training": false,
+        "cancel_mode": "terminate_process"
+      },
+      "model_hash": "898127371bc0921f4ac8dc4309fed87a26fff3cbd18018065e9ee27f4eadd189",
+      "id": "haysay_pinkie_pie",
+      "name": "碧琪 · Pinkie Pie · Hay Say",
+      "provider": "haysay",
+      "role": "pinkie_pie",
+      "index_hash": "80bfd4fe671e6122f671200917c5c740d92089fe6e4687667ef6e5fb6cb08ff5",
+      "origin_url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Pinkie%20Pie%20%28alt%202%29/MLP07PinkiePie.pth",
+      "source_repository": "hydrusbeta/hay_say_reuploaded_models",
+      "source_revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+      "engine_revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+      "inference_schema_version": 1,
+      "embedder_model": "contentvec",
+      "embedder_verified": true,
+      "path": "./resources/models/haysay/pinkie_pie/MLP07PinkiePie.pth",
+      "index_path": "./resources/models/haysay/pinkie_pie/added_IVF382_Flat_nprobe_1_MLP07PinkiePie_v2.index",
+      "origin_path": "./resources/models/haysay/pinkie_pie/MLP07PinkiePie.pth",
+      "test_status": "safe_probe_passed",
+      "inference_profile": {
+        "model_sha256": "898127371bc0921f4ac8dc4309fed87a26fff3cbd18018065e9ee27f4eadd189",
+        "status": "verified_local_inference",
+        "supported_speaker_ids": [
+          0
+        ],
+        "embedder_model": "contentvec",
+        "evidence": {
+          "repository": "hydrusbeta/hay_say_reuploaded_models",
+          "revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+          "source": "Hash-pinned Hay Say model and paired index"
+        }
+      }
+    },
+    {
+      "engine_id": "rvc",
+      "architecture": "RVC-v2",
+      "sample_rate": 48000,
+      "content_dim": 768,
+      "f0_conditioned": true,
+      "vocoder": "HiFi-GAN",
+      "embedding_speaker_capacity": 109,
+      "epoch": null,
+      "epoch_source": "unknown",
+      "metadata_globals": [
+        "collections OrderedDict",
+        "torch HalfStorage",
+        "torch._utils _rebuild_tensor_v2"
+      ],
+      "speaker_ids": [
+        0
+      ],
+      "speaker_ids_trained": [
+        0
+      ],
+      "speaker_metadata_status": "verified_inference_profile",
+      "capabilities": {
+        "voice_conversion": true,
+        "singing_conversion": true,
+        "external_f0": true,
+        "svs": false,
+        "streaming": false,
+        "local_segment_render": false,
+        "notes": false,
+        "phoneme_timing": false,
+        "training": false,
+        "cancel_mode": "terminate_process"
+      },
+      "model_hash": "311bf5744a41fb75dac5f1c31f7201d56e5003832c9e3f053f7623ca0500e900",
+      "id": "haysay_applejack",
+      "name": "苹果嘉儿 · Applejack · Hay Say",
+      "provider": "haysay",
+      "role": "applejack",
+      "index_hash": "acff23b9092161554a8d2f5d950753977ea072978d97b3ab69a62980cf1b5087",
+      "origin_url": "https://huggingface.co/hydrusbeta/hay_say_reuploaded_models/resolve/616ce3dbe9d1ce41861de3d1867c6bbe80f62408/rvc/Applejack%20%28alt%202%29/MLP04Applejack.pth",
+      "source_repository": "hydrusbeta/hay_say_reuploaded_models",
+      "source_revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+      "engine_revision": "0724dd7737e8e155ed8385b420fb73fd080fcdd3",
+      "inference_schema_version": 1,
+      "embedder_model": "contentvec",
+      "embedder_verified": true,
+      "path": "./resources/models/haysay/applejack/MLP04Applejack.pth",
+      "index_path": "./resources/models/haysay/applejack/added_IVF390_Flat_nprobe_1_MLP04Applejack_v2.index",
+      "origin_path": "./resources/models/haysay/applejack/MLP04Applejack.pth",
+      "test_status": "safe_probe_passed",
+      "inference_profile": {
+        "model_sha256": "311bf5744a41fb75dac5f1c31f7201d56e5003832c9e3f053f7623ca0500e900",
+        "status": "verified_local_inference",
+        "supported_speaker_ids": [
+          0
+        ],
+        "embedder_model": "contentvec",
+        "evidence": {
+          "repository": "hydrusbeta/hay_say_reuploaded_models",
+          "revision": "616ce3dbe9d1ce41861de3d1867c6bbe80f62408",
+          "source": "Hash-pinned Hay Say model and paired index"
+        }
+      }
+    }
+  ]
+}

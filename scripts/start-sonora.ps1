@@ -8,6 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $sonoraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $sonoraPython = Join-Path $sonoraRoot '.venv\Scripts\python.exe'
+$sonoraPortablePython = Join-Path $sonoraRoot '.tools\runtimes\core\python.exe'
+if (Test-Path -LiteralPath $sonoraPortablePython) { $sonoraPython = $sonoraPortablePython }
 $sonoraExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora.exe'
 $sonoraHarmonyExe = Join-Path $sonoraRoot 'apps\desktop\target\release\sonora-harmony.exe'
 if (Test-Path -LiteralPath $sonoraHarmonyExe) { $sonoraExe = $sonoraHarmonyExe }
@@ -29,11 +31,16 @@ if (-not $Browser -and (Test-Path -LiteralPath $sonoraExe)) {
     exit
 }
 
-if (-not (Test-Path -LiteralPath $sonoraPython)) {
-    throw 'Missing .venv\Scripts\python.exe. Prepare the SONORA core environment using README first.'
-}
-if (-not (Test-Path -LiteralPath (Join-Path $sonoraRoot 'apps\web\dist\index.html'))) {
-    throw 'Missing web build. Run npm --prefix apps/web ci and npm --prefix apps/web run build first.'
+if (-not (Test-Path -LiteralPath $sonoraPython) -or
+    -not (Test-Path -LiteralPath (Join-Path $sonoraRoot 'apps\web\dist\index.html')) -or
+    -not (Test-Path -LiteralPath (Join-Path $sonoraRoot 'engine-envs\resources.json'))) {
+    & (Join-Path $PSScriptRoot 'prepare-sonora.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Run the SONORA preparation launcher to finish setup.' }
+    if (Test-Path -LiteralPath $sonoraPortablePython) { $sonoraPython = $sonoraPortablePython }
+    if (-not (Test-Path -LiteralPath $sonoraPython) -or
+        -not (Test-Path -LiteralPath (Join-Path $sonoraRoot 'engine-envs\resources.json'))) {
+        throw 'SONORA setup was not completed.'
+    }
 }
 
 $sonoraListener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $sonoraPort)

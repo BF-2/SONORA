@@ -69,4 +69,25 @@ class SecurityContracts(unittest.TestCase):
             self.assertFalse(marker.exists())
 
 
+class FaissPathContracts(unittest.TestCase):
+    def test_unicode_index_load_keeps_search_results(self):
+        import faiss
+        from faiss_io import enable_unicode_paths
+        with tempfile.TemporaryDirectory(prefix='sonora-index-中文-') as directory:
+            source=faiss.IndexFlatL2(8)
+            vectors=np.arange(128,dtype=np.float32).reshape(16,8)
+            source.add(vectors)
+            path=Path(directory)/'配套模型.index'
+            path.write_bytes(faiss.serialize_index(source).tobytes())
+            enable_unicode_paths(faiss)
+            reader=faiss.read_index
+            enable_unicode_paths(faiss)
+            self.assertIs(reader,faiss.read_index)
+            loaded=faiss.read_index(str(path))
+            expected=source.search(vectors[:3],2)
+            actual=loaded.search(vectors[:3],2)
+            np.testing.assert_array_equal(actual[1],expected[1])
+            np.testing.assert_allclose(actual[0],expected[0])
+
+
 if __name__=='__main__': unittest.main()

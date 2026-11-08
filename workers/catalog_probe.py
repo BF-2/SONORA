@@ -174,6 +174,10 @@ def main():
     try:
         if args.index:
             import faiss
+            import sys
+            sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+            from workers.faiss_io import enable_unicode_paths
+            enable_unicode_paths(faiss)
             index=faiss.read_index(str(Path(args.path).resolve(strict=True)))
             result={'ok':True,'content_dim':int(index.d),'ntotal':int(index.ntotal),'trained':bool(index.is_trained),'fully_validated':True}
         else:result={'ok':True,**static_checkpoint(args.path)}

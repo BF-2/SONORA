@@ -2,6 +2,8 @@ node_modules/
 dist/
 target/
 .venv/
+.tools/
+releases/
 runtime/
 .old/
 resources/
