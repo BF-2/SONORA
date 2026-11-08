@@ -1,0 +1,20 @@
+[
+  {
+    "part": "lead_vocal",
+    "candidate_id": "candidate_955a0da0c2c246579edb",
+    "target_hash": "454745b444bc9bfca9f4f89eb8341833dcc65ee67774151e2f87d9209b812a92",
+    "requested_f0_hash": "454745b444bc9bfca9f4f89eb8341833dcc65ee67774151e2f87d9209b812a92",
+    "consumed_f0_hash": "b801e5361176931534f5be8d0c4808fb155360f13f0c1548cf168b63729f3da8",
+    "target_matches": true,
+    "edit_count": 1
+  },
+  {
+    "part": "backing_vocal",
+    "candidate_id": "candidate_2c6e694fc66845db93f5",
+    "target_hash": "6af9bc012214e380876bee41762f64453d51f84a7c11b5b19d741a6df89f8d16",
+    "requested_f0_hash": "6af9bc012214e380876bee41762f64453d51f84a7c11b5b19d741a6df89f8d16",
+    "consumed_f0_hash": "d9dbfad71795047afdb25f394204bf5ef0906c54a731feb2e9134eb519103e22",
+    "target_matches": true,
+    "edit_count": 1
+  }
+]

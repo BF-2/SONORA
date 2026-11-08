@@ -1,0 +1,107 @@
+{
+  "project_id": "project_a291a8e4f4404264a198",
+  "audio_fields_preserved": {
+    "assets": true,
+    "tracks": true,
+    "parameters": true,
+    "voice_parts": true,
+    "candidates": true,
+    "exports": true,
+    "graph": true,
+    "pitch_edits": true,
+    "notes": true,
+    "lyrics": true,
+    "model_bindings": true,
+    "selected_separations": true
+  },
+  "tested_visibility": {
+    "timeline_archived_track_ids": [
+      "track_02c0c9c498424161b087"
+    ],
+    "timeline_included_track_ids": [
+      "track_9cfad15527074db8bd49",
+      "track_f5b9485155524d25b822",
+      "track_898a5b431cd343b499da",
+      "track_0f44988a39d1495ba994",
+      "track_2dfa775ebf754e769f7a"
+    ]
+  },
+  "initial_import_rows": 15,
+  "fixed_import_rows": 1,
+  "individual_archive_reload_restore": true,
+  "active_mix_tracks_archived_and_restored": 4,
+  "mixer_channels_during_archive": 3,
+  "historical_track_rejoined": true,
+  "future_tracks_hidden_after_restore": true,
+  "dark_containers_after_fix": {
+    "import": 0,
+    "separation": 0,
+    "pitch": 0,
+    "notes": 0,
+    "conversion": 0,
+    "mix": 0,
+    "export": 0,
+    "models": 0,
+    "settings": 0,
+    "queue": 0
+  },
+  "regression": {
+    "python_passed": 29,
+    "timeline_checks_passed": 10
+  },
+  "qa_visibility_restored_to_initial": true,
+  "primary_scope_validation_http": 400,
+  "primary_restarted": true,
+  "date": "2026-11-02",
+  "canvas_colors": {
+    "import": {
+      "canvas": "rgb(251, 248, 253)",
+      "issueText": "rgb(104, 88, 114)",
+      "rows": 1,
+      "stat": "rgb(244, 239, 248)"
+    },
+    "soft": {
+      "background": "rgb(251, 248, 253)",
+      "target": "rgb(110, 79, 155)",
+      "targetPixels": 23940,
+      "theme": "soft"
+    },
+    "classic": {
+      "background": "rgb(26, 33, 28)",
+      "target": "rgb(197, 235, 133)",
+      "targetPixels": 24809,
+      "theme": "classic"
+    }
+  },
+  "surface_checks": [
+    {
+      "stage": "导入诊断",
+      "dark": []
+    },
+    {
+      "stage": "人声整理",
+      "dark": []
+    },
+    {
+      "stage": "音高与歌词",
+      "dark": []
+    },
+    {
+      "stage": "声音转换",
+      "dark": []
+    },
+    {
+      "stage": "混音",
+      "dark": []
+    },
+    {
+      "stage": "导出",
+      "dark": []
+    }
+  ],
+  "build": "passed",
+  "screenshots": [
+    "import-timeline-soft.png",
+    "pitch-soft.png"
+  ]
+}

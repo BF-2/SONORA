@@ -1,0 +1,19 @@
+{
+  "fixture": "controlled mixture of actual SVS outputs with known sources",
+  "results": {
+    "lead_vocal": {
+      "reference_lead_coefficient": -1.8064571614404261e-06,
+      "reference_backing_coefficient": -1.1836140221000948e-06,
+      "unexplained_rms": 1.074377680359046e-06,
+      "output_rms": 1.0957802476858362e-06
+    },
+    "backing_vocal": {
+      "reference_lead_coefficient": 1.0000018063222598,
+      "reference_backing_coefficient": 1.00000118357394,
+      "unexplained_rms": 1.0743892034517184e-06,
+      "output_rms": 0.12217906210396576
+    }
+  },
+  "interpretation": "This controlled synthetic singing mixture was not usefully isolated by this checkpoint; no quality acceptance inferred",
+  "labels_not_changed": true
+}

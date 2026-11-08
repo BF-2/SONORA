@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-31T03:29:26.065751-06:00",
+  "baseline": "5ead392",
+  "branch": "ux-rvc-versions",
+  "passed": true,
+  "native_ui_clicked": false,
+  "native_ui_reason": "User explicitly replaced native Windows click testing with browser testing.",
+  "automated": {
+    "passed": 124,
+    "failed": 0,
+    "groups": {
+      "core_domain_security_harmony_catalog_api_specialist": 85,
+      "rvc_parameters": 21,
+      "pitch_safe_loading": 7,
+      "svs_contracts": 5,
+      "separation_contracts": 6
+    }
+  },
+  "browser": {
+    "browser": "Chrome",
+    "development_url": "http://127.0.0.1:5173",
+    "production_url": "http://127.0.0.1:8767",
+    "project_id": "project_fa45fdffd95547d4bd7d",
+    "checks": [
+      "import_dry_vocal_to_export",
+      "six_stage_navigation_and_prerequisites",
+      "same_source_epoch_200_225_comparison",
+      "same_position_ab_and_rms_match",
+      "preview_settings_and_local_assembly",
+      "version_switch_undo",
+      "hash_search_direct_selection",
+      "favorites_default_personal_preset",
+      "unsupported_controls_explained",
+      "invalid_transpose_rejected",
+      "textbox_space_not_playback",
+      "blind_candidate_labels",
+      "390px_no_horizontal_overflow",
+      "production_bundle_load_and_exact_hash_restore"
+    ],
+    "evidence": [
+      "baseline-conversion-dom.txt",
+      "baseline-models-dom.txt",
+      "baseline-cover-dom.txt",
+      "final-narrow.jpg",
+      "final-model-versions.jpg",
+      "final-production-dom.txt",
+      "final-production.jpg"
+    ]
+  },
+  "real_inference": {
+    "passed": true,
+    "comparison": {
+      "model_hashes": [
+        "5e7588110efc8b5099199466f12630088b15a3052e05a9d8b59a35a3ef8b4836",
+        "6262634db8b2b7a8a17f5df7b1e5d0125c0bd9fdf68e0283f3d2abd398582393"
+      ],
+      "shared_source_hash": "3423dc7ba83d69791180f4c980453ba930a39428a162d874291c75b9106a7009",
+      "range_ticks": [
+        0,
+        384000
+      ],
+      "shared_requested_f0_hash": "8718c135a08cd9008aadbe3734dd8064a689cf7c63ce732296a179a21f97c1ed",
+      "shared_consumed_f0_hash": "c70ed1488b66846df9a4fec67cf12dbecb2b7f1bac5f66d5ddba7b34ded30fd6",
+      "output_rms_difference": 0.2744874815459699
+    },
+    "parameter_checks_passed": true,
+    "octave_response": {
+      "baseline_measured_hz": 223.3115498029366,
+      "shifted_measured_hz": 446.77785662600365,
+      "measured_cents": 1200.5997768938857
+    },
+    "locked_snapshot_exact": true,
+    "input_weights_unchanged": true,
+    "dry_export": {
+      "id": "export_27e13d929f7546cd93b6",
+      "name": "专项统一验收 · 多 Epoch 干人声.wav",
+      "path": "E:\\voice\\aponyvoice\\runtime\\specialist-qa\\exports\\专项统一验收 · 多 Epoch 干人声.wav",
+      "artifact_id": "artifact_8fd0066816fe4838afca",
+      "job_id": "job_e9aeedf86e804f52b0a9",
+      "format": "wav",
+      "codec": "pcm_s24le",
+      "sample_rate": 48000,
+      "channels": 2,
+      "duration": 13.4,
+      "sha256": "ff0c3bf6b2cd016f5fed3a3bc010a25b90f0177b5bddda1ba4988dac1821e273",
+      "processing_kind": "model_inference",
+      "created_at": "2026-10-31T02:20:35.646869-06:00",
+      "measurements": {
+        "integrated_lufs": -15.0,
+        "true_peak_dbfs": -5.4,
+        "measurement_engine": "ffmpeg ebur128 peak=true",
+        "measurement_succeeded": true
+      },
+      "source_offset_ticks": 0,
+      "bus_export_semantics": "post-fader/post-FX/stereo sum; no implicit master limiting; effect tails trimmed to timeline length"
+    },
+    "song_export": {
+      "id": "export_ffda309135294464b9de",
+      "name": "专项歌曲闭环 · 已留余量.wav",
+      "path": "E:\\voice\\aponyvoice\\runtime\\specialist-qa\\exports\\专项歌曲闭环 · 已留余量.wav",
+      "artifact_id": "artifact_ae86aebfbb55460da0a6",
+      "job_id": "job_337fa59670024a8d968c",
+      "format": "wav",
+      "codec": "pcm_s24le",
+      "sample_rate": 48000,
+      "channels": 2,
+      "duration": 26.0,
+      "sha256": "1191c1fc9eb538752529f4713997f23375ca228a6727fce5f67781879d7ad281",
+      "processing_kind": "model_inference",
+      "created_at": "2026-10-31T02:43:18.883453-06:00",
+      "measurements": {
+        "integrated_lufs": -13.5,
+        "true_peak_dbfs": -1.5,
+        "measurement_engine": "ffmpeg ebur128 peak=true",
+        "measurement_succeeded": true
+      },
+      "source_offset_ticks": 0,
+      "bus_export_semantics": "post-fader/post-FX/stereo sum; no implicit master limiting; effect tails trimmed to timeline length"
+    },
+    "scoped_selection": {
+      "project_id": "project_3ea2c33a97e5445dae31",
+      "job_id": "job_08b5985a66a34e5e97cb",
+      "clip_id": "clip_0461db61422b422385f1",
+      "model_hash": "6262634db8b2b7a8a17f5df7b1e5d0125c0bd9fdf68e0283f3d2abd398582393",
+      "effective_parameters": {
+        "cpu_threads": 4,
+        "transpose": 12,
+        "index_rate": 0.5,
+        "protect": 0.15,
+        "volume_envelope": 0.2,
+        "speaker_id": 0,
+        "pitch_algorithm": "rmvpe",
+        "f0_min": 50,
+        "f0_max": 1100,
+        "threshold": 0.03,
+        "silence_db": -60,
+        "filter_radius": 0,
+        "f0_autotune": false,
+        "context_seconds": 1,
+        "device": "cuda:0",
+        "precision": "float32",
+        "seed": 0,
+        "hop_length": 160,
+        "embedder_model": "contentvec",
+        "clean_audio": false
+      },
+      "index": {
+        "id": "index_bd5d367deb0e5f6919937fbe",
+        "sha256": "9e93354621cb7802ac71555554bfb6b61e446bce902cd6c47130d004e2c83cea",
+        "dimension": 768,
+        "vectors": 50654
+      }
+    },
+    "index_mismatch_rejected": true,
+    "running_worker_cancelled": "job_d1c1c90888f54e7c81bb",
+    "reports": [
+      "tests/results/specialist/acceptance.json",
+      "tests/results/rvc-parameters/verification.json",
+      "tests/results/catalog/verification.json"
+    ]
+  },
+  "catalog": {
+    "scan_counts": {
+      "index": 29,
+      "inference_export": 180,
+      "training_checkpoint": 10
+    },
+    "legacy_ids_and_hashes_preserved": 29,
+    "migration": {
+      "projects_unchanged": 10,
+      "legacy_model_ids_unchanged": 29,
+      "snapshot": "E:\\voice\\aponyvoice\\tests\\results\\specialist\\legacy-migration.sqlite"
+    }
+  },
+  "restart": {
+    "model_id": "model_de7b9136cb5a379553518b17",
+    "active_jobs": 0,
+    "passed": true,
+    "candidate_count": 4,
+    "fields_unchanged": {
+      "pitch_edits": true,
+      "candidates": true,
+      "selected_candidate_id": true,
+      "selection": true,
+      "playhead": true,
+      "model_bindings": true,
+      "exports": true,
+      "view_preferences": true,
+      "parameters": true
+    },
+    "model_hash": "6262634db8b2b7a8a17f5df7b1e5d0125c0bd9fdf68e0283f3d2abd398582393",
+    "project_id": "project_fa45fdffd95547d4bd7d",
+    "personal_preset_restored": true
+  },
+  "build": {
+    "typecheck": true,
+    "vite_production": true,
+    "cargo_release_locked_offline": true,
+    "exe": "E:\\voice\\aponyvoice\\apps\\desktop\\target\\release\\sonora-specialist.exe",
+    "size": 4641792,
+    "sha256": "f91419bd65ea4f94e23aaa40c69522c4685ac2297489b08b5ff519ab046ac029",
+    "requires_existing_project_environments_and_models": true
+  },
+  "protected_file_hashes": {
+    "workers/separation/run.py": "d9b5628593e455c180a59b47404e0acc37921f3699e9c2b3f7b7bd56da364f39",
+    "services/orchestrator/voices.py": "51bb3dcc2da5e3e53bd233f371e42fdd092d0fd2305b14519994d6b048fda9fb",
+    "packages/contracts/HARMONY.md": "44b61eb097558ea85d5ce8b23382f605adac9e5771a983e5a3ce986eda341b72"
+  },
+  "limitations": [
+    "No native desktop clicking per user instruction.",
+    "Not all 180 discovered inference exports were auditioned; selected versions are lazily validated.",
+    "Formant, proposed pitch, automatic silence splitting, non-FP32 and flexible hop are unsupported by this locked adapter and disabled.",
+    "No automatic export of unknown training checkpoints; no quality ranking inferred from Epoch.",
+    "Technical response tests do not constitute subjective audio-quality approval."
+  ],
+  "cleanup": {
+    "vite_stopped": true,
+    "transient_session_credentials_removed": true,
+    "test_audio_retained": true,
+    "original_app_untouched": true,
+    "qa_service_stopped": true,
+    "launcher_syntax_valid": true
+  }
+}

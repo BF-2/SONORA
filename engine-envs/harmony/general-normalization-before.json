@@ -1,0 +1,11 @@
+{
+  "source_peak": 1.0410526990890503,
+  "vocal_peak": 1.0,
+  "instrumental_peak": 0.9716686606407166,
+  "scales_to_reconstruct_source": [
+    1.2009837865513153,
+    1.041052702430199
+  ],
+  "residual_after_per_stem_gain_restore_rms": 1.1280994138098806e-08,
+  "diagnosis": "upstream normalizes source and vocal stem independently; float original can exceed1, vocal normalized to1 independently destroys complementary mix level"
+}

@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-30",
+  "binary": "apps/desktop/target/release/sonora-harmony.exe",
+  "sha256": "40af75ca6afd0a43efaab8149a8952d52d20c6825a74ba58b803a175f0e5d805",
+  "frontend_js": "index-CXR6En9d.js",
+  "frontend_css": "index-Crb9L7OP.css",
+  "cli_build_passed": true,
+  "windows_desktop_ui_tested": false,
+  "windows_ui_test_reason": "User requested not to test Windows desktop UI",
+  "old_binary_preserved_sha256": "2659c8a93391fbc3c7d3851124960d7eaefa5af32fa5ea603fbf72f7852506fc",
+  "core_regression_tests_passed": 52,
+  "harmony_worker_contract_tests_passed": 6
+}

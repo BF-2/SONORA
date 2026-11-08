@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sonora.local/contracts/v1/project.schema.json",
+  "title": "SonoraProject",
+  "type": "object",
+  "required": ["id", "schema_version", "revision", "name", "task", "timebase", "assets", "tracks", "selection", "pitch_edits", "notes", "lyrics", "candidates", "parameters", "exports", "graph"],
+  "properties": {
+    "id": {"$ref": "#/$defs/Id"},
+    "schema_version": {"const": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "name": {"type": "string", "maxLength": 120},
+    "task": {"enum": ["speech", "cover", "rewrite"]},
+    "mode": {"enum": ["quick", "detail", "expert"]},
+    "timebase": {"const": 48000},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "playhead": {"$ref": "#/$defs/Tick"},
+    "selection": {"$ref": "#/$defs/Range"},
+    "assets": {"type": "array", "items": {"$ref": "#/$defs/Artifact"}},
+    "tracks": {"type": "array", "items": {"$ref": "#/$defs/Track"}},
+    "pitch_edits": {"type": "array", "items": {"$ref": "#/$defs/PitchEdit"}},
+    "notes": {"type": "array", "items": {"$ref": "#/$defs/Note"}},
+    "lyrics": {"type": "array", "items": {"$ref": "#/$defs/Lyric"}},
+    "candidates": {"type": "array", "items": {"$ref": "#/$defs/Candidate"}},
+    "separation_runs": {"type":"array","items":{"type":"object","required":["id","operation","artifact_ids"],"properties":{"id":{"$ref":"#/$defs/Id"},"operation":{"enum":["separate","separate_harmony"]},"artifact_ids":{"type":"array","minItems":2,"maxItems":2,"items":{"$ref":"#/$defs/Id"}},"archived":{"type":"boolean"},"voice_parts_snapshot":{"type":"object"}}}},
+    "selected_separations": {"type":"object","properties":{"separate":{"type":["string","null"]},"separate_harmony":{"type":["string","null"]}}},
+    "production_version": {"const":1},
+    "background_track_id": {"type":["string","null"]},
+    "final_list": {"type":"array","items":{"$ref":"#/$defs/FinalEntry"}},
+    "pitch_versions": {"type":"array","items":{"$ref":"#/$defs/PitchVersion"}},
+    "active_pitch_versions": {"type":"object","additionalProperties":{"$ref":"#/$defs/Id"}},
+    "input_workspaces": {"type":"object"},
+    "parameters": {"type": "object", "properties":{"voicing_settings":{"$ref":"#/$defs/VoicingSettings"}}},
+    "view_preferences": {"type":"object","properties":{"generation_step":{"enum":["input","edit","model","parameters","check"]},"stage":{"type":"integer","minimum":0,"maximum":5},"timeline_archived_track_ids":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/Id"}},"timeline_included_track_ids":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/Id"}},"expanded_panels":{"type":"object"},"auto_archive_candidates":{"type":"boolean","default":true},"pitch_views":{"type":"object","additionalProperties":{"type":"object","properties":{"start":{"type":"number","minimum":0},"span":{"type":"number","minimum":0.05},"center":{"type":"number"},"range":{"type":"number","minimum":1}}}}}},
+    "model_bindings": {"type":"object","properties":{"project":{"type":"object"},"tracks":{"type":"object"},"clips":{"type":"object"}}},
+    "comparisons": {"type":"array","items":{"type":"object"}},
+    "exports": {"type": "array", "items": {"type": "object"}},
+    "graph": {"type": "array", "items": {"type": "object"}}
+    ,"voice_parts": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"lead_vocal": {"$ref": "#/$defs/VoicePart"}, "backing_vocal": {"$ref": "#/$defs/VoicePart"}}
+    }
+  },
+  "$defs": {
+    "VoicingSettings": {"type":"object","additionalProperties":false,"properties":{"enabled":{"type":"boolean","default":true},"min_silence_ms":{"type":"number","minimum":0,"maximum":2000,"default":0},"fade_ms":{"type":"number","minimum":0,"maximum":200,"default":3}}},
+    "FinalEntry": {"type":"object","required":["id","candidate_id","track_id","accepted_at"],"properties":{"id":{"$ref":"#/$defs/Id"},"candidate_id":{"$ref":"#/$defs/Id"},"track_id":{"$ref":"#/$defs/Id"}}},
+    "PitchVersion": {"type":"object","required":["id","source_artifact_id","name","revision","parameters","pitch_edits","notes"],"properties":{"id":{"$ref":"#/$defs/Id"},"source_artifact_id":{"$ref":"#/$defs/Id"},"name":{"type":"string","minLength":1,"maxLength":120},"revision":{"type":"integer","minimum":1},"parameters":{"type":"object","properties":{"voicing_settings":{"$ref":"#/$defs/VoicingSettings"}}},"pitch_edits":{"type":"array","items":{"$ref":"#/$defs/PitchEdit"}},"notes":{"type":"array","items":{"$ref":"#/$defs/Note"}},"undo":{"type":"array"},"redo":{"type":"array"}}},
+
+    "Id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$"},
+    "Tick": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "Range": {"type": "object", "required": ["start", "end"], "properties": {"start": {"$ref": "#/$defs/Tick"}, "end": {"$ref": "#/$defs/Tick"}}},
+    "Artifact": {
+      "type": "object", "required": ["id", "sha256", "sample_rate", "sample_count", "channels", "processing_kind", "input_artifact_ids", "commit_state"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "sample_rate": {"type": "integer", "minimum": 1}, "sample_count": {"$ref": "#/$defs/Tick"},
+        "channels": {"type": "integer", "minimum": 1, "maximum": 8},
+        "processing_kind": {"enum": ["demo", "decode", "dsp", "model_inference"]},
+        "input_artifact_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}},
+        "locked":{"type":"boolean"}, "commit_state": {"const": "committed"}, "source_offset": {"$ref": "#/$defs/Tick"}
+      }
+    },
+    "Track": {
+      "type": "object", "required": ["id", "artifact_id", "role", "gain_db", "pan", "offset_ticks", "effects"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"}, "artifact_id": {"$ref": "#/$defs/Id"}, "role": {"type": "string"},
+        "locked":{"type":"boolean"}, "gain_db": {"type": "number", "minimum": -96, "maximum": 24}, "pan": {"type": "number", "minimum": -1, "maximum": 1},
+        "offset_ticks": {"type": "integer"}, "mute": {"type": "boolean"}, "solo": {"type": "boolean"}, "effects": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "PitchEdit": {
+      "type": "object", "required": ["id", "start_tick", "end_tick", "operation"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"}, "start_tick": {"$ref": "#/$defs/Tick"}, "end_tick": {"$ref": "#/$defs/Tick"},
+        "operation": {"enum": ["transpose", "set_hz", "unvoiced"]}, "semitones": {"type": "number", "minimum": -36, "maximum": 36},
+        "hz": {"type": "number", "minimum": 20, "maximum": 2000}, "locked": {"type": "boolean"}, "snapshot": {"type": "object"}, "stroke_id": {"$ref":"#/$defs/Id"}
+      }
+    },
+    "Note": {
+      "type": "object", "required": ["id", "start", "end", "pitch_midi_float"],
+      "properties": {"id": {"$ref": "#/$defs/Id"}, "start": {"$ref": "#/$defs/Tick"}, "end": {"$ref": "#/$defs/Tick"}, "pitch_midi_float": {"type": "number", "minimum": 24, "maximum": 108}, "lyric": {"type": "string"}, "phonemes": {"type": "string"}, "reference_source": {"type": "string"}}
+    },
+    "Lyric": {
+      "type": "object", "required": ["id", "start", "end", "text"],
+      "properties": {"id": {"$ref": "#/$defs/Id"}, "start": {"$ref": "#/$defs/Tick"}, "end": {"$ref": "#/$defs/Tick"}, "text": {"type": "string", "maxLength": 10000}, "language": {"type": "string"}, "pronunciation": {"type": "string"}, "timing_policy": {"enum": ["locked_window"]}}
+    },
+    "VoicePart": {
+      "type": "object", "required": ["source_artifact_id", "mode", "parameters", "pitch_edits", "notes"],
+      "properties": {
+        "source_artifact_id": {"$ref": "#/$defs/Id"}, "mode": {"enum": ["convert", "original", "mute"]},
+        "parameters": {"type": "object", "properties":{"voicing_settings":{"$ref":"#/$defs/VoicingSettings"}}}, "pitch_edits": {"type": "array", "items": {"$ref": "#/$defs/PitchEdit"}},
+        "notes": {"type": "array", "items": {"$ref": "#/$defs/Note"}}, "selected_candidate_id": {"type": ["string", "null"]}
+      }
+    },
+    "Candidate": {
+      "type": "object", "required": ["id", "source_artifact_id", "artifact_id", "generation_depth"],
+      "properties": {"review_status":{"enum":["pending","accepted","retry","discarded"]},"f0_version_id":{"type":["string","null"]},"f0_version_revision":{"type":["integer","null"]},"f0_version_snapshot":{"type":["object","null"]},"checkpoint_id":{"type":"string"},"id": {"$ref": "#/$defs/Id"}, "source_artifact_id": {"$ref": "#/$defs/Id"}, "artifact_id": {"$ref": "#/$defs/Id"}, "generation_depth": {"type": "integer", "minimum": 1}, "parameters": {"type": "object", "properties":{"voicing_settings":{"$ref":"#/$defs/VoicingSettings"}}}, "archived": {"type": "boolean", "default": false}, "archive_reason":{"enum":["auto","manual",null]}, "archived_at":{"type":["string","null"]}, "archive_retained":{"type":"boolean"}}
+    }
+  }
+}

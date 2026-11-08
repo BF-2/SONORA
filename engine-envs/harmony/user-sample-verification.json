@@ -1,0 +1,200 @@
+{
+  "passed_technical_checks": true,
+  "original_path": "D:\\phpstudy_pro\\WWW\\video\\video\\BREAK FROM THE LINE (feat. Taylor Louderman & Natalie Weiss) by Joey Contreras.mp3",
+  "original_sha256_before": "52aa9099a5886a5521bdb4c3c2e1c64bfa4628ebf5c8f3714814dd55507b8e9a",
+  "original_sha256_after": "52aa9099a5886a5521bdb4c3c2e1c64bfa4628ebf5c8f3714814dd55507b8e9a",
+  "source_interval_seconds": [
+    89,
+    115
+  ],
+  "source_hash_before": "80aada9bd66f637796f78def9a696c828e8f5dc65e7142ddc2d6f5d92f7b381a",
+  "source_hash_after": "80aada9bd66f637796f78def9a696c828e8f5dc65e7142ddc2d6f5d92f7b381a",
+  "sample_rate": 44100,
+  "sample_count": 1146600,
+  "channels": 2,
+  "first_stage": {
+    "model_id": "mel_band_roformer_vocals_fv4_gabox",
+    "parameters": {
+      "separation_task": "vocals_instrumental",
+      "device": "cuda",
+      "segment_size": 801,
+      "overlap": 4,
+      "overlap_step_seconds": 4
+    },
+    "elapsed_seconds": 7.889699299936183
+  },
+  "second_stage": {
+    "model_id": "melband-karaoke-aufr33-viperx-10.1956",
+    "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+    "device": "cuda:0",
+    "separation_task": "lead_backing",
+    "engine_version": "0.44.2",
+    "stem_roles": {
+      "Vocals": "lead_vocal",
+      "Instrumental": "backing_vocal"
+    },
+    "effective_parameters": {
+      "separation_task": "lead_backing",
+      "device": "cuda",
+      "segment_size": 801,
+      "overlap_step_seconds": 4
+    },
+    "input_sample_rate": 44100,
+    "input_sample_count": 1146600,
+    "input_channels": 2,
+    "model_input_channels": 2,
+    "right_context_padding_samples": 0,
+    "neural_target_native_stem": "Vocals",
+    "complement_method": "backing_vocal = resampled_input - neural_lead_vocal_estimate",
+    "model_input_gain": 0.8326507243675222,
+    "input_gain_restored_before_commit": true,
+    "input_sample_peak": 1.2009837627410889,
+    "independent_stem_normalization": false,
+    "reconstruction_max_abs": 2.9802322387695312e-08,
+    "reconstruction_rms": 1.074353144560577e-09,
+    "stem_rms": {
+      "lead_vocal": 0.23119319251690928,
+      "backing_vocal": 0.049724022621837005
+    },
+    "peak_cuda_bytes": 1839783424,
+    "elapsed_seconds": 7.617045900085941,
+    "adapter_version": "sonora-workers-1.0.0"
+  },
+  "general_reconstruction_max_abs": 5.960464477539063e-08,
+  "general_reconstruction_rms": 4.846714275047396e-09,
+  "harmony_reconstruction_max_abs": 2.9802322387695312e-08,
+  "harmony_reconstruction_rms": 1.074353144560577e-09,
+  "stem_rms": {
+    "vocal": 0.2410336143474998,
+    "instrumental": 0.19927693510990016,
+    "lead_vocal": 0.23119319251690928,
+    "backing_vocal": 0.049724022621837005
+  },
+  "artifacts": [
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\user-89-115\\vocal-instrumental\\vocal.wav",
+      "role": "vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 1146600,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        1146600
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc",
+      "config_hash": "32419582fa8c313199ab49be8f5cb2b5e3860769ca045b4788a960d72140cd39",
+      "separation_task": "vocals_instrumental",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 0,
+      "native_stem": "Vocals",
+      "sha256": "41a7e834f4f2f862fe3af4529a60cd355acc3158965f568f4731c100f42d7fe3"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\user-89-115\\vocal-instrumental\\instrumental.wav",
+      "role": "instrumental",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 1146600,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        1146600
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc",
+      "config_hash": "32419582fa8c313199ab49be8f5cb2b5e3860769ca045b4788a960d72140cd39",
+      "separation_task": "vocals_instrumental",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 0,
+      "native_stem": "Instrumental",
+      "sha256": "0081fd4cfbda1ad77bb5089f4d7051ce057a21dd1036f675db9afa9a70817d94"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\user-89-115\\lead-backing\\lead_vocal.wav",
+      "role": "lead_vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 1146600,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        1146600
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "separation_task": "lead_backing",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 0,
+      "native_stem": "Vocals",
+      "sha256": "345337ce0c18560f139e087f11ece713d891e2e5ed2b3e9b0be879024f7be78b"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\user-89-115\\lead-backing\\backing_vocal.wav",
+      "role": "backing_vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 1146600,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        1146600
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "separation_task": "lead_backing",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 0,
+      "native_stem": "Instrumental",
+      "sha256": "2ae7adcf00659c2b46207b1cf41df1c0b84867a7b03fba0be98c303b6e589a80"
+    }
+  ],
+  "warnings": [
+    "仅对合并人声运行第二步分离。输入若有伴奏残留，会进入背景组；结果需试听。",
+    "分组是模型估计，不能保证重唱者、所有和声或混响完全分开。"
+  ],
+  "listening_status": "not accepted; user-specified overlap passage, no ground truth clean stems or automatic quality score"
+}

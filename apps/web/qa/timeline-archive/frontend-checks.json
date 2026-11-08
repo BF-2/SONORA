@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "stage isolation",
+    "stage duration",
+    "imported stems",
+    "pitch audition scope",
+    "individual archive and restore",
+    "refresh persistence",
+    "downstream restore isolation",
+    "historical track inclusion",
+    "adopted track archive",
+    "audio state preservation"
+  ]
+}

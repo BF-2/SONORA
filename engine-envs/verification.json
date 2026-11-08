@@ -1,0 +1,81 @@
+{
+  "external_f0_verified": true,
+  "baseline_f0_hz": 219.217087128783,
+  "octave_f0_hz": 438.72683953641587,
+  "response_cents": 1201.1552545235327,
+  "requested_consumed_hashes_a": [
+    "a4778b9aa7ad413a19a536d5146a1bcc31d4f6968f768a897c58e2235d18ab10",
+    "bcc2ff10c5b9c54ba84eefd00904e476331e8bdabd37f4b1ce19e244180b9f0e"
+  ],
+  "requested_consumed_hashes_b": [
+    "fec141e88a5b3d8363ef1a3e9c7436478d7f39ac2ca6f26199fa4384021bde42",
+    "279efdd9865c26d3d794f284f189fe01dbc7b377d4578017aafea8e14e4a55af"
+  ],
+  "separation_outputs": [
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\workers\\separation-demo\\vocal.wav",
+      "role": "vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 590940,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        590940
+      ],
+      "latency_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc",
+      "sha256": "2c4b06185b0e4a99ad092bc0fde5b56ad37d3ad95b83cd703498a38640f0c150"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\workers\\separation-demo\\instrumental.wav",
+      "role": "instrumental",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 590940,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        590940
+      ],
+      "latency_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc",
+      "sha256": "3aa04edf30457d0ee8585ea2a6c4f4a3c901cbea908a722484f6c829d2af4f3d"
+    }
+  ],
+  "fixture": "synthetic technical signal, not subjective vocal quality acceptance",
+  "validation_scope": "Synthetic signal pipeline correctness; no human singing quality acceptance",
+  "secondary_pitch_cpu": {
+    "fcpe": {
+      "seconds": 2.9365892,
+      "passed": true
+    },
+    "crepe-tiny": {
+      "seconds": 2.6403921,
+      "passed": true
+    },
+    "pyin": {
+      "seconds": 6.546646,
+      "passed": true
+    }
+  },
+  "security_tests_passed": 7
+}

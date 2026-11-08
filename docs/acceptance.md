@@ -1,0 +1,164 @@
+# 本机验收与范围
+
+## 2026-11-04 每个 Edit 的静音设置
+
+F0 版本现在独立保存 `voicing_settings`，包含开关、最小静音区间 0–2000 ms、每侧平滑长度 0–200 ms。兼容默认值为开启、0 ms、3 ms。复制新 Edit 后可独立修改，切换声部/版本、撤销/重做、配方恢复与浏览器刷新均保留配置。
+
+- `.venv\Scripts\python.exe -m pytest tests/test_voicing_versions.py -q` 为 **14 passed**，覆盖关闭旁路、阈值边界、四种采样率、整段与选区一致、平滑长度、版本独立、生成快照、配方恢复和无效参数拒绝。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-standard.ps1` 为 **184 passed、4 skipped**，两个执行器单测合计 **14/14**，TypeScript/Vite 构建通过。
+- `python scripts/verify_editor_followup.py` 验证 Edit A 开启/120 ms/15 ms、Edit B 关闭/200 ms/40 ms，跨版本、跨声部与刷新恢复通过。
+- `.venv\Scripts\python.exe scripts/verify_editor_audio.py` 在相同目标 F0 下生成开关两种结果，开启时擦除区最大绝对采样值为 0，关闭时约为 0.468。不同配置产生不同音频，相同配置再次生成命中缓存。
+- Windows Release 已重建。当前运行中的服务需要重启后加载更新。
+
+本轮记录位于 `runtime/editor-followup/voicing-summary.json`。
+
+## 2026-11-04 编辑器反馈与增强二级分离
+
+- 页面切换后回到顶部，覆盖六个制作阶段、音高子页与生成子页。
+- 新增拖动擦除音高。浏览器验证覆盖已锁定的手动音高区域、整笔撤销/重做、保存与刷新恢复。
+- RVC 在最终输出阶段按目标 F0 的无声帧置零，有声边界内使用 3 ms 淡入淡出。真实 12 秒 RVC 结果为 48 kHz、576,000 帧，擦除区及全部无声区采样最大绝对值均为 0。
+- 浅色模式补齐实际 `dialog` 元素的背景、文字、边框和遮罩。扫描六个制作页面、四个生成子页、音高编辑器，以及模型、设置、队列弹窗，深色背景块均为 0，页面脚本错误为 0。
+- 双模型二级分离使用六次对齐预测、波形融合、立体声伴唱保护以及可选残留抑制。两组已知真值合成歌声的 Follower SDR 分别提升 1.16 和 8.26 dB。居中样本仍有声部混淆，真实歌曲需人工试听。算法与完整数据见 [增强分离说明](harmony-ensemble.md)。
+- API 验证两套权重/config 身份记录，第二次相同分离请求命中缓存。
+
+本轮执行记录如下。
+
+| 命令 | 结果 |
+| --- | --- |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-standard.ps1` | 170 passed、4 skipped，执行器 14/14，TypeScript/Vite 构建通过 |
+| `python -m pytest tests/test_editor_followup.py -q` | 数值测试 14/14 |
+| `python scripts/verify_editor_followup.py` | 浏览器导航、擦除、撤销/重做、持久化、浅色模式通过 |
+| `.venv\Scripts\python.exe scripts/verify_editor_audio.py` | 实际 RVC 静音、双模型 API 与分离缓存通过 |
+| `.venv\Scripts\python.exe scripts/verify_harmony_ensemble.py` | 真实歌曲及两组已知分轨的单模型/增强算法对比完成 |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop.ps1 -SkipWebBuild` | Windows Release 构建通过 |
+| `git diff --check` | 通过 |
+
+核心环境的跳过项分别涉及符号链接权限、noisereduce 和两项 SciPy 数值测试。SciPy 相关项目已在系统数值环境的 14/14 检查及真实分离执行器中执行。证据保存在 `runtime/editor-followup/`。
+
+## 2026-11-04 标准流程重构
+
+- 复用既有两级分离、F0、RVC、模型目录、混音与 SQLite，新增源轨 Lock、独立 F0 Edit 版本、单轨工作区、Check、Final List 和唯一混音路由。实现与接口见 [标准流程](standard-workflow.md)，图见 [workflow.mmd](workflow.mmd)。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-standard.ps1`：核心 **158 passed, 2 skipped**；Pitch/安全加载单测 **7/7**，分离协议单测 **7/7**；TypeScript/Vite 生产构建成功。两个跳过分别为 Windows 符号链接权限和核心环境不含 noisereduce。
+- 在实际 RVC 环境运行 `test_rvc_parameters_unit.py`：**21/21**，包含真实 noisereduce 的长度保持 DSP 测试，因此上面的依赖跳过不表示推理环境功能缺失。
+- `.venv\Scripts\python.exe scripts/verify_standard_workflow.py`：真实两级分离、双源 F0、Follower 三个编辑版本、各自 F0 转换、预期失败与修改重试、丢弃、三条 Final List、偏移混音、导出、配方和数据库恢复通过。只有两次分离作业。导出 **48,000 Hz、双声道、578,400 帧、12.05 秒**。证据：`runtime/standard-workflow-acceptance/verification.json`。
+- `python scripts/verify_standard_browser.py`：真实 Chromium UI 检查通过，页面错误 **0**；覆盖 F0 版本创建/切换、五步生成、A/B 实际播放、重试、接受、成品管理、刷新恢复、独立试听与全长混音预览。证据：同目录 `browser-verification.json` 及 `ui-*.png`。
+- `.venv\Scripts\python.exe scripts/verify_local.py`：隔离工程中的普通翻唱、语音变声、改词导唱完成真实生成→验收状态→混音→WAV 导出，时长分别为 12.0、1.746208、1.746208 秒。
+- `.venv\Scripts\python.exe tests/test_workers_svs.py --run-real`：两组日语歌词分别运行真实 DiffSinger ONNX，均为 **44,100 Hz、132,300 帧、3 秒**；更换歌词的条件 hash 和音频变化通过。
+- 主服务已重载新后端，现有 **16 个工程**和所有登记的产物 ID/hash 保持。重载前创建 SQLite 备份，未中断活动任务；记录见 `runtime/standard-workflow-acceptance/deployment.json`。
+
+这些技术测试中的“接受”由脚本模拟以验证状态流转，不能作为人工音色质量验收。二级分离的串音、主导 F0 以及音色自然度仍需用户最终试听。较早章节保留为历史验收记录，其旧单候选自动采用语义已被上述新流程替代。
+
+## 2026-10-31 顺序交互、可读性与混音监听
+
+行为提交 `fc2e68b`，随后独立清理提交 `8e3e57f`；没有同时拆分App.tsx或CSS，也没有修改主唱/和声分离核心。
+
+- **顺序与恢复**：workflow提供阶段完成状态、明确的导航/执行类型、推荐动作和底部继续前置条件。首屏先确认任务与素材角色；真实网页验证导航进入混音不会提交完整混音任务。切阶段、缩放、播放位置及信息密度不占用撤销记录，旧视图历史也会跳过；后台试听提交期间的版本冲突会刷新重试。切换工程恢复各自的有效播放头，拒绝旧音频事件回写。
+- **可读性**：正文/说明最小11px，统一字号、常用色彩和间距令牌，补充交互态；取消没有足够区别的“精细编辑”，保留快速/专家两档并兼容旧设置。修正推子刻度的实际比例，电平来自实际效果后音频。Toast改为有顺序、可关闭的队列，支持入场动画与减少动态效果设置。390px视口实测可用宽375px、文档宽375px，可见文字低于11px的数量为0。
+- **真实混音**：修改参数后自动渲染当前选区，旧预览暂停；全部混音与单轨效果后监听明确标注。新预览保存在任务/缓存记录，不产生编辑检查点或堆积工程资产。实测Rarity Epoch275完整候选，推子−3dB、右声像100%、偏移125ms、高通80Hz：左声道及前125ms精确为0；8秒试听与13.525秒完整混音的对应采样最大差为0。效果尾音在试听中遵守完整混音的共同结束边界，另有回归覆盖。
+- **播放与导出**：400ms选区连续循环、暂停与退出通过，回卷边缘加入5ms淡化；A/B共用播放位置，5次切换仅首次B通道发生1次音频GET（另有一次正常CORS预检），等响使用共同区间实测RMS。导出前已显示−20.6LUFS、−8.80dBTP；实际导出13.525秒32位浮点WAV，文件subtype为FLOAT、codec为pcm_f32le。16/24位PCM也有实际编码回归。
+- **执行器修复**：真实F0任务曾卡在Numba对共享只读程序包目录的临时文件重试。定位后改为项目私有Numba与TEMP/TMP目录，真实音高、8秒RVC试听及13.4秒完整候选均完成；原权重哈希不变，未修改上游程序包或下载模型。
+
+统一回归 **142通过、0失败、1跳过**：后端/契约103项，引擎39项；跳过项为 `test_scan_rejects_unapproved_root_and_symbolic_escape`，原因是当前Windows进程没有创建符号链接的权限。保留既有3条依赖弃用警告，未为此升级依赖。循环已做浏览器运行与淡化逻辑验证，未进行声卡环回瞬态测量。本轮按用户要求不测试Windows原生点击。
+
+最终构建通过TypeScript、Vite及锁定离线Cargo Release。产物 `apps/desktop/target/release/sonora-recovery.exe`，4,645,376字节，SHA-256 `7892a0c17d4a800d6c7fe80427fced622f38f36ba192b5bdc00480630c93dc5c`。入口仍为 `启动声序.bat`。统一证据：`apps/web/qa/workflow-monitor/verification.json`、同目录截图与DOM，以及 `tests/results/workflow-monitor/regression.xml`。既有验收和限制记录保留在下文。
+
+清理状态：测试后端已通过自身接口关闭，已核对并停止本次Vite进程，临时令牌已清空。最初的批量递归清理命令被自动审批拒绝，仅返回 `blocked by policy`；没有继续递归删除，3个本次生成的测试目录已移到 `runtime/retained-workflow-tests` 保留。验收音频和私有引擎缓存保留。
+
+## 2026-10-31 旧音高绑定恢复修复
+
+用户报告的旧分析错误已复现：前端强制把最近分析ID带入转换/多Epoch作业，检测参数变更后触发严格拒绝；原「重试」继续提交同一个失效ID。现在普通试听由后端按当前参数匹配曲线，缺少匹配则先检测；固定曲线仍严格验证。
+
+声音转换及音高检查器提供重新检测、清除绑定和重新试听入口，队列可「重新检测并重试」，兼容修复前保存的错误记录。候选支持可撤销的移除/恢复，保留音频、哈希与血缘；阻止移除正在采用或混音的候选。
+
+- 回归90/90通过，新增5项覆盖工程/轨道/区间绑定清除、队列恢复覆盖优先级、候选移除/撤销和原文件保留。TypeScript、Vite、离线Windows Release构建通过。
+- 在真实失败工程的隔离数据库副本中，网页点击恢复原失败任务 `job_18023de10ca342d6a0ac`，新任务 `job_3934ba6cc8d44606bc8a` 成功生成41.273775秒选区音频；原失败记录保留。
+- 网页把最低F0从300改为301后，显示旧分析状态；点击「清除旧绑定并重新试听」，新任务 `job_64cdbdfcfb3e41998a58` 使用新分析产物成功输出8.04815秒。核对真实worker分析参数、所选Rarity Epoch275哈希及音频哈希，网页实际播放推进到选区终点。
+- 网页移除旧试听片段后可恢复；原已采用候选、另一声部配置及原工程10份产物哈希保持。副本用硬链接只读复用素材，没有改变正在运行的原工程。
+- 本轮仍不点击Windows原生窗口。运行中的 `sonora-specialist.exe` 未关闭，故新EXE并排保存为 `apps/desktop/target/release/sonora-recovery.exe`，启动脚本已优先选择它。SHA-256：`491d82d1d9da7c29741e8f385e7f3863afbad483eeb06a0f29033375bfc8fecc`。
+
+统一证据：`apps/web/qa/pitch-recovery/verification.json`、同目录网页截图与DOM记录。没有剩余已知复现失败。
+
+## 2026-10-31 专项补丁统一验收
+
+本轮按用户最后要求，以网页操作代替 Windows 桌面点击；EXE 只进行统一 CLI 构建，不将旧版原生窗口记录当成本轮桌面点击通过。保留原导航与视觉，未修改主唱/和声分离执行器、声部分配核心或其契约。
+
+- 自动发现219个既有资源：180份推理导出、29份索引、10份训练checkpoint。旧29个模型ID和哈希保留，训练文件不当作推理导出；只读增量扫描和惰性校验分别执行。
+- 实际 Epoch200/225 使用同一8秒输入、同一原始F0/目标/种子生成不同声音结果。模型哈希不同，requested/consumed F0哈希相同；完整版本和局部采用均生成真实音频。
+- 真实参数对照包括移调、索引、protect、包络、平滑、自动靠近半音、输出降噪与分析范围。+12半音输出独立测得约1200.60 cents；无检索时改变protect的输出差异为0，已启用索引时保护变化确实影响结果。绝对锁定目标在自动处理组合下保持。
+- 轨道→区间覆盖的真实推理消费 Epoch225、transpose12、volume_envelope0.2、protect0.15和已验证索引；不兼容索引明确失败，没有回退到检索率0。
+- 干人声的浏览器操作完成版本选择、两版本对比、A/B等响、试听设置采纳、完整生成、局部采用、混音与WAV导出。实际歌曲26秒链路也完成；超满幅整数导出被阻断后，降低推子重混可导出，无需重跑模型。
+- 实际运行中取消独立worker通过；旧项目数据库快照迁移后工程文本保持不变，旧模型ID不指向“最新版本”。
+
+统一证据：`tests/results/specialist/acceptance.json`、`tests/results/rvc-parameters/verification.json`、`tests/results/catalog/verification.json`、`apps/web/qa/specialist/`。交互路径与未测范围集中于 `docs/ux-audit.md`，参数与模型设计集中于 `docs/models-rvc.md`。
+
+修复的集成反例包括：无索引的None路径传入原生API、流水线把自身上游刷新误认作用户编辑、轨道/区间选择记录混入推理参数、重复缓存引用和F0目标层失效、采纳试听误存运行时设备值、模型选择器异步加载丢失实验层次，以及备注更新覆盖后台新增候选。原有音频产物和旧候选保持可回听。
+
+最终统一自动回归 **124/124通过**：核心/工程/安全/和声/目录/API/专项集成85项，RVC参数21项，音高与受限加载7项，SVS契约5项，分离契约6项。运行命令为核心环境 `python -m pytest tests/test_core.py tests/test_domain.py tests/test_review_regressions.py tests/test_harmony_review.py tests/test_harmony_delivery.py tests/test_model_catalog.py tests/test_model_catalog_api.py tests/test_specialist_integration.py -q --tb=short`，以及各自既有执行器环境运行 `test_rvc_parameters_unit.py`、`test_workers_unit.py`、`test_workers_svs.py`、`test_harmony_worker_unit.py`。现有依赖的3条弃用警告保留，不进行无关升级。
+
+真实推理与自动单元检查分开记账：`test_rvc_parameters_real.py --run-real --model-manifest tests/results/specialist/verified-model.json --device cuda`、`test_specialist_real.py --run-real --resume`、`test_model_catalog_real.py --run-real-metadata`均有成功证据。服务实际重启后模型哈希、4个候选及工程9类状态逐项一致，个人预设恢复通过，见 `tests/results/specialist/restart.json`。
+
+统一构建：`scripts/build-desktop.ps1 -BinaryName sonora-specialist` 执行TypeScript检查、Vite生产构建和 `cargo build --release --locked --offline`。最终产物 `apps/desktop/target/release/sonora-specialist.exe`，4,641,792字节，SHA-256 `f91419bd65ea4f94e23aaa40c69522c4685ac2297489b08b5ff519ab046ac029`。`启动声序.bat`已优先指向该版本，依赖本项目核心环境和现有模型资源，不是捆绑全部权重的独立安装包。
+
+专项通过项无剩余失败；原生点击按用户要求未执行。当前执行器不支持的参数明确禁用，全部180版本的听感评估未执行。分离worker、声部分配核心及HARMONY契约与基线哈希相同；本轮没有模型下载、重新训练或依赖升级。以下保留既有基础版本验收范围，不能将历史桌面记录当成本轮原生点击证据。
+
+验证日期：2026-10-30。以下对应完整构建提示的 25 项验收，状态描述的是已保存证据，不能当作全部需求已完成。
+
+## 已运行的真实路径
+
+- 12 秒私有本地歌曲片段：FFmpeg 解码 → MelBand RoFormer → RMVPE → Twilight Sparkle singing RVC → 48 kHz stereo 混音 → 24-bit WAV。最终恰好 12.000 秒，FFmpeg 测得 −13.8 LUFS / −0.1 dBTP。来源是用户现有 `E:/voice/AllAboutUS.mp3` 的本机测试选段，不作为可再分发示例。证据：`tests/results/integration/cover.json`。
+- 既有干语音：RMVPE → Twilight Sparkle speech RVC → 混音/导出，1.746208 秒。证据：`tests/results/integration/speech.json`。
+- 外部 F0：3 秒技术元音只有目标音高变为 +12 semitones，输出中位 F0 从 219.217 Hz 变为 438.727 Hz，约 +1201.16 cents；同时核对请求条件、网格变换和生成器实际消费张量。此证据不代替自然歌声音质试听。
+- 上下文短试听：0.9–1.5 秒区间输出恰好 24000 frames @ 40 kHz；导唱放在 +2 秒后，结果正确定位在 2.9–3.5 秒。没有用原音频或 DSP 假装 RVC。
+- CPU 备用路径：生产 API 实际使用独立 DIO PitchService + CPU RVC 生成相同长度的短预览，记录在 `tests/results/integration/preview-api.json`；不据此承诺所有模型或整曲 CPU 性能。
+- 日语新词合成：きらきら / はるかな 在同一 C4/C4/G4/G4 乐谱上实际合成，两份各 132300 frames @ 44.1 kHz、3 秒，音素条件和音频均变化；API→SVS→有模型血缘的 WAV 导出已通过。音符技术复核约 0.35–0.81 cents，未将该测量称为整体音质分。
+- Windows 原生 EXE 已实际启动；协议握手、认证、恢复工程、加载实际音轨与候选已验证。正常关闭及崩溃模拟后的所属后台进程回收通过。
+
+## 25 项验收对照
+
+| # | 状态 | 实证或边界 |
+| --- | --- | --- |
+| 1 | 已通过真实链路 | 已训练模型 + 干语音直接变声导出，无训练前置 |
+| 2 | 已通过真实链路 | 歌曲分离、独立 F0、RVC、混音、导出均有输入输出及模型哈希 |
+| 3 | 分组流程已实测，质量仍需试听 | 专用主唱/和声分离与分别转换已在用户指定26秒片段实测，见harmony-usage；不伪造多人声识别或音准分，重唱自动风险定位仍未接入 |
+| 4 | 已验证 | 浏览器实际切换模式保留播放头、选区、工程参数和历史 |
+| 5 | 已验证 | 锁定曲线保存绝对快照；清浊音不跨界插值；重分析不覆盖用户锁 |
+| 6 | 保守实现 | 独立带上下文短试听已实测；尚未保证任意模型局部/整曲边缘等价，相关节点保守重算 |
+| 7 | 已验证主引擎 | RVC 实际消费外部 F0；不支持的控制拒绝，不静默忽略 |
+| 8 | 已实现并测试 | 普通同源候选，显式串联；恢复候选深度/模型身份按真实产物血缘校验 |
+| 9 | 技术验收通过，听感待验 | 片段拼选无额外采样缺口、长度一致、可交叉淡化；多模型音色接缝仍需人工试听 |
+| 10 | 部分通过 | 导唱导入/录制与 VC 路线可用；日语 SVS 确实改变音素和音频。中文/英语自动发音前端未接入 |
+| 11 | 部分 | 歌词/发音/音符/时长可编辑保存，冲突明确拒绝；自动多音字、英语重音、跨音符连音语义尚不完整 |
+| 12 | 保守实现 | 参数、歌词/音高、混音/效果变更分别标记下游失效；未知感受野整节点重算，全轨 ripple 未启用 |
+| 13 | 已验证关键反例 | 模型/索引/配置/资源哈希改变拒绝旧缓存；校验与原子提交后才可命中，取消不提交半截文件 |
+| 14 | 部分故障验证 | 任务中断恢复、缺文件、缓存损坏、原生进程回收已测；真实磁盘满、GPU OOM、实时设备断开未全部注入 |
+| 15 | 已验证 | 分轨统一 48 kHz、双声道、共同起点和长度，明确 raw 或 post_fader_fx |
+| 16 | 已实现实测 | sample peak/RMS 与 FFmpeg ebur128 真峰值/响度各自标明；不以 sample peak 冒称 true peak |
+| 17 | 浏览器基础验证 | 快捷键、数值替代、模态焦点、主要流程已检查；全程纯键盘及辅助技术组合仍需扩展测试 |
+| 18 | 结构实现，长素材未压测 | 有界波形峰值、块式拼选、独立 worker、串行资源队列；多小时工程响应未实测 |
+| 19 | 已验证核心边界 | 会话认证、Host/Origin、路径范围、伪装播放列表、配方路径穿越、模型受限加载反例已测 |
+| 20 | 已验证核心恢复 | 配方恢复、原素材哈希重连、轨道增益/位置、缺资源提示、未来版本拒绝；跨机器重建需引擎资源 |
+| 21 | 已验证 | 禁用模型 worker 后转换失败；导出检查真实已提交推理血缘，下游失败不抹掉已完成阶段 |
+| 22 | 已验证 | +12 semitones 可测响应、requested/consumed 与 generator condition 哈希都有证据 |
+| 23 | 固定窗口已验证 | SVS 固定窗口精确长度，重叠/时长冲突拒绝；ripple_edit 明确不支持 |
+| 24 | 已验证 | 恶意 pickle 测试标记未执行；加载不会退回不受限 pickle；远程播放列表不访问 |
+| 25 | 已验证基础混音 | 默认不重复加入完整原混音，分轨/总线语义清楚；不承诺非线性母线后分轨相加逐样本相等 |
+
+## 验证入口
+
+最终自动回归：核心/工程/信号/安全 29 项、音高与受限加载 7 项、SVS 契约 5 项，共 41 项通过。实际神经模型运行独立保存音频与日志，不用测试桩代替。
+
+- `tests/test_core.py`：媒体样本数、峰值、非整数裁剪、44.1→16→48 kHz 锚点、来源、幂等、历史、认证、远程引用拒绝。
+- `tests/test_domain.py`：片段拼选边缘/长度、绝对锁定、分轨语义、未来版本和 ripple 拒绝、MIDI 时序。
+- `tests/test_review_regressions.py`：配方路径穿越、临时文件边界、历史原子事务、任务快照、下游失败恢复、并行编辑保留与重连。
+- `tests/test_workers_unit.py` / `tests/test_workers_real.py` / `tests/test_workers_preview.py` / `tests/test_workers_svs.py`：真实推理与反例；具体运行命令见 `docs/engines.md`。
+- `engine-envs/*verification.json`：小型可阅读验证摘要；`tests/results/` 保存请求、响应、日志和私有音频，不进入公开源码包。
+
+## 仍未实现/未验证的要求
+
+主唱/和声第二级分离及各自独立转换已在后续更新接通，详见 `docs/harmony-usage.md`。这不等同于任意多人合唱的逐人分离或多条旋律转写。
+
+实时低延迟音频路由、虚拟麦克风、远端配对/上传、训练/微调工作区、Seed-VC/so-vits-svc/Diffusion-SVC 等额外执行器、WhisperX/MFA 自动歌词对齐、自动旋律转写、研究型生成式局部重写尚未接入。缺少这些适配器时 UI 不伪装可用。
+
+基础效果当前有高/低切、压缩、延迟与限制器；完整参数 EQ、专门去齿音、共享混响发送、第三方 VST、全轨时间伸缩、自动硬件预算优化、成熟缓存清理和通用引擎安装器尚不完整。用户可继续用导出分轨在其他软件处理。
+
+本轮优先验证短片段与真实链路，没有完成每个模型/所有音域/长曲/多声部的系统听感验收。原型的视觉和交互已迁移，所有高级设计细节尚未逐项达到成熟 DAW 的深度。后续继续工作应从本表的“部分”和“未实现”项推进，保留当前真实闭环。

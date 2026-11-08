@@ -1,0 +1,27 @@
+{
+  "engine": "diffsinger-onnx",
+  "model": "Nishiren Gard AI DiffSinger 2.0",
+  "provider": "CPUExecutionProvider",
+  "sample_rate": 44100,
+  "sample_count": 132300,
+  "lyrics": [
+    "きらきら",
+    "はるかな"
+  ],
+  "notes_midi": [
+    60,
+    60,
+    67,
+    67
+  ],
+  "rms_difference": 0.14717769804193712,
+  "condition_hashes": [
+    "f6bc659d0c8961ecca10278cec5d0e62e95fbb8fe823a569aff048f3c5a5636a",
+    "94094f1daa3d1ffa432d50f2183a11752717c3bbcef51e31eec2a79c64737441"
+  ],
+  "elapsed_seconds": [
+    3.7775882000569254,
+    3.3634527001995593
+  ],
+  "scope": "Real duration+variance+acoustic+vocoder synthesis; exact fixed length and changed phoneme conditioning; intelligibility requires listening"
+}

@@ -1,0 +1,21 @@
+{
+  "fixture": "controlled mixture of two natural recorded singing clips",
+  "reference_lead_rms": 0.11521173369878354,
+  "reference_backing_rms": 0.04344608593475445,
+  "results": {
+    "lead_vocal": {
+      "reference_lead_coefficient": 0.9838936636692943,
+      "reference_backing_coefficient": 0.02373180652982195,
+      "unexplained_rms": 0.008446856098722175,
+      "output_rms": 0.11367488000663492
+    },
+    "backing_vocal": {
+      "reference_lead_coefficient": 0.016106336403319994,
+      "reference_backing_coefficient": 0.9762681935723667,
+      "unexplained_rms": 0.008446856102189773,
+      "output_rms": 0.04328743338737907
+    }
+  },
+  "interpretation": "Coefficients measure sample-aligned linear projection onto known source components; residual artifacts and synthetic mixing limit perceptual conclusions. No universal quality threshold.",
+  "labels_not_changed": true
+}

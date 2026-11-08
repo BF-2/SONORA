@@ -1,0 +1,14 @@
+{
+  "project_id": "project_a291a8e4f4404264a198",
+  "primary_database": "E:\\voice\\aponyvoice\\runtime\\sonora.sqlite",
+  "backup": "E:\\voice\\aponyvoice\\runtime\\backups\\before-six-stage-20261101-b631d589.sqlite",
+  "existing_project_count": 15,
+  "existing_project_rows_preserved": true,
+  "imported_artifacts": 25,
+  "imported_jobs": 19,
+  "imported_history_states": 52,
+  "source_media_retained_at": "E:\\voice\\aponyvoice\\runtime\\six-stage-qa",
+  "cache_files_linked": 47,
+  "primary_cache_paths_remapped": true,
+  "primary_export_paths_remapped": true
+}

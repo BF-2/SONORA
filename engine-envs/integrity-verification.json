@@ -1,0 +1,1766 @@
+{
+  "checked_files": 220,
+  "hardlinks": 216,
+  "all_original_hashes_match": true,
+  "all_reused_hashes_match": true,
+  "files": [
+    {
+      "source": "E:\\voice\\Applio\\LICENSE",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\LICENSE",
+      "expected_sha256": "72c54bda40795cf382097befa7f63d8c38c6adf9ceb9861e12424fc048d0f18a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\requirements.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\requirements.txt",
+      "expected_sha256": "ae2ccf9dea57a561beec9e8381e0bb992c563d8db7654832eac8242d7412e083",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\24000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\24000.json",
+      "expected_sha256": "ad860bdefa0235b3d2523dd0be8db8ad936e9792fd9f5ef414443b91d78c12a2",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\32000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\32000.json",
+      "expected_sha256": "505d742040ebd82cfc3735654c375c2af49e57da38649a48e816f0f04a7033af",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\40000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\40000.json",
+      "expected_sha256": "b8c1e217d6ae8bba95fb41bdaf796a453769eb1c0ba1e40c093e322246ea1b77",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\48000.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\48000.json",
+      "expected_sha256": "1e18a2ce2567f8a60e12b8c7a9c5cc8515f9ec7ec2dd3f19fffee3e6af1ba1bc",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\configs\\config.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\configs\\config.py",
+      "expected_sha256": "f21962c7b45d51acd3ccd45c5b98a158a478178e062af286b0e1b3d22271d499",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\infer\\infer.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\infer\\infer.py",
+      "expected_sha256": "3d8c4c5cd317a0a02a6e57e7c03e23c6f77f399a6e1be881a4552bf4274fd8be",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\infer\\pipeline.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\infer\\pipeline.py",
+      "expected_sha256": "9c146b4bca8f6c7373c204f46e1c30edcd97c5b567d30851e33e945b55a8978a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\__init__.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\__init__.py",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\attentions.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\attentions.py",
+      "expected_sha256": "ae000916e1167b318eb826903e320c5f7954d50a5fc6f7114a595fc3fb2ad3d5",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\commons.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\commons.py",
+      "expected_sha256": "6c46bcaa281eda218f1138beb5dc0704b2f4890d7f9033f2f6ecb8c425b6a1e9",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\discriminators.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\discriminators.py",
+      "expected_sha256": "e936ec7254a22b9b1f449fa1b6b2a6441717cb7f2336478b5acd652fb1f36044",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\encoders.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\encoders.py",
+      "expected_sha256": "3f5fddd682166d6257c04b3bec94acd1bd0a81c78ae8e8803d62b9150a7546b8",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\__init__.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\__init__.py",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\hifigan.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\hifigan.py",
+      "expected_sha256": "69cb9d1f758abc7e68b5e13db80ef8d6113fbd3956f0449bbee1b06183586504",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\hifigan_mrf.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\hifigan_mrf.py",
+      "expected_sha256": "ad18870a4d4cdb11574d41908b118d75961256533575d27cfec6b668122c7a82",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\hifigan_nsf.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\hifigan_nsf.py",
+      "expected_sha256": "a7853908f64c4f928e61255e950f748f3551c50433be70dc7602587a1808cb07",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\generators\\refinegan.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\generators\\refinegan.py",
+      "expected_sha256": "5beeb49cc462d7d5b5423bffff3f8512cb008743846b9ed227cd95d3fcba4703",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\modules.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\modules.py",
+      "expected_sha256": "0c4258eda66d40b810a2b6319f6ea34e0512e6363b8730d28dd7f718ef7dbd78",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\normalization.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\normalization.py",
+      "expected_sha256": "0f076772bb69c65907928d671d0f5fe56c8a98e7df3fb1a0cd73fa61a392571a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\residuals.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\residuals.py",
+      "expected_sha256": "d5ec8f61440bc640e6d25dc04f81c0f54bbd5348aba6520cc192f377a41820a6",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\algorithm\\synthesizers.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\algorithm\\synthesizers.py",
+      "expected_sha256": "79447e987f624aa78f12f707a97ce2ac36b25da623a7e807a4b3518009c225c9",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\platform.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\platform.py",
+      "expected_sha256": "3ef5a87f6395bcee941fc48bb006e40f9caac12f2e42968f3446f3f5dc5bee6f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\f0.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\f0.py",
+      "expected_sha256": "7aed5c2f59b9c8748b766c3282726e82cb79ab77aafb4aca6bd93a68a2566f15",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\F0Extractor.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\F0Extractor.py",
+      "expected_sha256": "34c097710c10b622463c55a5bb07a1c69493663e63133dbe73586f885707f779",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\FCPE.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\FCPE.py",
+      "expected_sha256": "53de04823df43186f89a541ff9594d2961c714a32ae6d5d96a563752cc089fd8",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\predictors\\RMVPE.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\predictors\\RMVPE.py",
+      "expected_sha256": "9f2886c516bdf10ce639fbf8d6c1f3fe20ef455fc2a97203ad85863d40dee30e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\analyzer.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\analyzer.py",
+      "expected_sha256": "365c3f85f7f630ad64fc24bf59b5af36e7e2c1d184e7f49a2f7fbd828f426ed8",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\gdown.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\gdown.py",
+      "expected_sha256": "05c6cffb8fcd1f6267f441b57353953e17b24833fff0b8d8898b5125bb12c22c",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\launch_tensorboard.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\launch_tensorboard.py",
+      "expected_sha256": "61ef120baea43e4268d82bfec8b96ff244916cd9ff9e3f40bfb9bbc646ab9724",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\model_download.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\model_download.py",
+      "expected_sha256": "faec9eb5f297237b77e9a19192fe2f3b41fd2342f1cf4cf325195e4c501e9954",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\prerequisites_download.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\prerequisites_download.py",
+      "expected_sha256": "bbbb820590d2861fc2f7ca7318073981701ac283a8d4485e61a457d26526bcfd",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\pretrained_selector.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\pretrained_selector.py",
+      "expected_sha256": "16b8a3b0cb1321d7f7c641c61442b6cddf9c73d9df0033bf712437f574cf950e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\split_audio.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\split_audio.py",
+      "expected_sha256": "d735e387867a9fa4b994d2fde81e6dd1657896b947158b0c91e4640520ec5b9a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\tts.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\tts.py",
+      "expected_sha256": "5188c939eac9a893bd177fc68bed03baa660d46ee2e58113a0ea9f8bfb22bdef",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\tools\\tts_voices.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\tools\\tts_voices.json",
+      "expected_sha256": "39ac087080dc3440f2fbdfd41fdb608c8b4927d174df16f4b1dcd7eff69a1959",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\utils.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\utils.py",
+      "expected_sha256": "c374d066e2bc30feee24b95fc6a03c321a77121d92d5d40541bde247ae69273c",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\lib\\zluda.py",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\lib\\zluda.py",
+      "expected_sha256": "8d11178f07e41422e218a15772b5bc938c10437f39ec4879dc7d1b68e0c44383",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\embedders\\contentvec\\config.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\embedders\\contentvec\\config.json",
+      "expected_sha256": "2ddde063b795d38d9051a7215a092fecf4cfe148b54251e38de51d88d356898b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\embedders\\contentvec\\pytorch_model.bin",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\embedders\\contentvec\\pytorch_model.bin",
+      "expected_sha256": "d8dd400e054ddf4e6be75dab5a2549db748cc99e756a097c496c099f65a4854e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\predictors\\.gitkeep",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\predictors\\.gitkeep",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\predictors\\fcpe.pt",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\predictors\\fcpe.pt",
+      "expected_sha256": "8544427eebbf2baef6213cc9a05057e46961617a8e5bd96975a0d42da6a09059",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\rvc\\models\\predictors\\rmvpe.pt",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\rvc\\models\\predictors\\rmvpe.pt",
+      "expected_sha256": "6d62215f4306e3ca278246188607209f09af3dc77ed4232efdd069798c4ec193",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\TERMS_OF_USE.md",
+      "path": "E:\\voice\\aponyvoice\\resources\\applio\\TERMS_OF_USE.md",
+      "expected_sha256": "f69d6a9b365f5aea516531d70851d0c893563e37046f186f12e2ec895bc5a4dd",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\apple_bloom_pony_singing_v1\\apple_bloom_pony_singing_v1_300e_3900s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\apple_bloom_pony_singing_v1\\apple_bloom_pony_singing_v1_300e_3900s.pth",
+      "expected_sha256": "94276833b5a23c19c4b53b2edddb88467d9f689a9f589b7fc4c2f2144e29685b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\apple_bloom_pony_singing_v1\\apple_bloom_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\apple_bloom_pony_singing_v1\\apple_bloom_pony_singing_v1.index",
+      "expected_sha256": "e632a1376185a5d2e0ef2f2d3589bb95e59256b91cde3f865931a042b5589cf6",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\applejack_pony_singing_r18m_20260914\\applejack_pony_singing_r18m_20260914_300e_6600s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\applejack_pony_singing_r18m_20260914\\applejack_pony_singing_r18m_20260914_300e_6600s.pth",
+      "expected_sha256": "bf8e1cf9ec922a192577c0cfadad57991c58e1663f457fe81aed85f533ecd4f3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\applejack_pony_singing_r18m_20260914\\applejack_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\applejack_pony_singing_r18m_20260914\\applejack_pony_singing_r18m_20260914.index",
+      "expected_sha256": "cc1fc926f48ba51199cb8733dda6a3a2eb43d732324948adbe59477ca60928f4",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\applejack_pony_singing_v1\\applejack_pony_singing_v1_300e_6600s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\applejack_pony_singing_v1\\applejack_pony_singing_v1_300e_6600s.pth",
+      "expected_sha256": "3ffcbfc68f09402869728515eb1324e95011f9a9306f06c27a2970069ea46b1c",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\applejack_pony_singing_v1\\applejack_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\applejack_pony_singing_v1\\applejack_pony_singing_v1.index",
+      "expected_sha256": "bba415551053ace34743eadb7e47be10a5379b90d2acdcd14c15d4ee58b4fea5",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\applejack_pony_speech_fim_v1\\applejack_pony_speech_fim_v1_300e_24000s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\applejack_pony_speech_fim_v1\\applejack_pony_speech_fim_v1_300e_24000s.pth",
+      "expected_sha256": "0ed282a657b98a539e4f223b9446de40265eb08e430f3a27daa1cfd6cfaac616",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\applejack_pony_speech_fim_v1\\applejack_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\applejack_pony_speech_fim_v1\\applejack_pony_speech_fim_v1.index",
+      "expected_sha256": "340cd8976fc92eaaff3b9e20d513330dcd022333c06b423a2c47ebef9d39f30b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\cadance_pony_singing_v1\\cadance_pony_singing_v1_300e_3000s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\cadance_pony_singing_v1\\cadance_pony_singing_v1_300e_3000s.pth",
+      "expected_sha256": "7caa4122017c7d06ff7154a4f48734da0438833cf87b74e56cde757abcecba2f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\cadance_pony_singing_v1\\cadance_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\cadance_pony_singing_v1\\cadance_pony_singing_v1.index",
+      "expected_sha256": "b2d8d9d3dc82da469410440ee0b3e6c05629718d25f5b3289198a9a7361ccb53",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\celestia_pony_singing_v1\\celestia_pony_singing_v1_300e_3600s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\celestia_pony_singing_v1\\celestia_pony_singing_v1_300e_3600s.pth",
+      "expected_sha256": "0780ffe505b63f5637c16e0d9866bcb566374386af3cb4d9d72e92a8055eed1f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\celestia_pony_singing_v1\\celestia_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\celestia_pony_singing_v1\\celestia_pony_singing_v1.index",
+      "expected_sha256": "866c97bcc9ec7f38fc2d6bd9962f0e43519c25f89a2dec6b26fe2abfe90f0a35",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\fluttershy_pony_singing_r18m_20260914\\fluttershy_pony_singing_r18m_20260914_300e_4200s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\fluttershy_pony_singing_r18m_20260914\\fluttershy_pony_singing_r18m_20260914_300e_4200s.pth",
+      "expected_sha256": "96c7fc4d0fb1576c81f351bffe90532665bf7efb49251a7c99f13a76196f4f5f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\fluttershy_pony_singing_r18m_20260914\\fluttershy_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\fluttershy_pony_singing_r18m_20260914\\fluttershy_pony_singing_r18m_20260914.index",
+      "expected_sha256": "eda629985aa7db14e57c96aa546b6626251956885e554d6dfecd616a07f98689",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\fluttershy_pony_singing_v1\\fluttershy_pony_singing_v1_300e_4200s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\fluttershy_pony_singing_v1\\fluttershy_pony_singing_v1_300e_4200s.pth",
+      "expected_sha256": "1c8c1ce7732e6688de3bd24d6250399b33fff40182d662371244f6a9def4b5c0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\fluttershy_pony_singing_v1\\fluttershy_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\fluttershy_pony_singing_v1\\fluttershy_pony_singing_v1.index",
+      "expected_sha256": "f2425c1c67a5fbb799d65b904cc2f3a0596c2174da6e8e85bff8453d52f7f014",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\fluttershy_pony_speech_fim_v1\\fluttershy_pony_speech_fim_v1_300e_22500s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\fluttershy_pony_speech_fim_v1\\fluttershy_pony_speech_fim_v1_300e_22500s.pth",
+      "expected_sha256": "a91842e2394f51fb2d2bf24eafa8d99fbbfcba3dbea1fd525b7039d2e34190f4",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\fluttershy_pony_speech_fim_v1\\fluttershy_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\fluttershy_pony_speech_fim_v1\\fluttershy_pony_speech_fim_v1.index",
+      "expected_sha256": "c6e64a16f0d9af48cf4263259cfbcf216fd5ef1f475de5b6e4bc7196f9d5c2ca",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_singing_r18m_20260914\\luna_pony_singing_r18m_20260914_300e_7200s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_singing_r18m_20260914\\luna_pony_singing_r18m_20260914_300e_7200s.pth",
+      "expected_sha256": "ec7e62bac264c79e5006ec970193665151bea89688a852e611918e28cfe7c4ce",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_singing_r18m_20260914\\luna_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_singing_r18m_20260914\\luna_pony_singing_r18m_20260914.index",
+      "expected_sha256": "9a07adb49220e94077da94a3d7c0d7e3e17d5542a9c3aeaeb38590e020d831d7",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_singing_v1\\luna_pony_singing_v1_300e_7200s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_singing_v1\\luna_pony_singing_v1_300e_7200s.pth",
+      "expected_sha256": "ffd4f0efd507f54c0ed3dc27cbca98d572e3a2b464c0b5d6bbacb07311217a5f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_singing_v1\\luna_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_singing_v1\\luna_pony_singing_v1.index",
+      "expected_sha256": "68e02bee6638ea7c1999ff2b754f34fb3cc7d992075e93ca103f81427c48b56e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_speech_fim_r18m_20260914\\luna_pony_speech_fim_r18m_20260914_300e_18900s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_speech_fim_r18m_20260914\\luna_pony_speech_fim_r18m_20260914_300e_18900s.pth",
+      "expected_sha256": "5c5083b4cd6abac860c5cb7d764e31e9b5ff9c59b15445ba082385e5a876ec7b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_speech_fim_r18m_20260914\\luna_pony_speech_fim_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_speech_fim_r18m_20260914\\luna_pony_speech_fim_r18m_20260914.index",
+      "expected_sha256": "075e528dc326cb2f4f9abc152c37d96d38c4152799eed7b0d61b78a0fcc0615b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_speech_fim_v1\\luna_pony_speech_fim_v1_300e_18900s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_speech_fim_v1\\luna_pony_speech_fim_v1_300e_18900s.pth",
+      "expected_sha256": "a292763209a8e5e72a94a642fc09bb49ceed17f2dbbf5cab637df7802629a936",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\luna_pony_speech_fim_v1\\luna_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\luna_pony_speech_fim_v1\\luna_pony_speech_fim_v1.index",
+      "expected_sha256": "f0c28b1773bb7b4e0879ac50fd594efed3becef425c565547b8dc915431ab8e8",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\pinkie_pie_pony_singing_r18m_20260914\\pinkie_pie_pony_singing_r18m_20260914_300e_9300s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\pinkie_pie_pony_singing_r18m_20260914\\pinkie_pie_pony_singing_r18m_20260914_300e_9300s.pth",
+      "expected_sha256": "500b93164216c77c02cb77578bbc7a9c54e2a9169446d0caffe399a6a7416175",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\pinkie_pie_pony_singing_r18m_20260914\\pinkie_pie_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\pinkie_pie_pony_singing_r18m_20260914\\pinkie_pie_pony_singing_r18m_20260914.index",
+      "expected_sha256": "9ca5db8c524aeda90d2210851d81d6e6243099ffb633fb7fefeba73956b8b636",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\pinkie_pie_pony_singing_v1\\pinkie_pie_pony_singing_v1_300e_9300s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\pinkie_pie_pony_singing_v1\\pinkie_pie_pony_singing_v1_300e_9300s.pth",
+      "expected_sha256": "1ae031459284768860ab77e7e0c55c59c2adb9c114a009d578ef626bcd647bb0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\pinkie_pie_pony_singing_v1\\pinkie_pie_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\pinkie_pie_pony_singing_v1\\pinkie_pie_pony_singing_v1.index",
+      "expected_sha256": "08133dd5a3dc432e0180a7a7e34e09b771f77c868ea90dba3efe88ffa4b4c0c1",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\pinkie_pie_pony_speech_fim_v1\\pinkie_pie_pony_speech_fim_v1_300e_23400s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\pinkie_pie_pony_speech_fim_v1\\pinkie_pie_pony_speech_fim_v1_300e_23400s.pth",
+      "expected_sha256": "f3f651c894f3b702f720a06e2f2a95660cc5d0b936224bd14e5b9b6dc5500d87",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\pinkie_pie_pony_speech_fim_v1\\pinkie_pie_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\pinkie_pie_pony_speech_fim_v1\\pinkie_pie_pony_speech_fim_v1.index",
+      "expected_sha256": "e0354949f8e30067ab34997d78612b8fdc133918374be35f618d55223e0d5885",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rainbow_dash_pony_singing_r18m_20260914\\rainbow_dash_pony_singing_r18m_20260914_300e_7500s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rainbow_dash_pony_singing_r18m_20260914\\rainbow_dash_pony_singing_r18m_20260914_300e_7500s.pth",
+      "expected_sha256": "9e2cef562d10124132f8ccba8f35cc003384154133196da759a9b46cb462e638",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rainbow_dash_pony_singing_r18m_20260914\\rainbow_dash_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rainbow_dash_pony_singing_r18m_20260914\\rainbow_dash_pony_singing_r18m_20260914.index",
+      "expected_sha256": "30c0470d68f87920b966295d4e727e3977ab1276cf1dc9e1c87d9f0f0335912e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rainbow_dash_pony_singing_v1\\rainbow_dash_pony_singing_v1_300e_7500s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rainbow_dash_pony_singing_v1\\rainbow_dash_pony_singing_v1_300e_7500s.pth",
+      "expected_sha256": "344bf3a51fe238137406f57d921a8c7de327eb376e9f1621b72f4563b84aa47f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rainbow_dash_pony_singing_v1\\rainbow_dash_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rainbow_dash_pony_singing_v1\\rainbow_dash_pony_singing_v1.index",
+      "expected_sha256": "5c8b7e9e575498f24175ed69555954a90eb1057742308c4d879ec844f7491339",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rainbow_dash_pony_speech_fim_v1\\rainbow_dash_pony_speech_fim_v1_300e_23400s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rainbow_dash_pony_speech_fim_v1\\rainbow_dash_pony_speech_fim_v1_300e_23400s.pth",
+      "expected_sha256": "7afe64af23f737918c416f630da385eecdb76e68b580f946e71b2923f01180da",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rainbow_dash_pony_speech_fim_v1\\rainbow_dash_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rainbow_dash_pony_speech_fim_v1\\rainbow_dash_pony_speech_fim_v1.index",
+      "expected_sha256": "fa19dd3a9e049279061e1237bbab51ffd0dca1d28b1b9cb1ee77ec28bf209cfa",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rarity_pony_singing_r18m_20260914\\rarity_pony_singing_r18m_20260914_300e_8700s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rarity_pony_singing_r18m_20260914\\rarity_pony_singing_r18m_20260914_300e_8700s.pth",
+      "expected_sha256": "6c5fb8c053cc12ab556e948b43dd665c29abda9ed99045561443e6012a8f1481",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rarity_pony_singing_r18m_20260914\\rarity_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rarity_pony_singing_r18m_20260914\\rarity_pony_singing_r18m_20260914.index",
+      "expected_sha256": "1e727b88e4cffcfdee6a231074998d28e8ed98cbc38e8a2cc186a39ceb8c0a39",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rarity_pony_singing_v1\\rarity_pony_singing_v1_300e_8700s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rarity_pony_singing_v1\\rarity_pony_singing_v1_300e_8700s.pth",
+      "expected_sha256": "c5eba0d8322dbbf6b2d48399cc11195735ecbb66bebbb68b3e47e71b29b85f19",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rarity_pony_singing_v1\\rarity_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rarity_pony_singing_v1\\rarity_pony_singing_v1.index",
+      "expected_sha256": "41991a07c17ff3f30461ee97d5df421a968fedad5d3fd2b10c5f2007c83ad83d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rarity_pony_speech_fim_v1\\rarity_pony_speech_fim_v1_300e_22500s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rarity_pony_speech_fim_v1\\rarity_pony_speech_fim_v1_300e_22500s.pth",
+      "expected_sha256": "4a859320db3a984bf5f7ca9a6c315333c22664f4c7e4ecad61087b7919db9823",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\rarity_pony_speech_fim_v1\\rarity_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\rarity_pony_speech_fim_v1\\rarity_pony_speech_fim_v1.index",
+      "expected_sha256": "e389f153ac05a63e10d8055b846b56b8cc25b4a9b34244cac56df1bb980cb752",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\scootaloo_pony_singing_v1\\scootaloo_pony_singing_v1_300e_3900s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\scootaloo_pony_singing_v1\\scootaloo_pony_singing_v1_300e_3900s.pth",
+      "expected_sha256": "31774318247b928fe0fb1689f011b270af34b944a7624f43799d1ff7ca9ff9d2",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\scootaloo_pony_singing_v1\\scootaloo_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\scootaloo_pony_singing_v1\\scootaloo_pony_singing_v1.index",
+      "expected_sha256": "80a4605745f381513121f331fdfe6f393645a0b7f381238a31b307595eca64e7",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\sunset_shimmer_pony_singing_r18m_20260914\\sunset_shimmer_pony_singing_r18m_20260914_300e_4200s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\sunset_shimmer_pony_singing_r18m_20260914\\sunset_shimmer_pony_singing_r18m_20260914_300e_4200s.pth",
+      "expected_sha256": "de39f3ef07cbbc2e373b1a9ab7c8fb548169431cb40acee8d03bff971aac0241",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\sunset_shimmer_pony_singing_r18m_20260914\\sunset_shimmer_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\sunset_shimmer_pony_singing_r18m_20260914\\sunset_shimmer_pony_singing_r18m_20260914.index",
+      "expected_sha256": "9380eab2293e57807fe31dca89a5eab799e45927b03b5a2b4db81ca4abd8e844",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\sunset_shimmer_pony_singing_v1\\sunset_shimmer_pony_singing_v1_300e_4200s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\sunset_shimmer_pony_singing_v1\\sunset_shimmer_pony_singing_v1_300e_4200s.pth",
+      "expected_sha256": "7ae3cd9def243a7c7399bc5363a1f369b9b045c889c6ff94ce82fa867f1ea567",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\sunset_shimmer_pony_singing_v1\\sunset_shimmer_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\sunset_shimmer_pony_singing_v1\\sunset_shimmer_pony_singing_v1.index",
+      "expected_sha256": "e6b31d58a1f4251e1e36a69d65d5e6d4d0f2997e3bc75cf8444111bba70e32af",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\sweetie_belle_pony_singing_v1\\sweetie_belle_pony_singing_v1_300e_3600s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\sweetie_belle_pony_singing_v1\\sweetie_belle_pony_singing_v1_300e_3600s.pth",
+      "expected_sha256": "038bcc5bb90d15fb7607d8aa8c94645b428826683798e1091692128ac84fb044",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\sweetie_belle_pony_singing_v1\\sweetie_belle_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\sweetie_belle_pony_singing_v1\\sweetie_belle_pony_singing_v1.index",
+      "expected_sha256": "1fcf7361e856b0742aa792c5394e0d4550014483ad582f8d5fbffdb7850611d4",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\twilight_sparkle_pony_singing_r18m_20260914\\twilight_sparkle_pony_singing_r18m_20260914_300e_17400s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\twilight_sparkle_pony_singing_r18m_20260914\\twilight_sparkle_pony_singing_r18m_20260914_300e_17400s.pth",
+      "expected_sha256": "a11738d9901f173edd8e902b4f7f3aea1e300218bf253fc1a91374c30ca334fe",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\twilight_sparkle_pony_singing_r18m_20260914\\twilight_sparkle_pony_singing_r18m_20260914.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\twilight_sparkle_pony_singing_r18m_20260914\\twilight_sparkle_pony_singing_r18m_20260914.index",
+      "expected_sha256": "9e93354621cb7802ac71555554bfb6b61e446bce902cd6c47130d004e2c83cea",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\twilight_sparkle_pony_singing_v1\\twilight_sparkle_pony_singing_v1_300e_17400s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\twilight_sparkle_pony_singing_v1\\twilight_sparkle_pony_singing_v1_300e_17400s.pth",
+      "expected_sha256": "250f09e2020267ef62751f46dbbea6a3783d4cb8fd26aa096a228b0035744fe8",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\twilight_sparkle_pony_singing_v1\\twilight_sparkle_pony_singing_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\twilight_sparkle_pony_singing_v1\\twilight_sparkle_pony_singing_v1.index",
+      "expected_sha256": "29eceb8ec5b0bf1ee3cb7b6885080f322c62ee7452ff07bcd24aa6affdb02e68",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\twilight_sparkle_pony_speech_fim_v1\\twilight_sparkle_pony_speech_fim_v1_300e_22800s.pth",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\twilight_sparkle_pony_speech_fim_v1\\twilight_sparkle_pony_speech_fim_v1_300e_22800s.pth",
+      "expected_sha256": "da1500d4c2d4a5e132b2cff5dd84d8610e8f214ba0bb2ffd8874b97a37b415d8",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\Applio\\logs\\twilight_sparkle_pony_speech_fim_v1\\twilight_sparkle_pony_speech_fim_v1.index",
+      "path": "E:\\voice\\aponyvoice\\resources\\models\\twilight_sparkle_pony_speech_fim_v1\\twilight_sparkle_pony_speech_fim_v1.index",
+      "expected_sha256": "326815df2009dcae27eae7b1a81d4517cb6d40d999ac393e502195867bbb88a4",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\separator-models\\mel_band_roformer_vocals_fv4_gabox.ckpt",
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\mel_band_roformer_vocals_fv4_gabox.ckpt",
+      "expected_sha256": "1a9657de5fd3ed87ad4fd1a9d2069743ecb33424836973ad0f3288e2a64e90bc",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\separator-models\\config_mel_band_roformer_vocals_gabox.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\config_mel_band_roformer_vocals_gabox.yaml",
+      "expected_sha256": "32419582fa8c313199ab49be8f5cb2b5e3860769ca045b4788a960d72140cd39",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\separator-models\\melband_roformer_big_beta6x.ckpt",
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\melband_roformer_big_beta6x.ckpt",
+      "expected_sha256": "e16d702f4e20f13d60b293541c1dea75cb4414a5846b36780e28ef70352a4e5c",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\separator-models\\config_melbandroformer_big_beta6x.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\config_melbandroformer_big_beta6x.yaml",
+      "expected_sha256": "42a037e9d80dc1dbc91005047cd20f4afe7c1267163fc878a9fbaf6be21959f3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\character.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\character.txt",
+      "expected_sha256": "97dbf8883741096b99279cf766379a5c327101a508410c1a41ff4a805ca8f82a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\character.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\character.yaml",
+      "expected_sha256": "4e91bed42a0c82f9d334a0882bc16e654bff1e09e9f1c69443e7668b7acbb4fc",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsconfig.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsconfig.yaml",
+      "expected_sha256": "7e88de37bd0f16b011a1db21bdba72c1a3afe5bce1e8f7bb2f6b79af64dc85d1",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\2P.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\2P.emb",
+      "expected_sha256": "a29ec1a2d3731b7a77090268b1f20de6ce5c59338c4ef81ac40c26c8f2f41555",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-en.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-en.txt",
+      "expected_sha256": "682f71abbd7b91f27546552031d6cba0024e6599b83fd46e84e8f5c9b8c96ec0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-es.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-es.txt",
+      "expected_sha256": "145645a3ed68b23fb7c3ad0739e3587cb96948aabdc95ce15c6a9d812a62b304",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-fr.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-fr.txt",
+      "expected_sha256": "d70dd83842e4058adabae08eaf005b13d5d404c83094408e32d4d113422e1eb3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-it.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-it.txt",
+      "expected_sha256": "f555ec47c8df384539fef1e27536c9864bf18fc19ce838d688bbe41d3b836d02",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-ja.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-ja.txt",
+      "expected_sha256": "a3932d60524c26be5c0339d8ee0fe8b61bec90e0fb626bc3b7109c5f179d047d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-ko.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-ko.txt",
+      "expected_sha256": "49a18af6332efd656fb185ac0494fe420b3c21b110d7c5193b4bc0846fbdc321",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-th.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-th.txt",
+      "expected_sha256": "f2844af2e1d6ab56ebb4af1e1850fd0386068dbff6488162506590bc94f1927f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dictionary-zh.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dictionary-zh.txt",
+      "expected_sha256": "0d99f1316f033aca567ec726f571e81f7baa5f78346031d51cc80218399cc86e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsconfig.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsconfig.yaml",
+      "expected_sha256": "8a5eb87b8436829113d1585148bedf88e5b7386fee7d0da032b66eb07b025b84",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-en.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-en.yaml",
+      "expected_sha256": "6a739f6bf243632adbbd89e13673ea39101ed2c393276e6ae4d05a6699963739",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-es.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-es.yaml",
+      "expected_sha256": "93a933fdf69c7a16f57c98a35757b5ce0b4c32aca4b245d523ee17167f08f71e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-fr-millefeuille.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-fr-millefeuille.yaml",
+      "expected_sha256": "efce4ebad91181496cd9f48c7971dbf89d042c79e519be34a8df1ca40dcef9ea",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-it.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-it.yaml",
+      "expected_sha256": "28c20131962f839e9fc5698bb937283048531ba6b76fdf67a1d4268c4eed92bb",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-ja.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-ja.yaml",
+      "expected_sha256": "5386b965cf1e2ba999cd2599ff3c3ac45104c45ffed135dbfbf62e47434bdf0a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-ko.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-ko.yaml",
+      "expected_sha256": "f01066f16d47b6b2e4d4eed7a34cd40062a5190f47bd340dfa03145954a12770",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-th.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-th.yaml",
+      "expected_sha256": "2f187accfb24e0db8faab63d5724d1d51f50ea498d9b14fbf01cb90f5507ad3d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict-zh.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict-zh.yaml",
+      "expected_sha256": "3175883b4468ebfc820fa75b53e0e00d5b933d7727b827b25d18712e6525bbff",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dsdict.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dsdict.yaml",
+      "expected_sha256": "c9dc02892804f3dcc4e095f6c6852ebb19265e0b47ee2a4062ae0c74c943e976",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\dur.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\dur.onnx",
+      "expected_sha256": "a7db2f2a42b67ebf094f9dcd529ffa8f48c3401507a8fd00c8fae583c2c5d32e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\Emotional.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\Emotional.emb",
+      "expected_sha256": "e3017e380afc1e431a151a41d4a791405ff2e74442dd9aece25034d255c6a918",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\languages.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\languages.json",
+      "expected_sha256": "d1c0c7f7fe915a4518c1338919db53543f658e172e31f4d271af389beb6826ab",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\linguistic.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\linguistic.onnx",
+      "expected_sha256": "4d80bbf5f08abee13d898aa9d8045cd1be64f000275ed1ffa2df0a4c690766a9",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\phonemes.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\phonemes.json",
+      "expected_sha256": "0e15e24a67b1f3431174048a5d79a5de03496d2cc1685950c161cd72d25bafd4",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\Power.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\Power.emb",
+      "expected_sha256": "ae3329fd89f41a2a5e03181bdf694fe643181aa340ef1a0325ca2fd4d0bb05fc",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\Soft.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\Soft.emb",
+      "expected_sha256": "5f992f1279c144f731f3d10b96456cb6f65aea8c7ef2baa87aa1d0f73c45ddbe",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\Standard.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\Standard.emb",
+      "expected_sha256": "862b75adc8f33a3f807858874f72e995040fa9785a648809a9fb34d58a6fbc5c",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsdur\\Sweet.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsdur\\Sweet.emb",
+      "expected_sha256": "44e8f3655e9d7bb2d18d58d516f7cb2b065f3afe6c73a8360cb93b49326f76e0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\2P.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\2P.emb",
+      "expected_sha256": "33649066ee4704aa55eab652285ab6148cca123646a2e1b9eb30ce771bc8eb77",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\acoustic.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\acoustic.onnx",
+      "expected_sha256": "ca66f3c95cd59710184b2f65f5b8e86a0a8d94cb30bf33646d3de8dc7e7b186f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-en.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-en.txt",
+      "expected_sha256": "682f71abbd7b91f27546552031d6cba0024e6599b83fd46e84e8f5c9b8c96ec0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-es.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-es.txt",
+      "expected_sha256": "145645a3ed68b23fb7c3ad0739e3587cb96948aabdc95ce15c6a9d812a62b304",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-fr.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-fr.txt",
+      "expected_sha256": "d70dd83842e4058adabae08eaf005b13d5d404c83094408e32d4d113422e1eb3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-it.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-it.txt",
+      "expected_sha256": "f555ec47c8df384539fef1e27536c9864bf18fc19ce838d688bbe41d3b836d02",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-ja.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-ja.txt",
+      "expected_sha256": "a3932d60524c26be5c0339d8ee0fe8b61bec90e0fb626bc3b7109c5f179d047d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-ko.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-ko.txt",
+      "expected_sha256": "49a18af6332efd656fb185ac0494fe420b3c21b110d7c5193b4bc0846fbdc321",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-th.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-th.txt",
+      "expected_sha256": "f2844af2e1d6ab56ebb4af1e1850fd0386068dbff6488162506590bc94f1927f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dictionary-zh.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dictionary-zh.txt",
+      "expected_sha256": "0d99f1316f033aca567ec726f571e81f7baa5f78346031d51cc80218399cc86e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\dsdict.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\dsdict.yaml",
+      "expected_sha256": "cb375b8df979ae4978aa8fc18976f11d8c26359d9b45428fcd4bdc908f4c4b5a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\Emotional.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\Emotional.emb",
+      "expected_sha256": "241aa272f9ff34dd13b5be8d421efef6f89bae57f7de0ca3f4ea7d8d3c6c3f3a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\languages.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\languages.json",
+      "expected_sha256": "d1c0c7f7fe915a4518c1338919db53543f658e172e31f4d271af389beb6826ab",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\phonemes.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\phonemes.json",
+      "expected_sha256": "16f890ff0d2eb67814008cf1b04fe64789276b64a505aa1a463bc8829ec11dde",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\Power.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\Power.emb",
+      "expected_sha256": "4ab97b63c73c48ebce7a4dd691322c1d34c3b25c71682d8bc80ed3b8e4c8731a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\Soft.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\Soft.emb",
+      "expected_sha256": "afaadfed662d870ea0e5027d479244b3c34b35eb718ac633ccf8cdf5a3416955",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\Standard.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\Standard.emb",
+      "expected_sha256": "7fc3f8bbb735a43ef4890143a67b9d307c38381c85367eb6992e5194cca9e610",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsmain\\Sweet.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsmain\\Sweet.emb",
+      "expected_sha256": "4153a27537b4792d432a1a9b0f0ffe126577b9703e36c93d97b2e7f882b853d7",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\2P.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\2P.emb",
+      "expected_sha256": "c30b46a3656fd8aaac6363fe991ee3007cb9f9f8a72b1055e4f5dc3c406209df",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-en.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-en.txt",
+      "expected_sha256": "682f71abbd7b91f27546552031d6cba0024e6599b83fd46e84e8f5c9b8c96ec0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-es.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-es.txt",
+      "expected_sha256": "145645a3ed68b23fb7c3ad0739e3587cb96948aabdc95ce15c6a9d812a62b304",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-fr.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-fr.txt",
+      "expected_sha256": "d70dd83842e4058adabae08eaf005b13d5d404c83094408e32d4d113422e1eb3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-it.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-it.txt",
+      "expected_sha256": "f555ec47c8df384539fef1e27536c9864bf18fc19ce838d688bbe41d3b836d02",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-ja.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-ja.txt",
+      "expected_sha256": "a3932d60524c26be5c0339d8ee0fe8b61bec90e0fb626bc3b7109c5f179d047d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-ko.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-ko.txt",
+      "expected_sha256": "49a18af6332efd656fb185ac0494fe420b3c21b110d7c5193b4bc0846fbdc321",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-th.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-th.txt",
+      "expected_sha256": "f2844af2e1d6ab56ebb4af1e1850fd0386068dbff6488162506590bc94f1927f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dictionary-zh.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dictionary-zh.txt",
+      "expected_sha256": "0d99f1316f033aca567ec726f571e81f7baa5f78346031d51cc80218399cc86e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dsconfig.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dsconfig.yaml",
+      "expected_sha256": "df84ffb265919f2d315e0a4b85ff01d08ea80a07aff2012bc5717561a738d278",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\dsdict.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\dsdict.yaml",
+      "expected_sha256": "cb375b8df979ae4978aa8fc18976f11d8c26359d9b45428fcd4bdc908f4c4b5a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\Emotional.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\Emotional.emb",
+      "expected_sha256": "120f4c5990a72f0143c77ecfedc42daf2e828bcc1df247cf4d7f5746c9bb9fa6",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\languages.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\languages.json",
+      "expected_sha256": "d1c0c7f7fe915a4518c1338919db53543f658e172e31f4d271af389beb6826ab",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\linguistic.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\linguistic.onnx",
+      "expected_sha256": "c431ca3fd16f738af25da7e098aebd8c96ead487d8f8a21931bbbdfd053f9a17",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\phonemes.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\phonemes.json",
+      "expected_sha256": "74d475b533d64f7d1f362913cfbcc5d7d93dff2dbcad2cee09666164c30a18cc",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\pitch.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\pitch.onnx",
+      "expected_sha256": "0abbea551edb9f2cfb6b023744fb3420ebf337e8a254e05c722ece685e7e2b7d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\Power.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\Power.emb",
+      "expected_sha256": "0674478b11fea19e7d66e98280b884dd1c4e484abf0d89960de8ecf1f85b32b7",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\Soft.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\Soft.emb",
+      "expected_sha256": "fd367f8cc418a486b874217095c46326fdefe35f3efbf677210230d485ce57da",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\Standard.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\Standard.emb",
+      "expected_sha256": "a03bdd5f76dc8ee70b07ba74671a0b1e820737cdfeb8a7288534d51399e5111f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dspitch\\Sweet.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dspitch\\Sweet.emb",
+      "expected_sha256": "5e05af10df4e2e64763dafbb69d552e714d5dee78593fd322bee5e6a85ea5f47",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\2P.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\2P.emb",
+      "expected_sha256": "80fde49afce7a7cf5e7d0542b0bfa6473ef476d56bced370d0c81ca4298d3f53",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-en.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-en.txt",
+      "expected_sha256": "682f71abbd7b91f27546552031d6cba0024e6599b83fd46e84e8f5c9b8c96ec0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-es.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-es.txt",
+      "expected_sha256": "145645a3ed68b23fb7c3ad0739e3587cb96948aabdc95ce15c6a9d812a62b304",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-fr.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-fr.txt",
+      "expected_sha256": "d70dd83842e4058adabae08eaf005b13d5d404c83094408e32d4d113422e1eb3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-it.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-it.txt",
+      "expected_sha256": "f555ec47c8df384539fef1e27536c9864bf18fc19ce838d688bbe41d3b836d02",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-ja.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-ja.txt",
+      "expected_sha256": "a3932d60524c26be5c0339d8ee0fe8b61bec90e0fb626bc3b7109c5f179d047d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-ko.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-ko.txt",
+      "expected_sha256": "49a18af6332efd656fb185ac0494fe420b3c21b110d7c5193b4bc0846fbdc321",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-th.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-th.txt",
+      "expected_sha256": "f2844af2e1d6ab56ebb4af1e1850fd0386068dbff6488162506590bc94f1927f",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dictionary-zh.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dictionary-zh.txt",
+      "expected_sha256": "0d99f1316f033aca567ec726f571e81f7baa5f78346031d51cc80218399cc86e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dsconfig.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dsconfig.yaml",
+      "expected_sha256": "28986a2cbf23be649283d7fd39f347b64dfa54031e23fc075dd59682cec4e855",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\dsdict.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\dsdict.yaml",
+      "expected_sha256": "cb375b8df979ae4978aa8fc18976f11d8c26359d9b45428fcd4bdc908f4c4b5a",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\Emotional.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\Emotional.emb",
+      "expected_sha256": "adb5927b44a8b5087e7ed0b199004665defa26b75542982d6f07d87765f37261",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\languages.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\languages.json",
+      "expected_sha256": "d1c0c7f7fe915a4518c1338919db53543f658e172e31f4d271af389beb6826ab",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\linguistic.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\linguistic.onnx",
+      "expected_sha256": "11684cea5b053ea7abf760ec4af95e401d8464e44fb8cd64e02f744b986213ab",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\phonemes.json",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\phonemes.json",
+      "expected_sha256": "1a3b37d542f56b72dc8b431bac10715b1680300b1d9ea98abdc6f0f89f57f174",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\Power.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\Power.emb",
+      "expected_sha256": "396a3ca9e93be431de91eaede8f8e0aa16fefc37dcb950a348c9a06f3d5a1bbf",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\Soft.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\Soft.emb",
+      "expected_sha256": "59e1a1f7fe3f306bb4eb94b74e004f506b9e5f87d89950eec7d0645d34766d1e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\Standard.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\Standard.emb",
+      "expected_sha256": "821049c49ab90f47280abe9b913f958b62bb6e036f6e37cd9b1988b116baaae6",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\Sweet.emb",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\Sweet.emb",
+      "expected_sha256": "9bc71237b8f0fc8af39b4e643a4ff117db93c6e5178dd45184303d891d6efa06",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvariance\\variance.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvariance\\variance.onnx",
+      "expected_sha256": "b1475d6d8c2f7e28e57a76fbd2f0a2e4115c850a79fae0b12475112dc6e90fb3",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvocoder\\credit.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvocoder\\credit.txt",
+      "expected_sha256": "c3bde748ce465942df03ba20d45d0df017088cb64124cbfc7917b07c1f9574a6",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvocoder\\gda_pc-hifigan.onnx",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvocoder\\gda_pc-hifigan.onnx",
+      "expected_sha256": "651005d3c9fa94efe050762e8148b07ea38b591ace953da996063b1380a33249",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\dsvocoder\\vocoder.yaml",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\dsvocoder\\vocoder.yaml",
+      "expected_sha256": "1aa114d53fde1ac32fb64a55bf2fd5454d75aee3316a32dffa72d712a48a4a61",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Kayama(2P) AI by Gardanana.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Kayama(2P) AI by Gardanana.png",
+      "expected_sha256": "2f4c2e8ded4989019ff12aee88a8d76a3b216b23eaa1f51e4ab9527285b01820",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Kayama(2P) AI by Miroslav Haslerka.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Kayama(2P) AI by Miroslav Haslerka.png",
+      "expected_sha256": "83d52453070699d2b811e16a7d12c7a6293fe85c4ba28ba9e2832c842301bfa2",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI by Chadee.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI by Chadee.png",
+      "expected_sha256": "40ec297a774c95602d3f4552242aeab51a98d6d55fa89a601fe0cced4f80ddc0",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI by Gardanana.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI by Gardanana.png",
+      "expected_sha256": "2e18030e9e35d8db78d3c50900f1923e36d10baa8f0b76c0decff9dd39b0c512",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI by Miroslav Haslerka.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI by Miroslav Haslerka.png",
+      "expected_sha256": "261af9b144ce1e84d27dc01a2cbd20985072ede4a49fbe3e78fd4907aadfd210",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI by morinopome.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI by morinopome.png",
+      "expected_sha256": "8982b7afdb29a390f55fdaed8cd587d4d16f5f07374749fb6e879e7a4ad38048",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI by wormwood_prod (new).png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI by wormwood_prod (new).png",
+      "expected_sha256": "70114eac794da2f82d38399eaf84c23e17dfad2b39d41fd7c5258ead400a264d",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI by wormwood_prod.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI by wormwood_prod.png",
+      "expected_sha256": "7e7e5a1bb71eed8d0b49fccbac0874d27a3a8e3bc33707a2c42365682e5b30ae",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI chibi by NarzumR.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI chibi by NarzumR.png",
+      "expected_sha256": "ec2f342e257cd8bec8a5a3e30e3a9bebf4a0e3dbe8f40b2eed529bb841b33a4e",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI chibi by sesamii_seed.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI chibi by sesamii_seed.png",
+      "expected_sha256": "c1bbcace62035c9b90c747822afe1217ec3f8876143eb8dfd8d56ba14b5e32b5",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren AI ref sheet.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren AI ref sheet.png",
+      "expected_sha256": "7c247598ef04be1041914941b82eb361e0e207294623e5cd0e16abd9baa72bf4",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren base ref sheet.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren base ref sheet.png",
+      "expected_sha256": "30f290682d6f92e66530d00ca8fae99152d055f47cbe655052187ecd573c2b08",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\extras\\Nishiren logo.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\extras\\Nishiren logo.png",
+      "expected_sha256": "91a0ee6e349e546448100a6f45d2a4d185a4d2a4315cce43c4482aca2e42ef13",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\icon.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\icon.png",
+      "expected_sha256": "7cc53702aae677c5554f64504f0f4d4b2a70c33f620b6b92c7d9abc1e37bdcde",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\Kaeru.wav",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\Kaeru.wav",
+      "expected_sha256": "ca716e991e35a2dcc853a413b7d27bbb0372dab7514fed0377391bc86e884eec",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\portrait.png",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\portrait.png",
+      "expected_sha256": "82f6f6705e8db85116e43c3a7055d8d737087f492bc417780dd4e169bdb2873b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "E:\\voice\\open-source-song-workflow\\apps\\OpenUtau\\Singers\\Nishiren Diffsinger v2.0\\README.txt",
+      "path": "E:\\voice\\aponyvoice\\resources\\svs\\nishiren-diffsinger-v2\\README.txt",
+      "expected_sha256": "550ffca7f3b2e5ab0f6edfadc01f8af4dc406912138c9fcc0a7cf5aff192ebcc",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": true
+    },
+    {
+      "source": "C:\\Users\\ROG\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0-full_build\\bin\\ffmpeg.exe",
+      "path": "E:\\voice\\aponyvoice\\resources\\tools\\ffmpeg.exe",
+      "expected_sha256": "05f4251bce9293c2ab492cb17ca7724a0ffd0d06c881ba2ee83b82a89c2fc740",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": false
+    },
+    {
+      "source": "C:\\Users\\ROG\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0-full_build\\bin\\ffprobe.exe",
+      "path": "E:\\voice\\aponyvoice\\resources\\tools\\ffprobe.exe",
+      "expected_sha256": "51e0780cd881f83749b029ed716cbb841c2eac6289f418050f2f2961b158896b",
+      "original_matches": true,
+      "linked_matches": true,
+      "same_file": false
+    }
+  ],
+  "downloaded_files": [
+    {
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+      "expected_sha256": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "matches": true,
+      "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956_config.yaml",
+      "expected_sha256": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "matches": true,
+      "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"
+    }
+  ]
+}

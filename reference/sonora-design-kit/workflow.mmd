@@ -1,0 +1,30 @@
+flowchart TB
+  IMPORT["导入原始音频与已训练模型"] --> DIAG["素材诊断、模型能力检查与短片段试听"]
+  DIAG --> TASK{"选择任务"}
+  TASK --> SPEECH["语音变音"]
+  TASK --> COVER["原词翻唱"]
+  TASK --> REWRITE["改词翻唱"]
+  SPEECH --> CLEAN["裁剪、切句、按需降噪与电平整理"]
+  COVER --> STEMS["分离伴奏、主唱与和声；确认声部"]
+  CLEAN --> PITCH["干净单声部 F0 检测与人工检查"]
+  STEMS --> PITCH
+  REWRITE --> LYRIC["分离原曲；定位改词句并对齐新词"]
+  LYRIC --> NEWVOICE{"新词演唱来源"}
+  NEWVOICE --> RECORD["录唱新词；裁剪、对齐与 F0 检查"]
+  NEWVOICE --> SCORE{"旋律与时值是否可用"}
+  SCORE --> |"否"| MIDI["导入 MIDI 或手工修订旋律"]
+  MIDI --> NOTES["确认音符、时值、音素与重音"]
+  SCORE --> |"是"| NOTES
+  NOTES --> SVS["SVS 生成新词演唱"]
+  PITCH --> CAND["从同一素材与编辑版本生成候选 A / B / C"]
+  RECORD --> CAND
+  SVS --> CAND
+  CAND -. "用户显式开启" .-> CHAIN["串联再转换；每轮保留结果"]
+  CAND --> AB["等响度 A/B 试听与问题定位"]
+  CHAIN --> AB
+  AB --> CHECK{"是否需要修改"}
+  CHECK --> |"需要"| REPAIR["局部修改音高、歌词、模型参数；重跑受影响节点"]
+  REPAIR --> CAND
+  CHECK --> |"采用候选"| MIX["后处理与混音；时延、响度、峰值检查"]
+  MIX --> EXPORT["导出成品与分轨；保存工程和参数清单"]
+  EXPORT --> VERIFY["成品试听验收"]

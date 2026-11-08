@@ -1,0 +1,59 @@
+{
+  "python": "3.12.13",
+  "base_site_packages": "E:\\voice\\Applio\\.venv\\Lib\\site-packages",
+  "base_environment_lock_hash": "438c62a83fbd0e49ed05c297d76a9c4fada73b554fac470cfc35f02a80ce8f63",
+  "packages_added": {
+    "pyworld": "0.3.5"
+  },
+  "wheel_sha256": "59b48961c2ac34fb01efeb1a77d3eda69c41b676858cbc3a82dfb7602c0c762b",
+  "wheel_name": "pyworld-0.3.5-cp312-cp312-win_amd64.whl",
+  "source": "https://pypi.org/project/pyworld/0.3.5/",
+  "files": [
+    {
+      "path": "pyworld/__init__.py",
+      "sha256": "5eee9bf2e81f67204a3502e14a8e9d74ad6bf1b60578644b0f5ec30e89bc4693",
+      "bytes": 725
+    },
+    {
+      "path": "pyworld/pyworld.cp312-win_amd64.pyd",
+      "sha256": "84e551570b9e4d6a3a65b22d8db5fd2d73fbb7488a1867c4c1c1cb305aa91351",
+      "bytes": 449024
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/INSTALLER",
+      "sha256": "e6184ce10e266134fdcfa401e8f1a95005bcd4f18d16b62b757323e2833fe9a9",
+      "bytes": 2
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/LICENSE",
+      "sha256": "705066462de18626fa19884f2b87354653bc74ac13962932da1857f606739b15",
+      "bytes": 1073
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/METADATA",
+      "sha256": "e0a4ed25ec55d44f284596bc6ee931cc1d8a19a29b9fbb67d65c6dee094d4936",
+      "bytes": 6636
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/RECORD",
+      "sha256": "cf06752acd27d6b4813827a8951a550e9d11bee9e3dbd002ef7a5065989d8084",
+      "bytes": 729
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/REQUESTED",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/top_level.txt",
+      "sha256": "30390bb9ea81d79a937b6208a96324e3a28b56e0192a97509bf226844e82af4b",
+      "bytes": 8
+    },
+    {
+      "path": "pyworld-0.3.5.dist-info/WHEEL",
+      "sha256": "7119920460fe725f7c2a4b8730daaff4073d2fdfd5a93bdc058c2922fc4dd1c8",
+      "bytes": 101
+    }
+  ],
+  "note": "Overlay does not install or modify any packages in base environment"
+}

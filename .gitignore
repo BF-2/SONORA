@@ -1,0 +1,28 @@
+node_modules/
+dist/
+target/
+.venv/
+runtime/
+.old/
+resources/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+# Local credentials and machine-only configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+# Audio test workspaces created by temporary-directory fixtures
+/sonora-pytest-*/
+/sonora-test-*/
+/pytest-of-*/
+engine-envs/resources.json
+engine-envs/*freeze*.txt
+tests/results/
+*.tsbuildinfo
+!reference/ui/sonora-ui/dist/
+!reference/ui/sonora-ui/dist/**

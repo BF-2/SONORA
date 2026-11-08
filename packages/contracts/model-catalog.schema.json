@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sonora:model-catalog:v1",
+  "title": "SONORA model catalog protocol v1",
+  "description": "Independent catalog schema. Does not change project SQLite user_version or saved model identities.",
+  "$defs": {
+    "VoiceProfile": {
+      "type": "object", "required": ["id", "name", "favorite", "tags"],
+      "properties": {
+        "id": {"type": "string"}, "name": {"type": "string"}, "alias": {"type": "string"},
+        "description": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 30},
+        "favorite": {"type": "boolean"}, "last_used_at": {"type": ["string", "null"]},
+        "default_model_id": {"type": ["string", "null"]}, "last_used_model_id": {"type": ["string", "null"]}, "grouping_evidence": {"type": "string"},
+        "version_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "TrainingRun": {
+      "type": "object", "required": ["id", "voice_id", "name", "path"],
+      "properties": {
+        "id": {"type": "string"}, "voice_id": {"type": "string"}, "name": {"type": "string"},
+        "path": {"type": "string"}, "embedder_model": {"type": ["string", "null"]},
+        "sample_rate": {"type": ["integer", "null"]}, "grouping_evidence": {"type": "string"},
+        "metadata_path": {"type": ["string", "null"]}, "config_path": {"type": ["string", "null"]}
+      }
+    },
+    "ModelArtifact": {
+      "type": "object", "required": ["id", "kind", "voice_id", "run_id", "status", "path", "version_label"],
+      "properties": {
+        "id": {"type": "string"}, "model_artifact_id": {"type": "string"}, "canonical_id": {"type": "string"},
+        "alias_of": {"type": "string"}, "name": {"type": "string"}, "filename": {"type": "string"},
+        "voice_id": {"type": "string"}, "run_id": {"type": "string"},
+        "kind": {"enum": ["inference_export", "training_checkpoint", "index", "unknown"]},
+        "status": {"enum": ["discovered", "ready", "missing", "quarantined", "training_only"]},
+        "epoch": {"type": ["integer", "null"], "minimum": 0}, "global_step": {"type": ["integer", "null"], "minimum": 0},
+        "epoch_source": {"enum": ["checkpoint", "filename_inferred", "unknown"]},
+        "step_source": {"enum": ["checkpoint", "filename_inferred", "unknown"]},
+        "version_label": {"type": "string"}, "model_hash": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"]},
+        "path": {"type": "string"}, "origin_path": {"type": "string"}, "original_paths": {"type": "array", "items": {"type": "string"}},
+        "metadata_evidence": {"type": "string"}, "reason": {"type": ["string", "null"]}, "last_used_at": {"type": ["string", "null"]},
+        "sample_rate": {"type": "integer"}, "content_dim": {"type": "integer"},
+        "speaker_ids": {"type": "array", "items": {"type": "integer"}}, "speaker_ids_trained": {"type": "array", "items": {"type": "integer"}},
+        "embedding_speaker_capacity": {"type": "integer"}, "speaker_metadata_status": {"type": "string"},
+        "embedder_model": {"type": ["string", "null"]}, "embedder_verified": {"type": "boolean"},
+        "can_validate": {"type": "boolean"}, "can_render": {"type": "boolean"},
+        "index_id": {"type": ["string", "null"]}, "selected_index_id": {"type": ["string", "null"]},
+        "index_path": {"type": ["string", "null"]}, "index_hash": {"type": ["string", "null"]},
+        "index_match": {"$ref": "#/$defs/IndexCompatibility"}, "capabilities": {"type": "object"}
+      }
+    },
+    "IndexArtifact": {
+      "type": "object", "required": ["id", "kind", "run_id", "path", "content_dim", "status"],
+      "properties": {
+        "id": {"type": "string"}, "kind": {"enum": ["index"]}, "run_id": {"type": "string"}, "voice_id": {"type": "string"},
+        "path": {"type": "string"}, "sha256": {"type": ["string", "null"]}, "content_dim": {"type": "integer"},
+        "status": {"enum": ["discovered", "ready", "missing", "quarantined"]},
+        "embedder_model": {"type": ["string", "null"]}, "provenance": {"type": "string"},
+        "run_link_verified": {"type": "boolean"}, "fully_validated": {"type": "boolean"},
+        "compatibility": {"$ref": "#/$defs/IndexCompatibility"}
+      }
+    },
+    "TrainingCheckpoint": {
+      "type": "object", "required": ["id", "kind", "run_id", "path", "status"],
+      "properties": {
+        "id": {"type": "string"}, "kind": {"enum": ["training_checkpoint"]}, "run_id": {"type": "string"},
+        "path": {"type": "string"}, "status": {"enum": ["training_only", "missing", "quarantined"]},
+        "epoch": {"type": ["integer", "null"]}, "global_step": {"type": ["integer", "null"]},
+        "training_iteration": {"type": ["integer", "null"]}, "filename_counter_hint": {"type": ["integer", "null"]},
+        "counter_semantics": {"enum": ["unknown_without_training_adapter"]}, "reason": {"type": "string"}
+      }
+    },
+    "IndexCompatibility": {
+      "type": "object", "required": ["status", "reasons", "evidence"],
+      "properties": {
+        "status": {"enum": ["verified", "unknown", "incompatible"]},
+        "reasons": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"type": "array", "items": {"type": "object"}},
+        "model_run_id": {"type": "string"}, "index_run_id": {"type": "string"},
+        "content_dim": {"type": "integer"}, "embedder_model": {"type": ["string", "null"]}, "fully_validated": {"type": "boolean"}
+      }
+    },
+    "ModelSelection": {
+      "type": "object", "required": ["id", "model_artifact_id", "model_hash", "speaker_id"],
+      "properties": {
+        "id": {"type": "string"}, "model_artifact_id": {"type": "string"}, "model_hash": {"type": "string"},
+        "project_id": {"type": ["string", "null"]}, "track_id": {"type": ["string", "null"]}, "clip_id": {"type": ["string", "null"]},
+        "voice_id": {"type": "string"}, "run_id": {"type": "string"}, "speaker_id": {"type": "integer", "minimum": 0},
+        "index_id": {"type": ["string", "null"]}, "index_hash": {"type": ["string", "null"]}, "preset_id": {"type": ["string", "null"]}
+      }
+    },
+    "CatalogScan": {
+      "type": "object", "required": ["id", "state", "scanned_files", "counts"],
+      "properties": {
+        "id": {"type": "string"}, "state": {"enum": ["queued", "running", "succeeded", "partial", "cancelled", "failed"]},
+        "scanned_files": {"type": "integer", "minimum": 0}, "counts": {"type": "object"}, "skipped": {"type": "integer"},
+        "roots": {"type": "array", "items": {"type": "string"}}, "budget_exhausted": {"type": "boolean"},
+        "cancel_requested": {"type": "boolean"}, "elapsed_seconds": {"type": "number"}, "error": {"type": "string"}
+      }
+    }
+  }
+}

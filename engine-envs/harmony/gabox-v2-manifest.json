@@ -1,0 +1,50 @@
+{
+  "id": "melband-karaoke-gabox-v2",
+  "name": "MelBand RoFormer Karaoke V2 · Gabox",
+  "task": "lead_backing",
+  "engine_id": "audio-separator",
+  "path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\mel_band_roformer_karaoke_gabox_v2.ckpt",
+  "config_path": "E:\\voice\\aponyvoice\\resources\\separation\\harmony\\config_mel_band_roformer_karaoke_gabox.yaml",
+  "model_hash": "ec34be50327aeaf1a996c27977f5c30d1ac80c0076d69683d3e5184c31ea29d3",
+  "config_hash": "16b726891076fd0bebab9ce038240b51afb22b04eac6026a7f0356178dcb65b7",
+  "sample_rate": 44100,
+  "native_stem_roles": {
+    "Vocals": "lead_vocal",
+    "Instrumental": "backing_vocal"
+  },
+  "stem_roles": {
+    "Vocals": "lead_vocal",
+    "Instrumental": "backing_vocal"
+  },
+  "native_target": "Vocals",
+  "residual_native_stem": "Instrumental",
+  "required_input_role": "combined_vocals",
+  "semantic_basis": "Pinned Karaoke checkpoint estimates lead vocals; apply to combined isolated vocals. Complement is backing group plus any residual bleed.",
+  "semantic_sources": [
+    "https://github.com/nomadkaraoke/python-audio-separator/blob/v0.44.2/audio_separator/models.json",
+    "https://github.com/nomadkaraoke/python-audio-separator/blob/main/docs/deton24-model-mapping-and-ensemble-guide.md"
+  ],
+  "source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/mel_band_roformer_karaoke_gabox_v2.ckpt",
+  "config_source_url": "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/config_mel_band_roformer_karaoke_gabox.yaml",
+  "source_release_id": 175147634,
+  "source_release_tag": "model-configs",
+  "source_asset_ids": [
+    280998842,
+    282884319
+  ],
+  "code_version": "audio-separator 0.44.2",
+  "authors": [
+    "Gabox"
+  ],
+  "license": "unconfirmed",
+  "redistribution": "not bundled; weight license not established by code MIT license",
+  "test_status": "verified_local_combined_vocal",
+  "local_segment_render": false,
+  "warnings": [
+    "仅对合并人声运行第二步分离。输入若有伴奏残留，会进入背景组；结果需试听。",
+    "分组是模型估计，不能保证重唱者、所有和声或混响完全分开。"
+  ],
+  "architecture": "MelBand RoFormer",
+  "verification": "apps/web/qa/editor-improvements/verification.json",
+  "validation_scope": "26 second real combined vocal; 3-pass TTA; signal integrity, not subjective quality ranking"
+}

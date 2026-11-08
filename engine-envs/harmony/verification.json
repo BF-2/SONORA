@@ -1,0 +1,156 @@
+{
+  "passed": true,
+  "scope": "Real local combined-vocal neural split; technical integrity only, no ground truth lead/back accuracy claim",
+  "input_path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\controlled-real\\known-two-voice-mixture.wav",
+  "input_sha256_before": "ec56a73501332f56c8e60cb2f71d6e86038c831b4d87613676c4ab782b85933a",
+  "input_sha256_after": "ec56a73501332f56c8e60cb2f71d6e86038c831b4d87613676c4ab782b85933a",
+  "input_sample_rate": 44100,
+  "sample_count": 176400,
+  "channels": 2,
+  "model_id": "melband-karaoke-aufr33-viperx-10.1956",
+  "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+  "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+  "elapsed_seconds": 6.068895399919711,
+  "peak_cuda_bytes": 1839783424,
+  "device": "cuda:0",
+  "reconstruction_max_abs": 7.450580596923828e-09,
+  "reconstruction_rms": 8.924647544496613e-10,
+  "stem_rms": {
+    "lead_vocal": 0.11367488000663492,
+    "backing_vocal": 0.04328743338737907
+  },
+  "outputs": [
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\controlled-real\\lead_vocal.wav",
+      "role": "lead_vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 176400,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        176400
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "separation_task": "lead_backing",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 96000,
+      "native_stem": "Vocals",
+      "sha256": "256f492fc34f3f6ce04ce346a628e58a81da9b8efbb0c43a8d5f9afb3f9bc969"
+    },
+    {
+      "path": "E:\\voice\\aponyvoice\\tests\\results\\harmony\\controlled-real\\backing_vocal.wav",
+      "role": "backing_vocal",
+      "processing_kind": "model_inference",
+      "sample_rate": 44100,
+      "sample_count": 176400,
+      "channels": 2,
+      "engine": "audio-separator",
+      "worker": "sonora-workers-1.0.0",
+      "source_offset": 0,
+      "valid_range": [
+        0,
+        176400
+      ],
+      "latency_samples": null,
+      "delay_compensation_samples": 0,
+      "time_map": {
+        "source_rate": 44100,
+        "output_rate": 44100,
+        "source_offset": 0,
+        "output_offset": 0
+      },
+      "model_hash": "1de20d459332fe8869aeb01327a31df0032262706e1365114e852dc271779813",
+      "config_hash": "b35077d94861f068097cce1a5e54633c055e7dcc2613eade4e4dc7c7c9c3f48b",
+      "separation_task": "lead_backing",
+      "source_sample_rate": 44100,
+      "timeline_offset_ticks": 96000,
+      "native_stem": "Instrumental",
+      "sha256": "021afc9bd2dacd48050e1e56bdfe70358acd4b7e7fcc7c5d72d814564383255e"
+    }
+  ],
+  "warnings": [
+    "仅对合并人声运行第二步分离。输入若有伴奏残留，会进入背景组；结果需试听。",
+    "分组是模型估计，不能保证重唱者、所有和声或混响完全分开。"
+  ],
+  "test_cases": [
+    {
+      "name": "worker",
+      "request": "tests/results/harmony/worker/request.json",
+      "response": "tests/results/harmony/worker/response.json"
+    },
+    {
+      "name": "break-from-line",
+      "request": "tests/results/harmony/break-from-line/request.json",
+      "response": "tests/results/harmony/break-from-line/response.json"
+    },
+    {
+      "name": "controlled-mixture",
+      "request": "tests/results/harmony/controlled-mixture/request.json",
+      "response": "tests/results/harmony/controlled-mixture/response.json"
+    },
+    {
+      "name": "controlled-real",
+      "request": "tests/results/harmony/controlled-real/request.json",
+      "response": "tests/results/harmony/controlled-real/response.json"
+    },
+    {
+      "name": "cpu-smoke",
+      "request": "tests/results/harmony/cpu-smoke/request.json",
+      "response": "tests/results/harmony/cpu-smoke/response.json"
+    }
+  ],
+  "controlled_natural_sources": {
+    "fixture": "controlled mixture of two natural recorded singing clips",
+    "reference_lead_rms": 0.11521173369878354,
+    "reference_backing_rms": 0.04344608593475445,
+    "results": {
+      "lead_vocal": {
+        "reference_lead_coefficient": 0.9838936636692943,
+        "reference_backing_coefficient": 0.02373180652982195,
+        "unexplained_rms": 0.008446856098722175,
+        "output_rms": 0.11367488000663492
+      },
+      "backing_vocal": {
+        "reference_lead_coefficient": 0.016106336403319994,
+        "reference_backing_coefficient": 0.9762681935723667,
+        "unexplained_rms": 0.008446856102189773,
+        "output_rms": 0.04328743338737907
+      }
+    },
+    "interpretation": "Coefficients measure sample-aligned linear projection onto known source components; residual artifacts and synthetic mixing limit perceptual conclusions. No universal quality threshold.",
+    "labels_not_changed": true
+  },
+  "controlled_svs_failure": {
+    "fixture": "controlled mixture of actual SVS outputs with known sources",
+    "results": {
+      "lead_vocal": {
+        "reference_lead_coefficient": -1.8064571614404261e-06,
+        "reference_backing_coefficient": -1.1836140221000948e-06,
+        "unexplained_rms": 1.074377680359046e-06,
+        "output_rms": 1.0957802476858362e-06
+      },
+      "backing_vocal": {
+        "reference_lead_coefficient": 1.0000018063222598,
+        "reference_backing_coefficient": 1.00000118357394,
+        "unexplained_rms": 1.0743892034517184e-06,
+        "output_rms": 0.12217906210396576
+      }
+    },
+    "interpretation": "This controlled synthetic singing mixture was not usefully isolated by this checkpoint; no quality acceptance inferred",
+    "labels_not_changed": true
+  },
+  "quality_scope": "Demonstrated source grouping on one controlled mixture of natural voices; failed the SVS composite. Not universal song or subjective listening acceptance."
+}

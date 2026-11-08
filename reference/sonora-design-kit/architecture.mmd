@@ -1,0 +1,57 @@
+flowchart TB
+  subgraph UI["工作区与桌面入口"]
+    direction LR
+    WEB["React / TypeScript UI"]
+    SHELL["Tauri 2：Windows 优先"]
+    WEB --- SHELL
+  end
+  subgraph CONTROL["本地 Python / FastAPI 控制面"]
+    direction LR
+    PROJECT["ProjectService：工程与编辑历史"]
+    DAG["任务 DAG：缓存、取消、恢复、资源预算"]
+    MODELS["模型注册：能力、哈希、许可、设备"]
+    PROJECT <--> DAG
+    MODELS <--> DAG
+  end
+  WEB -. "经身份验证的 API / IPC" .-> DAG
+  subgraph BATCH["离线数据面：每个引擎独立运行环境"]
+    direction TB
+    subgraph ANALYZE["分离与分析"]
+      direction LR
+      SEP["分离 Worker：主唱、和声、伴奏"]
+      PITCH["PitchService：F0、置信度、手工编辑"]
+      SEP --> PITCH
+    end
+    subgraph GENERATE["生成与合成"]
+      direction LR
+      VC["VC Worker：RVC / Applio 等"]
+      SVS["SVS Worker：歌词、音符、音素"]
+      DSP["混音 / DSP Worker：对齐、效果、导出"]
+      VC --> DSP
+      SVS --> DSP
+    end
+    PITCH --> VC
+    PITCH --> SVS
+  end
+  DAG -. "调度与进度事件" .-> BATCH
+  subgraph STORAGE["项目与音频产物"]
+    direction LR
+    DB[("SQLite：工程、日志、任务状态")]
+    CACHE[("内容寻址缓存：原始音频、PCM、F0、音符、结果")]
+    DB -. "内容地址引用" .-> CACHE
+  end
+  PROJECT -. "持久化" .-> DB
+  BATCH <--> |"文件 / 共享内存；附带时间映射"| CACHE
+  subgraph RT["独立实时音频进程"]
+    direction LR
+    DEVICE["输入 / 输出设备"]
+    BUFFER["Ring Buffer：设备时钟、延迟、掉音"]
+    STREAM["流式 VC：预热与切换"]
+    DEVICE --> BUFFER --> STREAM
+  end
+  SHELL -. "设备会话" .-> RT
+  MODELS -. "能力与模型" .-> RT
+  DAG -. "实时资源预留" .-> RT
+  REMOTE["可选远程工作节点：用户显式配对"]
+  DAG -. "同一任务协议；仅所选素材" .-> REMOTE
+  REMOTE --> |"返回带时间映射的产物"| CACHE

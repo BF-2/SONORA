@@ -1,0 +1,18 @@
+flowchart LR
+  Desktop["Tauri 2 Windows 桌面壳\n随机会话 / Job Object 生命周期"] --> UI["React + TypeScript\n六阶段工作区 / 全局时间轴"]
+  UI -->|"回环 API v1 + Bearer / Origin"| API["FastAPI 编排"]
+  API --> Production["production.py 标准流程状态\nLock / F0 versions / Check / Final List"]
+  Production --> DB
+  Production --> Routing["唯一混音路由\n一条 Background + 已接受 Final List"]
+  Routing --> FFmpeg
+  API --> DB[("SQLite WAL\n原子工程历史 / 作业 / 事件")]
+  API --> Queue["串行重计算队列\n幂等 / 取消 / 快照 / 恢复"]
+  Queue --> FFmpeg["FFmpeg 9.0 子进程\n解码 / DSP / 混音 / 导出测量"]
+  Queue --> Separation["独立 audio-separator 进程\n固定 RoFormer"]
+  Queue --> Pitch["独立 PitchService 进程\nRMVPE / FCPE / CREPE / pYIN / WORLD"]
+  Queue --> RVC["独立 RVC 进程\n安全模型加载 / 实际外部 F0"]
+  Queue --> SVS["独立 DiffSinger ONNX 进程\n已验证日语 / 固定音符窗口"]
+  Pitch -->|"有声掩码 / 目标曲线 / 消费哈希"| RVC
+  FFmpeg & Separation & Pitch & RVC & SVS --> Cache[("内容寻址产物\nSHA-256 / 来源图 / 整数样本 time_map")]
+  Cache --> UI
+  Resources["只读硬链接资源\n模型 / 原始包 / 环境锁与许可证"] --> Separation & Pitch & RVC & SVS

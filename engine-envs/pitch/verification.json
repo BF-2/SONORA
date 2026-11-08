@@ -1,0 +1,18 @@
+{
+  "harvest": {
+    "passed": true,
+    "seconds": 2.675555199966766,
+    "median_hz": 219.99932882004217,
+    "score_kind": "unavailable",
+    "sample_rate": 16000,
+    "hop": 160
+  },
+  "dio": {
+    "passed": true,
+    "seconds": 2.440579100046307,
+    "median_hz": 220.00878904910388,
+    "score_kind": "unavailable",
+    "sample_rate": 16000,
+    "hop": 160
+  }
+}
