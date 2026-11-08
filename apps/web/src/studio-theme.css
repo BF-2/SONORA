@@ -593,14 +593,22 @@
   color: white;
   background: #9373b2;
 }
-.ui-soft .modal {
+.ui-soft .modal,
+.ui-soft dialog {
   background: #fffefa;
   border-color: #dacbe5;
   color: #4a3b57;
 }
-.ui-soft .modal-head {
+.ui-soft .modal-head,
+.ui-soft .modal-top,
+.ui-soft .modal-footer {
   border-color: #e4d9ec;
 }
+.ui-soft .modal-body p,
+.ui-soft .modal-body ul { color: var(--text-muted); }
+.ui-soft .modal-body h3 { color: var(--text); }
+.ui-soft dialog::backdrop { background: rgb(65 47 83 / 28%); }
+.pitch-canvas.pitch-eraser { cursor: crosshair; }
 .ui-soft .project-row {
   background: #f7f1fc;
   color: #705383;
@@ -919,3 +927,20 @@
     flex-wrap: wrap;
   }
 }
+/* Shared classic/soft mix effects, with explicit ordering and commit-on-release. */
+.mix-effects { display: grid; gap: 14px; min-width: 0; }
+.fx-feature { padding: 12px; border: 1px solid var(--border, #73819155); border-radius: 10px; }
+.fx-feature p { margin: 8px 0 0; font-size: 12px; line-height: 1.6; opacity: .8; }
+.fx-item { padding: 12px; border: 1px solid var(--border, #73819155); border-radius: 10px; min-width: 0; }
+.fx-bypassed { opacity: .65; }
+.fx-title, .fx-actions, .fx-presets, .fx-add { display: flex; align-items: center; gap: 6px; }
+.fx-title { justify-content: space-between; flex-wrap: wrap; margin-bottom: 10px; }
+.fx-title .toggle-row { gap: 7px; margin: 0; }
+.fx-actions .button { padding: 3px 7px; min-width: 24px; }
+.fx-presets { flex-wrap: wrap; margin: 4px 0 14px; }
+.fx-control { display: grid; grid-template-columns: minmax(60px, 1fr) 76px; gap: 8px; align-items: center; }
+.fx-control input[type=range] { min-width: 0; padding: 0; width: 100%; accent-color: #26a2a8; }
+.fx-control input[type=number] { width: 100%; min-width: 0; }
+.fx-legacy { display: grid; gap: 8px; font-size: 12px; margin-bottom: 14px; }
+.fx-add select { min-width: 0; flex: 1; }
+.fx-advanced summary { cursor: pointer; margin: 8px 0 12px; font-size: 12px; opacity: .8; }

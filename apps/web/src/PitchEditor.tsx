@@ -127,19 +127,40 @@ export function PitchCanvas({ data, outputData, selection, edits, notes, playhea
       ctx.strokeStyle = palette.selectionEdge;
       for (const edge of [selected.start, selected.end]) { ctx.beginPath(); ctx.moveTo(x(seconds(edge)), top); ctx.lineTo(x(seconds(edge)), r.height); ctx.stroke(); }
       ctx.strokeStyle = palette.playhead; ctx.beginPath(); ctx.moveTo(x(playhead), top); ctx.lineTo(x(playhead), r.height); ctx.stroke();
-      if (stroke.length) { ctx.strokeStyle = palette.stroke; ctx.lineWidth = 3; ctx.beginPath(); stroke.forEach((p, i) => i ? ctx.lineTo(x(p.t), y(p.note)) : ctx.moveTo(x(p.t), y(p.note))); ctx.stroke(); }
+      if (stroke.length && tool === 'erase') {
+        const first = Math.min(...stroke.map(point => point.t));
+        const last = Math.max(...stroke.map(point => point.t));
+        ctx.fillStyle = light ? '#b3384e33' : '#ff859644';
+        ctx.fillRect(x(first), top, Math.max(3, x(last + hop) - x(first)), h);
+      } else if (stroke.length) { ctx.strokeStyle = palette.stroke; ctx.lineWidth = 3; ctx.beginPath(); stroke.forEach((p, i) => i ? ctx.lineTo(x(p.t), y(p.note)) : ctx.moveTo(x(p.t), y(p.note))); ctx.stroke(); }
       ctx.restore();
     };
     draw(); const ro = new ResizeObserver(draw); ro.observe(c); return () => ro.disconnect();
-  }, [data, currentTarget, outputData, notes, selection, localSelection, start, span, hi, lo, range, playhead, stroke, palette]);
+  }, [data, currentTarget, outputData, notes, selection, localSelection, start, span, hi, lo, range, playhead, stroke, palette, tool, light, hop]);
   const point = (clientX: number, clientY: number) => {
     const r = canvas.current!.getBoundingClientRect();
     return { t: Math.max(start, Math.min(end, start + (clientX - r.left - 48) / (r.width - 48) * span)),
       note: Math.max(midi(20), Math.min(midi(2000), hi - (clientY - r.top - 28) / (r.height - 28) * range)) };
   };
   const finishStroke = (points: { t: number; note: number }[]) => {
-    const frames = new Map<number, number>();
     const index = (t: number) => Math.round((t - frameTime(data, 0)) / hop);
+    if (tool === 'erase') {
+      let first = data.f0_hz.length;
+      let last = -1;
+      for (const point of points) {
+        const frame = index(point.t);
+        first = Math.min(first, frame);
+        last = Math.max(last, frame);
+      }
+      first = Math.max(0, first);
+      last = Math.min(data.f0_hz.length - 1, last);
+      if (last < first) return;
+      onStroke([{ start_tick: Math.max(0, ticks(frameTime(data, first))),
+        end_tick: Math.max(0, ticks(frameTime(data, last))) + Math.max(1, ticks(hop)),
+        operation: 'unvoiced' }]);
+      return;
+    }
+    const frames = new Map<number, number>();
     for (let p = 0; p < points.length; p++) {
       const a = points[Math.max(0, p - 1)], b = points[p], ai = index(a.t), bi = index(b.t);
       for (let i = Math.max(0, Math.min(ai, bi)); i <= Math.min(data.f0_hz.length - 1, Math.max(ai, bi)); i++) frames.set(i, ai === bi ? b.note : a.note + (b.note - a.note) * (i - ai) / (bi - ai));
@@ -167,14 +188,14 @@ export function PitchCanvas({ data, outputData, selection, edits, notes, playhea
       </div>
       <label className="pitch-pan"><span>时间轴平移</span><button className="quiet-button" aria-label="向前平移时间轴" onClick={() => moveView(start - span / 2)}>‹</button><input aria-label="时间轴平移" type="range" min={0} max={Math.max(0, dur - span)} step={hop} value={start} disabled={span >= dur} onChange={e => moveView(+e.target.value)} /><button className="quiet-button" aria-label="向后平移时间轴" onClick={() => moveView(start + span / 2)}>›</button></label>
     </div>
-    <canvas ref={canvas} className="pitch-canvas" tabIndex={0} aria-label="音高时间轴：拖动框选或绘制，左右键移动播放头，加减键缩放" role="application"
+    <canvas ref={canvas} className={`pitch-canvas ${tool === 'erase' ? 'pitch-eraser' : ''}`} tabIndex={0} aria-label="音高时间轴：拖动框选、绘制或擦除，左右键移动播放头，加减键缩放" role="application"
       onKeyDown={e => { if (["ArrowLeft", "ArrowRight", "+", "=", "-"].includes(e.key)) { e.preventDefault(); e.stopPropagation(); if (e.key === "-") zoom(.5); else if (["+", "="].includes(e.key)) zoom(2); else onSeek(Math.max(0, Math.min(dur, playhead + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? .1 : hop)))); } }}
-      onPointerDown={e => { if (e.button !== 0) return; const p = point(e.clientX, e.clientY); if (e.clientY - e.currentTarget.getBoundingClientRect().top < 28) { onSeek(p.t); return; } drag.current = [p]; e.currentTarget.setPointerCapture(e.pointerId); if (tool === "point") setStroke([p]); }}
-      onPointerMove={e => { const p = point(e.clientX, e.clientY); setHover(p); if (drag.current) { if (tool === "point") { drag.current.push(p); setStroke([...drag.current]); } else setLocalSelection({ start: ticks(Math.min(drag.current[0].t, p.t)), end: ticks(Math.max(drag.current[0].t, p.t)) }); } }}
-      onPointerUp={e => { if (!drag.current) return; const p = point(e.clientX, e.clientY); if (tool === "point") finishStroke([...drag.current, p]); else if (Math.abs(p.t - drag.current[0].t) < hop / 2) onSeek(p.t); else onSelect({ start: ticks(Math.min(drag.current[0].t, p.t)), end: ticks(Math.max(drag.current[0].t, p.t)) }); drag.current = null; setStroke([]); setLocalSelection(null); }}
+      onPointerDown={e => { if (e.button !== 0) return; const p = point(e.clientX, e.clientY); if (e.clientY - e.currentTarget.getBoundingClientRect().top < 28) { onSeek(p.t); return; } drag.current = [p]; e.currentTarget.setPointerCapture(e.pointerId); if (tool !== "select") setStroke([p]); }}
+      onPointerMove={e => { const p = point(e.clientX, e.clientY); setHover(p); if (drag.current) { if (tool !== "select") { drag.current.push(p); setStroke([...drag.current]); } else setLocalSelection({ start: ticks(Math.min(drag.current[0].t, p.t)), end: ticks(Math.max(drag.current[0].t, p.t)) }); } }}
+      onPointerUp={e => { if (!drag.current) return; const p = point(e.clientX, e.clientY); if (tool !== "select") finishStroke([...drag.current, p]); else if (Math.abs(p.t - drag.current[0].t) < hop / 2) onSeek(p.t); else onSelect({ start: ticks(Math.min(drag.current[0].t, p.t)), end: ticks(Math.max(drag.current[0].t, p.t)) }); drag.current = null; setStroke([]); setLocalSelection(null); }}
       onPointerCancel={() => { drag.current = null; setStroke([]); setLocalSelection(null); }} onPointerLeave={() => setHover(null)} />
     <div className="pitch-legend"><span><i style={{ background: palette.source }} />原始检测</span><span><i style={{ background: palette.target }} />{currentTarget ? stale ? "旧检测上的目标预览 · 需重新检测" : "实际转换目标 F0" : "目标计算中…"}</span>{outputData && <span><i style={{ background: palette.output }} />已选候选输出复测</span>}</div>
     <div className="pitch-readout" role="status">{error ? `目标计算失败：${error}` : stats ? `选区 ${time(seconds(selection.start))}–${time(seconds(selection.end))} · ${stats.changed} 帧发生变化 · 有声帧平均 ${stats.mean >= 0 ? "+" : ""}${stats.mean.toFixed(1)} 音分` : "正在计算与转换一致的目标曲线…"}{hover && <span>光标 {time(hover.t)} · {noteName(hover.note)} · {hzAt(hover.note).toFixed(1)} Hz</span>}</div>
-    <p className="info-inline">点击时间尺定位，拖动框选；绘制工具可连续改写曲线，整笔可撤销。目标 F0 控制转换时的音高，最终音色与咬字仍需生成试听确认。</p>
+    <p className="info-inline">点击时间尺定位，拖动框选；绘制可改写曲线，擦除可将拖过的时间段设为无音高。转换时按当前 Edit 的静音开关、最小区间和平滑长度处理，整笔操作可撤销。</p>
   </div>;
 }

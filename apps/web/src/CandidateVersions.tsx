@@ -12,6 +12,8 @@ export function CandidateVersions({
   auditionId,
   busy,
   onAdopt,
+  onRetry,
+  onDiscard,
   onListen,
   onArchive,
   onUpdate,
@@ -26,6 +28,8 @@ export function CandidateVersions({
   auditionId?: string;
   busy: boolean;
   onAdopt: (candidate: Bag) => void;
+  onRetry: (candidate: Bag) => void;
+  onDiscard: (candidate: Bag) => void;
   onListen: (candidate: Bag) => void;
   onArchive: (candidate: Bag, archived: boolean) => void;
   onUpdate: (candidate: Bag, changes: Bag) => void;
@@ -57,7 +61,7 @@ export function CandidateVersions({
     );
   return (
     <Card
-      title={`${({ vocal: "完整人声", lead_vocal: "主唱", backing_vocal: "和声" } as Bag)[part]}生成版本`}
+      title={`Check · ${({ vocal: "Main 单轨", lead_vocal: "Main 主唱", backing_vocal: "Follower 伴唱" } as Bag)[part]}候选验收`}
       icon="branch"
     >
       <div className="card-pad generation-manager" id="candidate-list">
@@ -95,7 +99,7 @@ export function CandidateVersions({
         {!visible.length && (
           <p className="info-inline">
             {tab === "active"
-              ? "生成完整人声后，选择要进入混音的版本。"
+              ? "生成后请试听并选择接受、重试或丢弃。接受会新增成品，保留以前接受的版本。"
               : "此列表暂无记录。"}
           </p>
         )}
@@ -104,6 +108,7 @@ export function CandidateVersions({
             (asset) => asset.id === candidate.artifact_id,
           );
           const protectedVersion =
+            candidate.review_status === 'accepted' ||
             candidate.id === selectedId ||
             candidate.favorite ||
             project.tracks.some(
@@ -124,7 +129,9 @@ export function CandidateVersions({
                     : candidate.name}
                 </strong>
                 <div className="row wrap">
-                  {candidate.id === selectedId && <Badge>混音采用</Badge>}
+                  {candidate.review_status === 'accepted' && <Badge>已加入 Final List</Badge>}
+                  {candidate.review_status === 'pending' && <Badge tone="orange">待人工试听</Badge>}
+                  {candidate.review_status === 'retry' && <Badge tone="orange">待修改重试</Badge>}
                   {candidate.id === auditionId && (
                     <Badge tone="blue">当前试听</Badge>
                   )}
@@ -146,6 +153,7 @@ export function CandidateVersions({
                   ).toLocaleString("zh-CN")}
                 </p>
               )}
+              <small>F0 {candidate.f0_version_snapshot?.name || '历史版本'} · r{candidate.f0_version_revision ?? '—'} · {candidate.f0_version_id || candidate.pitch_artifact_id}</small>
               <div className="row wrap">
                 <button
                   className="button small"
@@ -160,18 +168,18 @@ export function CandidateVersions({
                     className="button small primary"
                     disabled={
                       busy ||
-                      candidate.id === selectedId ||
-                      !isCompatible(candidate) ||
-                      (part === "vocal" &&
-                        Object.keys(project.voice_parts || {}).length > 0)
+                      candidate.review_status === 'accepted' ||
+                      !isCompatible(candidate)
                     }
                     onClick={() => onAdopt(candidate)}
                   >
-                    {candidate.id === selectedId
-                      ? "当前混音版本"
-                      : "采用到混音"}
+                    {candidate.review_status === 'accepted' ? "已接受" : "接受 · 加入 Final List"}
                   </button>
                 )}
+                {!candidate.archived && candidate.review_status !== 'accepted' && <>
+                  <button className="button small" disabled={busy} onClick={() => onRetry(candidate)}>重试 · 返回编辑</button>
+                  <button className="text-button" disabled={busy} onClick={() => onDiscard(candidate)}>丢弃</button>
+                </>}
                 <button
                   className={`chip ${candidate.favorite ? "active" : ""}`}
                   onClick={() =>
@@ -212,6 +220,7 @@ export function CandidateVersions({
                             candidate.effective_parameters ||
                             candidate.parameters,
                           requested_f0_hash: candidate.requested_f0_hash,
+                          voicing_settings: candidate.parameters?.voicing_settings,
                           consumed_f0_hash: candidate.consumed_f0_hash,
                         },
                         null,

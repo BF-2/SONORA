@@ -1,0 +1,32 @@
+{
+  "status": "complete",
+  "voice_models": 6,
+  "paired_indexes": 6,
+  "provider": "haysay",
+  "old_model_files_remaining": [],
+  "cleanup_pending": 0,
+  "regression_tests": "54 passed, 2 skipped",
+  "real_api_roles_passed": 6,
+  "actual_index_hashes_verified": true,
+  "projects_and_audio_counts_preserved": {
+    "projects": 16,
+    "artifacts": 199,
+    "jobs": 190,
+    "history": 715
+  },
+  "media_files_rehashed": 169,
+  "browser_verified": true,
+  "live_url": "http://127.0.0.1:8765",
+  "rollback_audit_outside_project": "E:/voice/maintenance/sonora_haysay_20261104",
+  "automatic_approval_rejections": 0,
+  "retired_evidence_files_moved_out": 679,
+  "live_model_ids": [
+    "haysay_rarity",
+    "haysay_applejack",
+    "haysay_twilight_sparkle",
+    "haysay_fluttershy",
+    "haysay_rainbow_dash",
+    "haysay_pinkie_pie"
+  ],
+  "companion_workbench_http_status": 200
+}

@@ -21,13 +21,13 @@ def test_archive_scopes_parts_and_preserves_new_comparison_batch():
        [candidate(10,voice_part='backing_vocal')], 'tracks':[]}
     assert archive_older(p)==['candidate-0','candidate-1']
 
-def test_archive_only_on_new_success_commit_and_can_be_undone(tmp_path):
+def test_standard_workflow_retains_all_candidates_and_can_be_undone(tmp_path):
     from services.orchestrator.store import Store
     store=Store(tmp_path/'test.sqlite');p=store.new_project('archive')
     p=store.change(p['id'],lambda p:p['candidates'].extend(candidate(i) for i in range(3)))
     assert not any(c.get('archived') for c in p['candidates'])  # restore/import is not generation
     p=store.change(p['id'],lambda p:p['candidates'].append(candidate(3)),auto_archive=True)
-    assert [c['id'] for c in p['candidates'] if c.get('archived')]==['candidate-0','candidate-1']
+    assert not any(c.get('archived') for c in p['candidates'])
     p=store.history(p['id'],'undo',p['revision'])
     assert len(p['candidates'])==3 and not any(c.get('archived') for c in p['candidates'])
     p=store.change(p['id'],lambda p:p['view_preferences'].update(auto_archive_candidates=False))

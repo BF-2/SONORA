@@ -22,6 +22,9 @@ CONTEXT_FIELDS=set('model_id model_artifact_id model_hash index_id index_hash pr
 CONTEXT_FIELDS.update('source_artifact_id voice_id run_id training_run_id voice_profile_id switch_policy model_ids comparison_parameters compare_index_id comparison_name adopt_result auto_adopt model_binding_scope model_binding_target clip_id clip_range_ticks view_preferences'.split())
 CONTEXT_FIELDS.update('track_id ignore_clip_bindings accepted_preview_id full_source harmony_source_artifact_id preview_purpose'.split())
 CONTEXT_FIELDS.update('task_confirmed import_role monitor_track_id'.split())
+CONTEXT_FIELDS.update('f0_version_id f0_version_revision f0_version_snapshot input_edit_snapshot'.split())
+CONTEXT_FIELDS.update({'separation_settings', 'harmony_settings'})
+CONTEXT_FIELDS.add('voicing_settings')
 ALIASES={'pitch':'transpose','f0_method':'pitch_algorithm','algorithm':'pitch_algorithm'}
 
 
@@ -62,6 +65,11 @@ def _validate_primitive(key,value,definition):
 def _trained_speakers(model):
     status=model.get('speaker_metadata_status')
     ids=model.get('speaker_ids_trained')
+    if status=='verified_inference_profile':
+        profile=model.get('inference_profile',{})
+        if profile.get('status')!='verified_local_inference' or profile.get('model_sha256')!=model.get('model_hash') or ids!=profile.get('supported_speaker_ids'):
+            return []
+        status='checkpoint'  # Same validation below, with explicit hash-bound inference evidence.
     if ids is None and status in ('verified_training_metadata','checkpoint'):ids=model.get('speaker_ids')
     if status not in ('verified_training_metadata','checkpoint') or not isinstance(ids,list) or not ids:
         return []
@@ -187,8 +195,9 @@ def parameter_catalog(model=None,values=None,task='speech',has_external_f0=False
             if ids:
                 row['default']=0 if 0 in ids else ids[0]
                 if key not in values:row.update(current_value=row['default'],current_source='model_metadata')
-                row['support_reason']='训练元数据确认的ID；embedding容量仅作诊断。'
-                row['recommendation'].update(value=row['default'],source_type='模型已知设置',basis=f'训练元数据已确认ID：{ids}')
+                inference=(model or {}).get('speaker_metadata_status')=='verified_inference_profile'
+                row['support_reason']='固定权重哈希下已验证的推理ID；embedding容量仅作诊断。' if inference else '训练元数据确认的ID；embedding容量仅作诊断。'
+                row['recommendation'].update(value=row['default'],source_type='模型已知设置',basis=f'已验证推理ID：{ids}' if inference else f'训练元数据已确认ID：{ids}')
             else:disabled('先验证模型的训练说话人元数据；不能使用embedding行数代替人数。')
         if key=='embedder_model':
             row['current_value']=(model or {}).get('embedder_model')

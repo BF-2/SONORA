@@ -112,32 +112,17 @@ def main():
         digest=sha256(file)
         source_hash.update(str(relative).replace('\\','/').encode()+digest.encode())
         links.append({'source':str(file),'path':str(snapshot/relative),'sha256':digest,'method':method})
-    # Latest inference checkpoint per trained model folder; retain all originals.
-    checkpoints=[]
-    for folder in sorted((applio/'logs').iterdir()):
-        if not folder.is_dir(): continue
-        choices=[p for p in folder.glob('*.pth') if not re.match(r'^[GD]_\d+',p.name)]
-        def epoch(p):
-            match=re.search(r'_(\d+)e_',p.name)
-            return int(match.group(1)) if match else -1
-        if choices: checkpoints.append(max(choices,key=lambda p:(epoch(p),p.name)))
-    result=subprocess.run([str(python),str(ROOT/'workers/rvc/probe_model.py'),*map(str,checkpoints)],capture_output=True,text=True,encoding='utf-8',env={**os.environ,'PYTHONUTF8':'1','PYTHONDONTWRITEBYTECODE':'1'},check=True)
-    probes=json.loads(result.stdout); models=[]
-    for item in probes:
-        origin=Path(item.pop('path')); model_root=resources/'models'/origin.parent.name
-        target=model_root/origin.name
-        method=link_file(origin,target)
-        index=next(iter(sorted(origin.parent.glob('*.index'))),None)
-        manifest={'id':origin.parent.name,'name':origin.parent.name.replace('_',' '),'path':str(target),
-                  'origin_path':str(origin),'origin_url':None,'license':'unconfirmed','code_license':'MIT (Applio)',
-                  'engine_revision':subprocess.check_output(['git','-C',str(applio),'rev-parse','HEAD'],text=True).strip(),
-                  'resource_method':method,'inference_schema_version':1,**item}
-        if index:
-            link_file(index,model_root/index.name)
-            manifest.update(index_path=str(model_root/index.name),index_hash=sha256(index))
-        if not item['ok']:
-            manifest.update(engine_id='rvc',test_status='incompatible',capabilities={},model_hash=sha256(origin))
-        models.append(manifest)
+    # Voice resources are explicitly pinned to the installed Hay Say manifest.
+    # Never repopulate the retired model library by scanning Applio/logs.
+    registry=ROOT/'engine-envs/haysay-models.json'
+    if not registry.is_file():
+        raise RuntimeError('Install Hay Say models with scripts/install_haysay_models.py first.')
+    models=json.loads(registry.read_text(encoding='utf-8'))['models']
+    if len(models)!=6 or any(m.get('provider')!='haysay' for m in models):
+        raise RuntimeError('Expected exactly six Hay Say voice models.')
+    for model in models:
+        for key,hash_key in [('path','model_hash'),('index_path','index_hash')]:
+            if sha256(model[key])!=model[hash_key]:raise RuntimeError('Hay Say model/index hash changed.')
     separator_models=[]
     for ckpt in sorted((source/'separator-models').glob('*.ckpt')):
         if ckpt.name=='mel_band_roformer_vocals_fv4_gabox.ckpt': yaml_name='config_mel_band_roformer_vocals_gabox.yaml'
@@ -163,7 +148,7 @@ def main():
                                        'source_hash':source_hash.hexdigest(),'original_root':str(applio)},
             'separation':{'python':str(source/'audio-separator-venv/Scripts/python.exe'),'version':'0.44.2','model_dir':str(resources/'separation'),
                           'default_model':'mel_band_roformer_vocals_fv4_gabox','default_harmony_model':default_harmony_model,'models':separator_models},
-            'models':models,'svs':svs_resources(source),'pitch':pitch_resources(source,args.install_pitch_overlay),**media_tools(source)}
+            'models':models,'catalog':{'roots':[str(ROOT/'resources/models/haysay')],'provider':'haysay'},'svs':svs_resources(source),'pitch':pitch_resources(source,args.install_pitch_overlay),**media_tools(source)}
     write_json(ROOT/'engine-envs/resources.json',config)
     write_json(ROOT/'engine-envs/resource-links.json',{'source_hash':source_hash.hexdigest(),'files':links})
     environment_locks={}
@@ -175,7 +160,7 @@ def main():
     if config['pitch'].get('pyworld_status')=='installed':
         config['pitch']['base_environment_lock_hash']=sha256(ROOT/'engine-envs/locked-environments.json')
         write_json(ROOT/'engine-envs/resources.json',config)
-    print(json.dumps({'models':len(models),'compatible':sum(m['ok'] for m in models),'separator_models':len(separator_models),'linked_snapshot_files':len(links),'config':str(ROOT/'engine-envs/resources.json')}))
+    print(json.dumps({'models':len(models),'compatible':sum(m.get('test_status')=='safe_probe_passed' for m in models),'separator_models':len(separator_models),'linked_snapshot_files':len(links),'config':str(ROOT/'engine-envs/resources.json')}))
 
 
 if __name__=='__main__': main()

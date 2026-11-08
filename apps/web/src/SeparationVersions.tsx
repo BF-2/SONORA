@@ -109,6 +109,7 @@ export function SeparationVersions({
                 run.parameters.separation_model_id ||
                 "默认分离模型"}
             </p>
+            {run.ensemble_models?.length > 0 && <p>双模型增强与立体声保护 · {run.ensemble_models.map((model: Bag) => model.id).join(' + ')}</p>}
             <div className="generation-stems">
               {run.outputs.map((output: Bag) => (
                 <button

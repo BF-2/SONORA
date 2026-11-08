@@ -19,6 +19,7 @@ from tests.test_core import AUTH, DATA, client, media, req, scheduler, store
 from tests.test_review_regressions import _job
 from services.orchestrator.store import uid
 from services.orchestrator.voices import resolve_part, sync_part_tracks
+from services.orchestrator.production import accept, routed_tracks
 from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash
 from workers.pitch.engine import apply_target_parameters
 
@@ -66,18 +67,17 @@ def _candidate(project, source, part):
         'id': uid('candidate'), 'name': 'Unit fixture ' + part, 'voice_part': part,
         'source_artifact_id': source['id'], 'part_source_artifact_id': source['id'],
         'artifact_id': output['id'], 'model_id': 'unit-model', 'model_manifest_hash': None,
-        'generation_depth': 1, 'state': 'unit_fixture', 'selected': True, 'parameters': {},
+        'generation_depth': 1, 'state': 'succeeded', 'selected': False, 'parameters': {}, 'fixture_kind': 'dsp_only',
     }
     def add(p):
         p['assets'].append(output)
         p['candidates'].append(candidate)
         p['tracks'].append({
-            'id': uid('track'), 'name': candidate['name'], 'role': 'converted', 'voice_part': part,
+            'id': uid('track'), 'candidate_id': candidate['id'], 'name': candidate['name'], 'role': 'converted', 'voice_part': part,
             'artifact_id': output['id'], 'gain_db': 0, 'pan': 0, 'mute': True,
             'solo': False, 'offset_ticks': 0, 'effects': [],
         })
-        p['voice_parts'][part]['selected_candidate_id'] = candidate['id']
-        sync_part_tracks(p, [part])
+        accept(p, candidate['id'])
     return store.change(project['id'], add), candidate
 
 
@@ -93,24 +93,21 @@ def _with_pitches(project, sources):
     return store.change(project['id'], lambda p: p['assets'].extend(artifacts))
 
 
-def test_part_patch_delta_preserves_sibling_and_selected_candidate():
+def test_part_patch_delta_preserves_sibling_and_accepted_finals():
     project, sources = _parts()
     project, lead_candidate = _candidate(project, sources['lead_vocal'], 'lead_vocal')
     project, backing_candidate = _candidate(project, sources['backing_vocal'], 'backing_vocal')
     before_backing = copy.deepcopy(project['voice_parts']['backing_vocal'])
     changed = req('PATCH', f"/projects/{project['id']}", json={'revision': project['revision'],
         'patch': {'voice_parts': {'lead_vocal': {'parameters': {'transpose': 3}}}}})
-    lead = changed['voice_parts']['lead_vocal']
-    assert lead['parameters']['transpose'] == 3
-    assert lead['parameters']['model_id'] == 'unit-lead-model'
-    assert lead['selected_candidate_id'] == lead_candidate['id']
+    assert changed['voice_parts']['lead_vocal']['parameters']['transpose'] == 3
+    assert changed['voice_parts']['lead_vocal']['parameters']['model_id'] == 'unit-lead-model'
+    assert changed['final_list'] == project['final_list']
     assert changed['voice_parts']['backing_vocal'] == before_backing
-    cleared = req('PATCH', f"/projects/{project['id']}", json={'revision': changed['revision'],
-        'patch': {'voice_parts': {'lead_vocal': {'selected_candidate_id': None}}}})
-    assert cleared['voice_parts']['lead_vocal']['selected_candidate_id'] is None
-    assert cleared['voice_parts']['backing_vocal']['selected_candidate_id'] == backing_candidate['id']
-    active = {t['artifact_id'] for t in cleared['tracks'] if not t['mute']}
-    assert sources['lead_vocal']['id'] in active
+    lead_entry = next(f for f in changed['final_list'] if f['candidate_id'] == lead_candidate['id'])
+    cleared = req('DELETE', f"/projects/{project['id']}/final-list/{lead_entry['id']}", json={'revision': changed['revision']})
+    active = {t['artifact_id'] for t in routed_tracks(cleared) if not t['mute']}
+    assert sources['lead_vocal']['id'] not in active
     assert backing_candidate['artifact_id'] in active
     assert sources['vocal']['id'] not in active
 
@@ -138,7 +135,9 @@ def test_empty_part_edits_never_inherit_global_model_or_pitch_edits():
 
 @pytest.mark.parametrize('part', ['lead_vocal', 'backing_vocal'])
 def test_routing_change_invalidates_mix_but_not_voice_inference(part):
-    project, _ = _parts()
+    project, sources = _parts()
+    project, accepted = _candidate(project, sources[part], part)
+    final_track = project['final_list'][-1]['track_id']
     def graph(p):
         p['graph'] = [
             {'id': 'voice-node', 'type': 'convert', 'voice_part': 'lead_vocal', 'state': 'succeeded'},
@@ -147,7 +146,7 @@ def test_routing_change_invalidates_mix_but_not_voice_inference(part):
         ]
     project = store.change(project['id'], graph)
     changed = req('PATCH', f"/projects/{project['id']}", json={'revision': project['revision'],
-        'patch': {'voice_parts': {part: {'mode': 'mute'}}}})
+        'patch': {'track_updates': {final_track: {'mute': True}}}})
     assert next(n for n in changed['graph'] if n['id'] == 'voice-node')['state'] == 'succeeded'
     assert next(n for n in changed['graph'] if n['id'] == 'mix-node')['state'] == 'stale'
     assert next(n for n in changed['graph'] if n['id'] == 'export-node')['state'] == 'stale'
@@ -168,13 +167,14 @@ def test_inflight_lead_conversion_preserves_sibling_and_newer_own_edits(monkeypa
         scheduler.convert(job, source, threading.Event(), pitch={'id': 'unit-pitch', 'input_artifact_ids': [source['id']]})
     current = req('GET', f"/projects/{project['id']}")
     assert current['voice_parts'][edited_part]['parameters']['transpose'] == 7
-    assert current['voice_parts']['backing_vocal']['selected_candidate_id'] == backing['id']
+    assert any(f['candidate_id'] == backing['id'] for f in current['final_list'])
     assert next(t for t in current['tracks'] if t['artifact_id'] == backing['artifact_id'])['mute'] is False
     if edited_part == 'lead_vocal':
         assert current['voice_parts']['lead_vocal']['selected_candidate_id'] == changed['voice_parts']['lead_vocal']['selected_candidate_id']
         assert current['candidates'][-1]['selected'] is False
     else:
-        assert current['voice_parts']['lead_vocal']['selected_candidate_id'] == current['candidates'][-1]['id']
+        assert current['voice_parts']['lead_vocal']['selected_candidate_id'] is None
+        assert current['candidates'][-1]['review_status'] == 'pending'
 
 
 @pytest.mark.parametrize('stop_kind', ['cancel', 'failure'])
@@ -202,7 +202,8 @@ def test_partial_batch_keeps_committed_lead_when_backing_stops(monkeypatch, stop
     current = req('GET', f"/projects/{project['id']}")
     assert len(current['candidates']) == 1
     assert current['candidates'][0]['voice_part'] == 'lead_vocal'
-    assert current['voice_parts']['lead_vocal']['selected_candidate_id'] == current['candidates'][0]['id']
+    assert current['voice_parts']['lead_vocal']['selected_candidate_id'] is None
+    assert current['candidates'][0]['review_status'] == 'pending' and not current['final_list']
     assert current['voice_parts']['backing_vocal']['source_artifact_id'] == sources['backing_vocal']['id']
     assert current['voice_parts']['backing_vocal']['selected_candidate_id'] is None
 
@@ -383,9 +384,9 @@ def test_recipe_keeps_intentional_saved_mute_when_selection_still_exists():
     restored = req('POST', '/projects/restore', files={
         'file': ('intentionally-muted.json', json.dumps(recipe).encode(), 'application/json'),
     })
-    selected = restored['voice_parts']['lead_vocal']['selected_candidate_id']
-    assert selected == candidate['id']
-    restored_candidate = next(c for c in restored['candidates'] if c['id'] == selected)
+    restored_candidate = next(c for c in restored['candidates'] if c['id'] == candidate['id'])
+    assert restored_candidate['state'] == 'unverified_restored_media'  # DSP fixture cannot regain neural provenance.
+    assert not restored['final_list']
     assert next(t for t in restored['tracks'] if t['artifact_id'] == restored_candidate['artifact_id'])['mute'] is True
 
 
@@ -398,11 +399,11 @@ def test_cache_pair_reselection_never_enables_duplicate_raw_tracks(monkeypatch):
         scheduler.execute(job, threading.Event())
     current = req('GET', f"/projects/{project['id']}")
     for part in ('lead_vocal', 'backing_vocal'):
-        active = [t for t in current['tracks'] if t.get('voice_part', t['role']) == part and not t['mute']]
-        assert len(active) == 1, 'Reusing a cached stem must not double its audible contribution'
+        active = [t for t in routed_tracks(current) if t.get('voice_part', t['role']) == part and not t['mute']]
+        assert not active, 'Locked source stems never bypass acceptance into the mix'
 
 
-def test_same_output_cached_candidates_do_not_double_voice_level(monkeypatch):
+def test_cached_candidates_are_only_mixed_after_individual_acceptance(monkeypatch):
     project, sources = _parts()
     output = _output(sources['lead_vocal'], 'lead_vocal')
     with monkeypatch.context() as context:
@@ -415,19 +416,23 @@ def test_same_output_cached_candidates_do_not_double_voice_level(monkeypatch):
             scheduler.convert(job, source, threading.Event(), pitch={'id': 'unit-pitch', 'input_artifact_ids': [source['id']]})
     current = req('GET', f"/projects/{project['id']}")
     assert len(current['candidates']) == 2
-    active = [t for t in current['tracks'] if t.get('voice_part') == 'lead_vocal' and not t['mute']]
-    assert len(active) == 1, 'Two candidates referencing one cache result are alternatives, not two mixer voices'
-    assert active[0]['artifact_id'] == output['id']
+    assert not [t for t in routed_tracks(current) if t.get('voice_part') == 'lead_vocal']
+    first, second = current['candidates']
+    current = store.change(current['id'], lambda p: accept(p, first['id']))
+    current = store.change(current['id'], lambda p: accept(p, first['id']))
+    assert len(current['final_list']) == 1
+    current = store.change(current['id'], lambda p: accept(p, second['id']))
+    assert len(current['final_list']) == 2  # Deliberately accepted two versions of the same source.
 
 
-def test_recipe_roundtrip_does_not_revalidate_mix_from_before_part_edit():
+def test_recipe_roundtrip_does_not_revalidate_mix_from_before_fader_edit():
     project, _ = _parts()
     mixing = _job(project, operation='mix')
     scheduler.mix_job(mixing, threading.Event())
     project = req('GET', f"/projects/{project['id']}")
     edited = req('PATCH', f"/projects/{project['id']}", json={
         'revision': project['revision'],
-        'patch': {'voice_parts': {'lead_vocal': {'parameters': {'transpose': 6}}}},
+        'patch': {'track_updates': {project['background_track_id']: {'gain_db': -6}}},
     })
     assert any(n['state'] == 'stale' for n in edited['graph'] if n['type'] == 'mix')
     recipe = req('GET', f"/projects/{project['id']}/recipe")

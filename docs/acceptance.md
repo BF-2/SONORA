@@ -1,5 +1,53 @@
 # 本机验收与范围
 
+## 2026-11-04 每个 Edit 的静音设置
+
+F0 版本现在独立保存 `voicing_settings`，包含开关、最小静音区间 0–2000 ms、每侧平滑长度 0–200 ms。兼容默认值为开启、0 ms、3 ms。复制新 Edit 后可独立修改，切换声部/版本、撤销/重做、配方恢复与浏览器刷新均保留配置。
+
+- `.venv\Scripts\python.exe -m pytest tests/test_voicing_versions.py -q` 为 **14 passed**，覆盖关闭旁路、阈值边界、四种采样率、整段与选区一致、平滑长度、版本独立、生成快照、配方恢复和无效参数拒绝。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-standard.ps1` 为 **184 passed、4 skipped**，两个执行器单测合计 **14/14**，TypeScript/Vite 构建通过。
+- `python scripts/verify_editor_followup.py` 验证 Edit A 开启/120 ms/15 ms、Edit B 关闭/200 ms/40 ms，跨版本、跨声部与刷新恢复通过。
+- `.venv\Scripts\python.exe scripts/verify_editor_audio.py` 在相同目标 F0 下生成开关两种结果，开启时擦除区最大绝对采样值为 0，关闭时约为 0.468。不同配置产生不同音频，相同配置再次生成命中缓存。
+- Windows Release 已重建。当前运行中的服务需要重启后加载更新。
+
+本轮记录位于 `runtime/editor-followup/voicing-summary.json`。
+
+## 2026-11-04 编辑器反馈与增强二级分离
+
+- 页面切换后回到顶部，覆盖六个制作阶段、音高子页与生成子页。
+- 新增拖动擦除音高。浏览器验证覆盖已锁定的手动音高区域、整笔撤销/重做、保存与刷新恢复。
+- RVC 在最终输出阶段按目标 F0 的无声帧置零，有声边界内使用 3 ms 淡入淡出。真实 12 秒 RVC 结果为 48 kHz、576,000 帧，擦除区及全部无声区采样最大绝对值均为 0。
+- 浅色模式补齐实际 `dialog` 元素的背景、文字、边框和遮罩。扫描六个制作页面、四个生成子页、音高编辑器，以及模型、设置、队列弹窗，深色背景块均为 0，页面脚本错误为 0。
+- 双模型二级分离使用六次对齐预测、波形融合、立体声伴唱保护以及可选残留抑制。两组已知真值合成歌声的 Follower SDR 分别提升 1.16 和 8.26 dB。居中样本仍有声部混淆，真实歌曲需人工试听。算法与完整数据见 [增强分离说明](harmony-ensemble.md)。
+- API 验证两套权重/config 身份记录，第二次相同分离请求命中缓存。
+
+本轮执行记录如下。
+
+| 命令 | 结果 |
+| --- | --- |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-standard.ps1` | 170 passed、4 skipped，执行器 14/14，TypeScript/Vite 构建通过 |
+| `python -m pytest tests/test_editor_followup.py -q` | 数值测试 14/14 |
+| `python scripts/verify_editor_followup.py` | 浏览器导航、擦除、撤销/重做、持久化、浅色模式通过 |
+| `.venv\Scripts\python.exe scripts/verify_editor_audio.py` | 实际 RVC 静音、双模型 API 与分离缓存通过 |
+| `.venv\Scripts\python.exe scripts/verify_harmony_ensemble.py` | 真实歌曲及两组已知分轨的单模型/增强算法对比完成 |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop.ps1 -SkipWebBuild` | Windows Release 构建通过 |
+| `git diff --check` | 通过 |
+
+核心环境的跳过项分别涉及符号链接权限、noisereduce 和两项 SciPy 数值测试。SciPy 相关项目已在系统数值环境的 14/14 检查及真实分离执行器中执行。证据保存在 `runtime/editor-followup/`。
+
+## 2026-11-04 标准流程重构
+
+- 复用既有两级分离、F0、RVC、模型目录、混音与 SQLite，新增源轨 Lock、独立 F0 Edit 版本、单轨工作区、Check、Final List 和唯一混音路由。实现与接口见 [标准流程](standard-workflow.md)，图见 [workflow.mmd](workflow.mmd)。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-standard.ps1`：核心 **158 passed, 2 skipped**；Pitch/安全加载单测 **7/7**，分离协议单测 **7/7**；TypeScript/Vite 生产构建成功。两个跳过分别为 Windows 符号链接权限和核心环境不含 noisereduce。
+- 在实际 RVC 环境运行 `test_rvc_parameters_unit.py`：**21/21**，包含真实 noisereduce 的长度保持 DSP 测试，因此上面的依赖跳过不表示推理环境功能缺失。
+- `.venv\Scripts\python.exe scripts/verify_standard_workflow.py`：真实两级分离、双源 F0、Follower 三个编辑版本、各自 F0 转换、预期失败与修改重试、丢弃、三条 Final List、偏移混音、导出、配方和数据库恢复通过。只有两次分离作业。导出 **48,000 Hz、双声道、578,400 帧、12.05 秒**。证据：`runtime/standard-workflow-acceptance/verification.json`。
+- `python scripts/verify_standard_browser.py`：真实 Chromium UI 检查通过，页面错误 **0**；覆盖 F0 版本创建/切换、五步生成、A/B 实际播放、重试、接受、成品管理、刷新恢复、独立试听与全长混音预览。证据：同目录 `browser-verification.json` 及 `ui-*.png`。
+- `.venv\Scripts\python.exe scripts/verify_local.py`：隔离工程中的普通翻唱、语音变声、改词导唱完成真实生成→验收状态→混音→WAV 导出，时长分别为 12.0、1.746208、1.746208 秒。
+- `.venv\Scripts\python.exe tests/test_workers_svs.py --run-real`：两组日语歌词分别运行真实 DiffSinger ONNX，均为 **44,100 Hz、132,300 帧、3 秒**；更换歌词的条件 hash 和音频变化通过。
+- 主服务已重载新后端，现有 **16 个工程**和所有登记的产物 ID/hash 保持。重载前创建 SQLite 备份，未中断活动任务；记录见 `runtime/standard-workflow-acceptance/deployment.json`。
+
+这些技术测试中的“接受”由脚本模拟以验证状态流转，不能作为人工音色质量验收。二级分离的串音、主导 F0 以及音色自然度仍需用户最终试听。较早章节保留为历史验收记录，其旧单候选自动采用语义已被上述新流程替代。
+
 ## 2026-10-31 顺序交互、可读性与混音监听
 
 行为提交 `fc2e68b`，随后独立清理提交 `8e3e57f`；没有同时拆分App.tsx或CSS，也没有修改主唱/和声分离核心。

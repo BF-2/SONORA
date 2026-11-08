@@ -14,42 +14,16 @@ import uuid
 import pytest
 
 @pytest.mark.parametrize('user_changed',[False,True])
-def test_pipeline_own_upstream_refresh_does_not_masquerade_as_user_edit(monkeypatch,user_changed):
-    from tests.test_core import fixture_project,store,scheduler,media,DATA
-    from tests.test_review_regressions import _job
-    from services.orchestrator.store import uid
-    import soundfile as sf
-    import numpy as np
+def test_legacy_pipeline_cannot_bypass_standard_manual_review(monkeypatch,user_changed):
     project,source=fixture_project()
-    def sound(role):
-        path=DATA/'uploads'/(uid('pipeline_state')+'.wav');sf.write(path,np.ones(source['sample_count'])*.03,source['sample_rate'],subtype='FLOAT')
-        return media.commit(store,path,kind='dsp',inputs=[source['id']],role=role,name='DSP state fixture '+role)
-    old_vocal,old_backing=sound('vocal'),sound('instrumental')
-    previous=_job(project,operation='separate');scheduler.attach(previous,[old_vocal,old_backing])
-    project=store.change(project['id'],lambda p:p.update(task='cover',parameters={**p['parameters'],'model_id':'state-only-model'}))
-    job=_job(project,operation='pipeline',parameters=copy.deepcopy(project['parameters']))
-    vocal,backing=sound('vocal'),sound('instrumental');converted=sound('converted')
-    pitch={'id':uid('pitch'),'stem_role':'pitch','media_type':'application/json','input_artifact_ids':[vocal['id']]}
-    # Store an actual bounded JSON analysis fixture; no model output is claimed.
-    path=DATA/'uploads'/(uid('pitch')+'.json');path.write_text(json.dumps({'sample_rate':16000,'sample_count':16000,'hop':160,'frame_center_offset':0,'f0_hz':[220.]*100,'voiced':[True]*100}),encoding='utf-8')
-    pitch=media.commit(store,path,kind='dsp',inputs=[vocal['id']],role='pitch')
-    def engine(name,*args,**kwargs):
-        if name=='separation':
-            if user_changed:store.change(project['id'],lambda p:p.update(last_user_audio_edit='new-user-edit'))
-            return [vocal,backing]
-        if name=='pitch':return [pitch]
-        return [converted]
-    monkeypatch.setattr(scheduler,'engine',engine);monkeypatch.setattr(scheduler,'refresh_pitch_target',lambda j,a,*args:a)
-    monkeypatch.setattr(scheduler,'model',lambda _: {'model_hash':'f'*64})
-    monkeypatch.setattr(scheduler,'export',lambda *args,**kwargs:[])
     if user_changed:
-        with pytest.raises(ValueError,match='工程已修改'):scheduler.execute(job,threading.Event())
-        assert store.get('projects',project['id'])['selected_candidate_id'] is None
-    else:
+        project=store.change(project['id'],lambda p:p.update(last_user_audio_edit='new-user-edit'))
+    calls=[]
+    monkeypatch.setattr(scheduler,'engine',lambda *args,**kwargs:calls.append(args))
+    job=_job(project,operation='pipeline',parameters={})
+    with pytest.raises(ValueError,match='人工验收'):
         scheduler.execute(job,threading.Event())
-        current=store.get('projects',project['id']);assert current['selected_candidate_id']
-        mix=next(a for a in reversed(current['assets']) if a['stem_role']=='mix')
-        assert converted['id'] in mix['input_artifact_ids'] and vocal['id'] not in mix['input_artifact_ids']
+    assert not calls and store.get('projects',project['id'])['final_list']==[]
 
 import numpy as np
 import pytest
@@ -158,7 +132,7 @@ def test_track_clip_bindings_pass_only_runtime_pins_and_clear_to_parent():
     assert resolve_binding(project,project['parameters'],source['id'])[0]['model_id']=='model-a'
 
 
-def test_track_version_switch_invalidates_downstream_mix_preserves_pitch():
+def test_track_version_switch_invalidates_future_conversion_preserves_pitch_and_final_mix():
     project,source=fixture_project();catalog=FixtureCatalog()
     output=_audio(source,'existing converted DSP');mixed=_audio(source,'existing final DSP');mixed['stem_role']='mix';store.put('artifacts',mixed)
     def graph(p):
@@ -170,7 +144,7 @@ def test_track_version_switch_invalidates_downstream_mix_preserves_pitch():
     project=_select(catalog,project,'model-b','track',track_id=project['tracks'][0]['id'])
     assert next(n for n in project['graph'] if n['id']=='pitch')['state']=='succeeded'
     assert next(n for n in project['graph'] if n['id']=='convert')['state']=='stale'
-    assert next(n for n in project['graph'] if n['id']=='mix')['state']=='stale'
+    assert next(n for n in project['graph'] if n['id']=='mix')['state']=='succeeded'
 
 
 def test_readonly_workflow_does_not_resolve_or_write_catalog():

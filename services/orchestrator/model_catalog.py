@@ -20,7 +20,7 @@ from workers.catalog_probe import static_checkpoint, static_index, MAX_MODEL_BYT
 from .config import ROOT, resources, ALLOWED_ROOTS
 
 CATALOG_VERSION=1
-PART_DEFAULT_ROOT=Path('E:/voice/Applio/logs')
+PART_DEFAULT_ROOT=ROOT/'resources/models/haysay'
 _SCANS={}
 _SCAN_LOCK=threading.RLock()
 _INITIAL_SCANS=set()
@@ -54,6 +54,9 @@ def read_metadata(path):
 def trained_metadata(raw,run):
     """Export scalar evidence outranks embedding capacity and filename hints."""
     result=copy.deepcopy(raw);info=run.get('model_info',{});capacity=int(raw.get('embedding_speaker_capacity') or 0)
+    profile=info.get('inference_profile',{})
+    pinned=bool(profile.get('model_sha256') and profile['model_sha256']==(raw.get('model_hash') or raw.get('sha256'))
+                and profile.get('status')=='verified_local_inference')
     count=raw.get('speakers_id');origin='checkpoint'
     if type(count) is not int:
         count=info.get('speakers_id');origin='verified_training_metadata'
@@ -62,11 +65,15 @@ def trained_metadata(raw,run):
         result.update(speaker_ids=sorted(set(ids)),speaker_ids_trained=sorted(set(ids)),speaker_metadata_status='checkpoint')
     elif type(count) is int and 0<count<=capacity:
         result.update(speaker_ids=list(range(count)),speaker_ids_trained=list(range(count)),speaker_metadata_status=origin)
+    elif pinned and isinstance(profile.get('supported_speaker_ids'),list) and profile['supported_speaker_ids'] and all(type(x) is int and 0<=x<capacity for x in profile['supported_speaker_ids']):
+        supported=sorted(set(profile['supported_speaker_ids']))
+        result.update(speaker_ids=supported,speaker_ids_trained=supported,speaker_metadata_status='verified_inference_profile',
+                      speaker_metadata_note='Locally exercised inference IDs only; embedding capacity does not establish training coverage.')
     else:result.update(speaker_ids=[],speaker_ids_trained=[],speaker_metadata_status='unknown')
-    embedder=raw.get('embedder_model') or info.get('embedder_model')
+    embedder=raw.get('embedder_model') or info.get('embedder_model') or (profile.get('embedder_model') if pinned else None)
     if embedder in ('contentvec','contentvec_base'):
         result.update(embedder_model='contentvec',embedder_verified=True,
-                      embedder_evidence={'source':'checkpoint' if raw.get('embedder_model') else 'training_metadata','path':run.get('metadata_path')})
+                      embedder_evidence={'source':'checkpoint' if raw.get('embedder_model') else 'training_metadata' if info.get('embedder_model') else 'hash_pinned_inference_profile','path':run.get('metadata_path')})
     else:result.update(embedder_model=embedder,embedder_verified=False,embedder_evidence={'source':'unknown' if not embedder else 'unsupported_encoder'})
     result['capabilities']={'voice_conversion':True,'singing_conversion':True,'external_f0':bool(raw.get('f0_conditioned')),
         'svs':False,'streaming':False,'local_segment_render':False,'training':False,'cancel_mode':'terminate_process',
@@ -170,7 +177,7 @@ class ModelCatalog:
             raw={};reason=None
             try:raw=static_checkpoint(path)
             except (ValueError,OSError,KeyError,TypeError) as error:reason=str(error)
-            metadata=trained_metadata(raw,run) if raw.get('kind')=='inference_export' else {}
+            metadata=trained_metadata({**raw,'model_hash':legacy.get('model_hash')},run) if raw.get('kind')=='inference_export' else {}
             value={**copy.deepcopy(legacy),**metadata,'id':legacy['id'],'model_artifact_id':legacy['id'],
                 'kind':'inference_export','voice_id':run['voice_id'],'run_id':run['id'],'name':legacy.get('name',path.stem),
                 'path':str(path),'origin_path':str(origin),'status':'ready' if metadata and path.is_file() else 'missing' if not path.is_file() else 'quarantined',

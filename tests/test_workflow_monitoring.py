@@ -12,6 +12,15 @@ from tests.test_review_regressions import _job
 from services.orchestrator.workflow import describe_workflow
 from services.orchestrator.mixing import preview_key
 
+
+def monitor_project():
+    p, source = fixture_project()
+    from services.orchestrator.app import attach_import
+    background = media.import_audio(store, source['path'], role='instrumental')
+    p = attach_import(p['id'], background)['project']
+    # Background is the sole enabled input for these DSP monitoring tests.
+    return p, background
+
 def position(pid):
     with store.connect() as db:return db.execute('SELECT position FROM cursors WHERE project_id=?',(pid,)).fetchone()[0]
 
@@ -80,7 +89,7 @@ def test_preview_does_not_extend_effect_tails_past_full_mix_timeline():
     assert len(full)==24000 and np.max(np.abs(preview[24000:]))==0
 
 def test_preview_cache_tracks_parameters_and_never_adopts_or_checkpoints():
-    p,a=fixture_project();baseline=position(p['id']);region=[0,24000]
+    p,a=monitor_project();baseline=position(p['id']);region=[0,24000]
     job=_job(p,operation='mix_preview',parameters={'range_ticks':region})
     first=scheduler.mix_preview(job,threading.Event())[0]
     after=store.get('projects',p['id'])
@@ -89,13 +98,13 @@ def test_preview_cache_tracks_parameters_and_never_adopts_or_checkpoints():
     assert first['stem_role']=='mix_preview' and first['sample_count']==24000 and first['track_meters']
     second=scheduler.mix_preview(_job(after,operation='mix_preview',parameters={'range_ticks':region}),threading.Event())[0]
     assert first['id']==second['id']
-    changed=copy.deepcopy(after);changed['tracks'][0]['gain_db']=-12
+    changed=copy.deepcopy(after);next(t for t in changed['tracks'] if t['id']==changed['background_track_id'])['gain_db']=-12
     assert preview_key(changed,region)!=preview_key(after,region)
     third=scheduler.mix_preview(_job(changed,operation='mix_preview',parameters={'range_ticks':region}),threading.Event())[0]
     assert third['sha256']!=first['sha256'] and third['diagnostics']['rms_dbfs']==pytest.approx(first['diagnostics']['rms_dbfs']-12,abs=.05)
 
 def test_import_and_upstream_audio_invalidate_mix_without_losing_exports():
-    p,a=fixture_project();mixed=scheduler.mix_job(_job(p,operation='mix'),threading.Event())[0]
+    p,a=monitor_project();mixed=scheduler.mix_job(_job(p,operation='mix'),threading.Event())[0]
     p=store.get('projects',p['id']);assert not next(n for n in p['graph'] if mixed['id'] in n['artifact_refs'])['state']=='stale'
     with Path(a['path']).open('rb') as f:result=req('POST',f"/projects/{p['id']}/import",files={'file':('another.wav',f,'audio/wav')},data={'role':'instrumental'})
     p=result['project'];assert next(n for n in p['graph'] if mixed['id'] in n['artifact_refs'])['state']=='stale'

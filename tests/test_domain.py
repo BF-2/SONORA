@@ -37,7 +37,10 @@ def test_lock_snapshot_is_preserved_across_new_analysis():
 def test_stems_export_equal_lengths_and_explicit_semantics():
     import uuid
     p,a=fixture_project()
-    store.change(p['id'],lambda q:q['tracks'][0].update(role='vocal',gain_db=-3))
+    from services.orchestrator.app import attach_import
+    background=media.import_audio(store, a['path'], role='instrumental')
+    p=attach_import(p['id'],background)['project']
+    store.change(p['id'],lambda q:next(t for t in q['tracks'] if t['id']==q['background_track_id']).update(gain_db=-3))
     p=req('GET','/projects/'+p['id'])
     job=req('POST',f"/projects/{p['id']}/jobs",json={'revision':p['revision'],'operation':'export_stems','idempotency_key':uuid.uuid4().hex,'parameters':{'semantics':'post_fader_fx','format':'wav'}})
     done=wait_job(job);assert done['state']=='succeeded',done

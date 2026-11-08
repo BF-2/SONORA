@@ -107,10 +107,12 @@ def normalized_job_parameters(parameters,model=None,scope='rvc',external=False):
     return {**checked['context_parameters'],**checked['accepted_parameters'],'parameter_sources':checked['parameter_sources']},checked
 
 def render_signature(source,parameters):
+    from workers.pitch.voicing import normalize_voicing_settings
     accepted=validate_rvc_parameters({k:v for k,v in parameters.items() if k in PARAMETER_KEYS},scope='rvc',clean_audio_available=clean_audio_available())['accepted_parameters']
     return parameter_hash({'source_hash':source['sha256'],'model_hash':parameters.get('model_hash'),
         'index_hash':parameters.get('index_hash') if accepted.get('index_rate') else None,'parameters':accepted,'pitch_edits':parameters.get('pitch_edits',[]),
-        'range_ticks':parameters.get('range_ticks'),'voice_part':parameters.get('voice_part'),'source_timeline_offset_ticks':parameters.get('source_timeline_offset_ticks',0)})
+        'range_ticks':parameters.get('range_ticks'),'voice_part':parameters.get('voice_part'),'source_timeline_offset_ticks':parameters.get('source_timeline_offset_ticks',0),
+        'voicing_settings':normalize_voicing_settings(parameters.get('voicing_settings'))})
 
 def candidate_matches(project,candidate,source,parameters,model):
     if not candidate or not source or candidate['source_artifact_id']!=source['id']:return False

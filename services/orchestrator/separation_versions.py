@@ -68,6 +68,7 @@ def adopt(project, run_id, user_edit=True):
             adopt(project, parent['id'], user_edit=False)
         saved = run.get('voice_parts_snapshot', {})
         project['voice_parts'] = {asset['stem_role']: new_binding(asset, saved.get(asset['stem_role']) or project.get('voice_parts', {}).get(asset['stem_role'])) for asset in pair}
+        if project.get('production_version')==1:project['parameters']['active_voice_part']='lead_vocal'
         for binding in project['voice_parts'].values():
             candidate = next((c for c in project['candidates'] if c['id'] == binding.get('selected_candidate_id')), None)
             if candidate and candidate.get('archived'):
@@ -88,6 +89,7 @@ def adopt(project, run_id, user_edit=True):
         project['parameters']['harmony_source_artifact_id'] = vocal['id']
         selected_tracks = {role: next((track['id'] for track in reversed(project['tracks']) if track['artifact_id'] == asset['id'] and track['role'] == role), None) for role in ROLES[operation] for asset in pair if asset['stem_role'] == role}
         for track in project['tracks']:
+            if track.get('final_id'):continue
             if track['role'] in selected_tracks:
                 track['mute'] = track['id'] != selected_tracks[track['role']]
                 if track['mute']:
@@ -152,6 +154,8 @@ def list_runs(project):
     assets = {asset['id']: asset for asset in view['assets']}
     return [{**run, 'selected': view['selected_separations'].get(run['operation']) == run['id'],
              'model_id': assets.get(run['artifact_ids'][0], {}).get('worker_metadata', {}).get('model_id'),
+             'algorithm': assets.get(run['artifact_ids'][0], {}).get('worker_metadata', {}).get('algorithm'),
+             'ensemble_models': assets.get(run['artifact_ids'][0], {}).get('worker_metadata', {}).get('ensemble_models', []),
              'protected': protected(view, run),
              'outputs': [{key: asset.get(key) for key in ('id', 'name', 'stem_role', 'sample_rate', 'sample_count', 'channels', 'sha256', 'diagnostics')} for asset in view['assets'] if asset['id'] in run['artifact_ids']]}
             for run in reversed(runs)]

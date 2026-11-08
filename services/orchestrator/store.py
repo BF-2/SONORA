@@ -76,6 +76,8 @@ class Store:
         p = dict(id=uid('project'), name=name, task=task, schema_version=1, revision=1, timebase=TIMEBASE,
                  created_at=now(), updated_at=now(), assets=[], tracks=[], selection={'start':0,'end':0},playhead=0, mode='quick',
                  parameters={'pitch_algorithm':'rmvpe','transpose':0,'index_rate':0,'protect':0.33}, pitch_edits=[], notes=[],lyrics=[],candidates=[],selected_candidate_id=None,voice_parts={},view_preferences={},model_bindings={'tracks':{},'clips':{}},comparisons=[],exports=[],graph=[],warnings=[])
+        from .production import initialize
+        initialize(p)
         with self.lock,self.connect() as db:
             db.execute('INSERT INTO projects(id,body) VALUES(?,?)',(p['id'],encode(p)))
             self._checkpoint(db,p)
@@ -100,9 +102,19 @@ class Store:
             p=json.loads(row[0])
             if revision is not None and revision != p['revision']: raise Conflict('工程已更新，请刷新后重试。')
             before=edit_state(p)
+            previous_state=copy.deepcopy(p)
             previous_candidates={c['id'] for c in p.get('candidates',[])}
             mutation(p)
-            if auto_archive and p.get('view_preferences',{}).get('auto_archive_candidates',True) and any(c['id'] not in previous_candidates for c in p.get('candidates',[])):
+            from .production import synchronize, enabled
+            synchronize(p)
+            if enabled(p) and previous_state.get('assets')==p.get('assets') and any(previous_state.get(k)!=p.get(k) for k in ('parameters','voice_parts','pitch_edits','notes','model_bindings')):
+                from .production import routed_tracks
+                if routed_tracks(previous_state)==routed_tracks(p):
+                    # Accepted audio is immutable: editing tomorrow's candidate
+                    # does not invalidate today's final mix.
+                    old_nodes={n['id']:n for n in previous_state['graph'] if n['type'] in ('mix','export','export_stems')}
+                    p['graph']=[copy.deepcopy(old_nodes.get(n['id'],n)) for n in p['graph']]
+            if auto_archive and not enabled(p) and p.get('view_preferences',{}).get('auto_archive_candidates',True) and any(c['id'] not in previous_candidates for c in p.get('candidates',[])):
                 from .candidate_archive import archive_older
                 archive_older(p)
             p['revision'] += 1
@@ -127,6 +139,9 @@ class Store:
                 if not row:return current
                 if edit_state(json.loads(row[0]))!=baseline:break
             value = json.loads(row[0]); value['revision'] = current['revision']+1; value['updated_at']=now();value['last_user_audio_edit']=uid('edit')
+            if current.get('production_version')==1:
+                from .production import initialize,synchronize
+                initialize(value);synchronize(value)
             for key in ('playhead','mode','view_preferences'):
                 if key in current:value[key]=copy.deepcopy(current[key])
             if 'active_voice_part' in current['parameters']:value['parameters']['active_voice_part']=current['parameters']['active_voice_part']

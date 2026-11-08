@@ -88,7 +88,7 @@ def capabilities():
     installed=bool(config.get('models'))
     tested_path=ROOT/'tests/results/workers/verification.json'
     tested=json.loads(tested_path.read_text(encoding='utf-8')) if tested_path.exists() else None
-    engines=[{'id':'ffmpeg','name':'FFmpeg · 解码与后期','status':'ready','capabilities':{'decode':True,'export':['wav','flac','mp3'],'effects':['highpass','lowpass','compressor','delay','limiter']},'test_status':'signal_tests'},
+    engines=[{'id':'ffmpeg','name':'FFmpeg / SciPy · 解码与后期','status':'ready','capabilities':{'decode':True,'export':['wav','flac','mp3'],'effects':['highpass','lowpass','compressor','delay','limiter','reverb','vocal_restore','vocal_space'],'reverb_algorithms':['legacy','diffuse-v1']},'test_status':'signal_tests'},
              {'id':'separation','name':'MelBand RoFormer · 人声与声部分离','status':'ready' if config.get('separation',{}).get('models') else 'unavailable','reason':'先提取混合人声，再用专用模型估计主唱与和声；重叠声部仍需试听检查串音。','models':[m for m in config.get('separation',{}).get('models',[]) if m.get('task')!='lead_backing'],'harmony_models':[{**m,'status':'ready' if Path(m['path']).is_file() and Path(m['config_path']).is_file() else 'missing'} for m in config.get('separation',{}).get('models',[]) if m.get('task')=='lead_backing'],'default_harmony_model':config.get('separation',{}).get('default_harmony_model'),'capabilities':{'stem_separation':True,'lead_backing_separation':bool(config.get('separation',{}).get('default_harmony_model')),'local_segment_render':False}},
              {'id':'pitch','name':'独立音高服务','status':'ready' if installed else 'unavailable','capabilities':{'algorithms':['rmvpe','fcpe','crepe','crepe-tiny','pyin','harvest','dio'],'external_f0':True},'test_status':'installed; see engine verification'},
              {'id':'rvc','name':'Applio / RVC','status':'ready' if installed and os.environ.get('SONORA_DISABLE_MODEL_WORKERS')!='1' else 'unavailable','reason':'真实外部 F0 条件；模型音质仍需人工试听','capabilities':{'voice_conversion':True,'singing_conversion':True,'external_f0':True,'streaming':False,'svs':False,'local_segment_render':False},'test_status':'see per-model manifest'},
@@ -120,7 +120,42 @@ def create_project(body:dict):
     return store.new_project(name,task)
 
 @app.get('/api/v1/projects/{pid}')
-def project(pid:str): return store.get('projects',pid)
+def project(pid:str):
+    from .production import initialize, enabled
+    p=store.get('projects',pid)
+    return p if enabled(p) else store.change(pid,initialize,history=False)
+
+@app.post('/api/v1/projects/{pid}/pitch-versions/{action}')
+def edit_pitch_version(pid:str,action:str,body:dict):
+    from .production import pitch_action
+    check_structure(body)
+    if type(body.get('revision')) is not int:raise ValueError('需要当前工程版本号。')
+    return store.change(pid,lambda p:pitch_action(p,action,body.get('source_artifact_id'),body.get('version_id'),body.get('name')),revision=body['revision'])
+
+@app.post('/api/v1/projects/{pid}/candidates/{candidate_id}/review')
+def review_candidate(pid:str,candidate_id:str,body:dict):
+    from .production import review
+    if type(body.get('revision')) is not int:raise ValueError('需要当前工程版本号。')
+    return store.change(pid,lambda p:review(p,candidate_id,body.get('action')),revision=body['revision'])
+
+@app.delete('/api/v1/projects/{pid}/final-list/{final_id}')
+def delete_final(pid:str,final_id:str,body:dict):
+    from .production import remove_final
+    if type(body.get('revision')) is not int:raise ValueError('需要当前工程版本号。')
+    return store.change(pid,lambda p:remove_final(p,final_id),revision=body['revision'])
+
+@app.post('/api/v1/projects/{pid}/background')
+def select_background(pid:str,body:dict):
+    if type(body.get('revision')) is not int:raise ValueError('需要当前工程版本号。')
+    def mutate(p):
+        track=next((t for t in p['tracks'] if t['id']==body.get('track_id') and t['role']=='instrumental'),None)
+        if not track:raise ValueError('请选择已有 Background 伴奏轨道。')
+        p['background_track_id']=track['id']
+        # Explicit imported Background supersedes an old separation selection.
+        p.setdefault('selected_separations',{})['separate']=None
+        track['mute']=False
+        invalidate_mix(p,'Background 选择已改变')
+    return store.change(pid,mutate,revision=body['revision'])
 
 @app.get('/api/v1/projects/{pid}/separations')
 def separation_versions(pid:str):
@@ -228,8 +263,20 @@ def validate_patch(p,patch):
     for t in patch.get('tracks',[]):
         if t.get('artifact_id') not in owned: raise ValueError('轨道引用未知产物。')
         media.bounded(t.get('gain_db',0),-96,24);media.bounded(t.get('pan',0),-1,1);media.effects_filter(t.get('effects',[]))
+        if any(fx.get('enabled',True) and fx.get('type')=='vocal_restore' for fx in t.get('effects',[])):
+            from .effect_render import restoration_inputs
+            restoration_inputs(store,store.get('artifacts',t['artifact_id']))
         if not isinstance(t.get('offset_ticks',0),int): raise ValueError('轨道偏移必须为整数 tick。')
+    if p.get('production_version')==1 and 'tracks' in patch:
+        previous={t['id']:t for t in p['tracks']}
+        if {t['id'] for t in patch['tracks']}!=set(previous):raise ValueError('轨道只能通过生成、导入或 Final List 操作创建和移除。')
+        for track in patch['tracks']:
+            old=previous[track['id']]
+            if any(track.get(k)!=old.get(k) for k in ('artifact_id','role','voice_part','candidate_id','locked','final_id')):raise ValueError('Lock 源轨及成品来源不可改写。')
     params=patch.get('parameters',{})
+    if 'voicing_settings' in params:
+        from workers.pitch.voicing import normalize_voicing_settings
+        normalize_voicing_settings(params['voicing_settings'])
     if 'pitch_artifact_id' in params and params['pitch_artifact_id'] is not None and not isinstance(params['pitch_artifact_id'],str):raise ValueError('分析绑定必须为产物ID或空值。')
     validate_rvc_parameters({k:v for k,v in params.items() if k in PARAMETER_KEYS or k in ('range_ticks','source_timeline_offset_ticks')},clean_audio_available=clean_audio_available())
     if params.get('source_artifact_id') and params['source_artifact_id'] not in owned:raise ValueError('所选输入不属于当前工程。')
@@ -292,6 +339,17 @@ def patch_project(pid:str,body:dict):
         if isinstance(delta,dict) and 'parameters' in delta:
             delta['parameters']=pin_parameter_delta(catalog,current.get('voice_parts',{}).get(part,{}).get('parameters',{}),delta['parameters'])
     def mutate(p):
+        from .production import switch_source, enabled, PROJECT_KEYS
+        if enabled(p):
+            if patch.get('selected_candidate_id') or any(b.get('selected_candidate_id') for b in patch.get('voice_parts',{}).values()):
+                raise ValueError('请试听候选并使用接受操作加入 Final List。')
+            new_source=patch.get('parameters',{}).get('source_artifact_id')
+            if new_source and new_source!=p['parameters'].get('source_artifact_id'):
+                project_delta={k:v for k,v in patch['parameters'].items() if k in PROJECT_KEYS}
+                switch_source(p,new_source)
+                # The old client sends the complete parameter object on source changes.
+                # Never import those old input edits into the newly selected source.
+                patch['parameters']={**p['parameters'],**project_delta,'source_artifact_id':new_source}
         if 'candidates' in patch:
             if not isinstance(patch['candidates'],list):raise ValueError('候选更新必须为列表。')
             current_candidates={c['id']:c for c in p['candidates']};seen=set()
@@ -304,6 +362,7 @@ def patch_project(pid:str,body:dict):
                 if 'archived' in incoming:
                     if type(incoming['archived']) is not bool:raise ValueError('片段移除状态必须为布尔值。')
                     if incoming['archived']:
+                        if any(f['candidate_id']==identifier for f in p.get('final_list',[])):raise ValueError('已验收成品请通过 Final List 删除。')
                         selected_ids={p.get('selected_candidate_id')}|{b.get('selected_candidate_id') for b in p.get('voice_parts',{}).values()}
                         if identifier in selected_ids:raise ValueError('该候选正在被采用；请先采用另一候选，再移除。')
                         if any(not t.get('mute') and t['artifact_id']==current_candidate['artifact_id'] for t in p['tracks']):raise ValueError('该候选仍用于混音；请先静音对应轨道，再移除。')
@@ -321,7 +380,7 @@ def patch_project(pid:str,body:dict):
                 if not isinstance(entries,dict):raise ValueError('模型参数覆盖必须为对象。')
                 for identifier,delta in entries.items():
                     if identifier not in bindings.get(scope,{}) or not isinstance(delta,dict):raise ValueError('模型覆盖不存在。')
-                    if set(delta)-PARAMETER_KEYS-{'parameter_sources','preset_id','switch_policy','accepted_preview_id','pitch_artifact_id'}:raise ValueError('通过版本选择器改变模型/索引绑定，参数覆盖不能改变身份。')
+                    if set(delta)-PARAMETER_KEYS-{'parameter_sources','preset_id','switch_policy','accepted_preview_id','pitch_artifact_id','voicing_settings'}:raise ValueError('通过版本选择器改变模型/索引绑定，参数覆盖不能改变身份。')
                     entry=bindings[scope][identifier];old=entry.get('parameters',{})
                     merged={**old,**delta}
                     if 'parameter_sources' in delta:merged['parameter_sources']={**old.get('parameter_sources',{}),**delta['parameter_sources']}
@@ -593,6 +652,8 @@ async def restore(file:UploadFile=File(...)):
         project['graph']=[{**node,'artifact_refs':[mapping.get(ref,ref) for ref in node.get('artifact_refs',[])],'input_refs':[mapping.get(ref,ref) for ref in node.get('input_refs',[])]} for node in source.get('graph',[]) if isinstance(node,dict)]
         from .separation_versions import restore_runs
         restore_runs(project, source, mapping)
+        from .production import restore_state
+        restore_state(project,source,mapping)
         project['missing_media']=missing
         project['restore_pending']={'source':source,'mapping':mapping}
         model_ids={m['id'] for m in catalog.list_models(limit=250,include_aliases=True)['models']}
@@ -641,6 +702,8 @@ def relink(pid:str,body:dict):
         project['voice_parts']=remap_parts(source.get('voice_parts',{}),mapping,{c['id'] for c in project['candidates']})
         fallback_parts=[part for part,b in project['voice_parts'].items() if b.get('mode')=='convert' and not b.get('selected_candidate_id') and source.get('voice_parts',{}).get(part,{}).get('selected_candidate_id')]
         if fallback_parts:sync_part_tracks(project,fallback_parts)
+        from .production import restore_state
+        restore_state(project,source,mapping)
         validate_patch(project,{'voice_parts':project['voice_parts']})
     return {'project':store.change(pid,mutate),'artifact':a}
 

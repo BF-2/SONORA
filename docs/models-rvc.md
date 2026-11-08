@@ -1,5 +1,6 @@
 # 模型目录、版本选择与真实 RVC 参数
 
+
 ## 真实参数与执行链
 
 参数的唯一机器可读定义为 `packages/contracts/rvc-parameters.schema.json`；由 `scripts/generate_contracts.py` 生成 TypeScript/Python 类型，前端通过 `/api/v1/rvc/parameters` 获取当前模型和参数下的合法范围、默认值、来源、推荐依据和禁用原因。界面保留原有外观与六阶段导航，基础/高级/诊断展开状态保存在工程视图偏好中。
@@ -24,9 +25,9 @@
 
 ## 模型目录、训练实验与版本注册
 
-本节对应模型注册模块，验证日期为 2026-10-31。模型目录与工程数据共享同一 SQLite 文件，使用独立 `catalog_meta.schema_version` 和 `catalog_*` 表，不修改主工程的 `PRAGMA user_version=1`。首次迁移通过 SQLite backup API 保存一致性快照到数据库旁的 `backups/catalog-before-v1-*.sqlite`；原有工程、候选、模型 ID 与模型哈希不被重写。
+角色模型只登记 Hay Say M6 六套模型及配套索引，资源清单为 `engine-envs/haysay-models.json`。模型目录与工程数据共享同一 SQLite 文件，使用独立 `catalog_meta.schema_version` 和 `catalog_*` 表，不修改主工程的 `PRAGMA user_version=1`。首次迁移通过 SQLite backup API 保存一致性快照到数据库旁的 `backups/catalog-before-v1-*.sqlite`；原有工程、候选、模型 ID 与模型哈希不被重写。
 
-**发现、验证、推理是不同状态。** 默认只读扫描 `E:/voice/Applio/logs` 及其直接子目录，读取文件属性、受限 JSON 元数据和 PyTorch ZIP 中的 `data.pkl` 描述，不读取 tensor storage，不导入 checkpoint 中的 Python 对象，不加载所有模型。`workers/catalog_probe.py` 以有限 pickle opcode 解释器提取纯数据和符号化张量形状；`GLOBAL` 与 `REDUCE` 仅检查，不调用。未知全局、非 ZIP 旧权重、越界 ZIP 成员、超预算元数据和不支持的结构会隔离，绝不退回不受限 pickle。
+**发现、验证、推理是不同状态。** 默认只读扫描 `resources/models/haysay` 及其直接子目录，读取文件属性、受限 JSON 元数据和 PyTorch ZIP 中的 `data.pkl` 描述，不读取 tensor storage，不导入 checkpoint 中的 Python 对象，不加载所有模型。`workers/catalog_probe.py` 以有限 pickle opcode 解释器提取纯数据和符号化张量形状；`GLOBAL` 与 `REDUCE` 仅检查，不调用。未知全局、非 ZIP 旧权重、越界 ZIP 成员、超预算元数据和不支持的结构会隔离，绝不退回不受限 pickle。
 
 扫描默认预算为 5,000 个候选文件、30 秒；最大允许 10,000 个文件、120 秒、512 个直接子目录。单文件不超过 2 GiB，ZIP 元数据与目录预算各 4 MiB，opcode 预算 300,000。符号链接越界不跟随。达到预算或取消只保留已发现记录，不能把未访问的文件标成缺失。启动/首次目录打开可调用 `ensure_initial_scan()`；同数据库的并发扫描请求合并为当前作业。之后的显式扫描会增量检查属性，未变化的文件不会重新解析或计算完整哈希。
 
@@ -43,9 +44,8 @@
 
 推理导出的 Epoch/Step 优先读取 checkpoint 的标量，来源标为 `checkpoint`；仅有文件名线索时标为 `filename_inferred`。模型 `creation_date` 与文件时间保持各自含义，不把目录排序解释成音质排名。
 
-说话人数量与 embedding 容量分开。当前 Twilight 导出及实验元数据声明一个训练说话人，因此 `speaker_ids` 和 `speaker_ids_trained` 为 `[0]`，虽然 `embedding_speaker_capacity` 为 109。后者不代表存在 109 个已训练目标声音。内容编码器也从 checkpoint/训练元数据读取；未知或当前执行器不支持时给出阻塞原因，不静默按 ContentVec 处理。
+Hay Say 权重保留的 embedding 容量为 109，当前仅开放已实际验证的 speaker 0。`model_info.json` 使用与权重 SHA-256 绑定的 `inference_profile` 明确记录支持的推理 ID 和 ContentVec；不将 embedding 容量推断为可用角色数，也不据此补造训练人数。
 
-自动索引复用需要现有登记/用户明确绑定作为来源基点，再核对新版本内嵌的实验标识、同实验关联、编码器与特征维度。原有 29 份注册模型的索引关联及哈希作为兼容基线保存。全新目录中仅凭 `run_name.index` 不会自动标为匹配，用户可显式绑定；显式绑定仍不能绕过维度/编码器不兼容或文件哈希改变。`index_match` 保存来源基点与验证证据，`fully_validated` 区分目录元数据检查与选中后的实际 FAISS 读取。
 
 文件发生变化时旧记录进入 `quarantined`，旧哈希和历史引用保留；再次扫描创建新版本身份。重新链接只接受与原哈希一致的文件。按哈希去重时保留每个旧 ID 和原路径，通过 `alias_of/canonical_id` 表示引用，同实验复制品默认折叠，不删除历史行。不同实验中的相同内容仍可作为各实验的引用显示。
 
@@ -66,8 +66,5 @@ Python 集成使用 `ModelCatalog(store.path).get_model(id)` 读取轻量信息�
 
 ### 本机验证
 
-目录静态扫描实得 **180 份推理导出、29 份 Index、10 份训练 checkpoint，共 219 个文件**。Twilight Sparkle 的 `twilight_sparkle_pony_singing_r18m_20260914` 实验真实包含 Epoch **200、225、250、275、300**，对应 Step **11600、13050、14500、15950、17400**，均从 checkpoint 标量读取。没有把最新模型复制成多个版本。
 
 `tests/test_model_catalog.py` 与 `tests/test_model_catalog_api.py` 覆盖恶意 pickle 不执行、ZIP 路径/大小限制、全 Epoch 发现、训练资源分离、有界/取消/合并扫描、变化文件隔离、哈希去重、原身份保持、索引来源与维度、默认版本不改工程绑定、迁移备份和 HTTP 形状。
-
-真实 CPU 检查入口为 `.venv/Scripts/python.exe -m tests.test_model_catalog_real --run-real-metadata`。它在独立验证数据库中检查真实 Epoch 200/225 的不同模型哈希和同一匹配索引，核对原文件前后 SHA-256、29 个旧 ID/哈希及主数据库版本保留。证据保存在 `tests/results/catalog/verification.json`。这项检查不运行神经音频，不替代真实多 Epoch 音频对比和听感判断。

@@ -106,6 +106,7 @@ def commit(store,path,*,kind,inputs=None,job=None,worker='ffmpeg',engine='ffmpeg
     artifact['valid_range']=[0,artifact['sample_count']]
     artifact['time_map']={'source_rate':artifact['sample_rate'],'output_rate':artifact['sample_rate'],'source_offset':0,'output_offset':0}
     if extra: artifact.update(extra)
+    if role in ('original','vocal','instrumental','lead_vocal','backing_vocal','guide','synthesized'):artifact['locked']=True
     if kind=='model_inference' and (not job or not model_hash): raise ValueError('模型产物缺少推理来源。')
     return store.put('artifacts',artifact)
 
@@ -142,8 +143,15 @@ def bounded(v,lo,hi):
     return f
 
 def effects_filter(effects):
+    from .audio_effects import native_effect, settings
+    if not isinstance(effects,list) or len(effects)>16:raise ValueError('处理链最多支持 16 个效果。')
     filters=[]
     for fx in effects:
+        if not isinstance(fx,dict) or not isinstance(fx.get('enabled',True),bool):raise ValueError('效果设置无效。')
+        if fx.get('type')=='reverb' and fx.get('algorithm','legacy') not in ('legacy','diffuse-v1'):raise ValueError('未知混响算法版本。')
+        if native_effect(fx):
+            settings(fx)
+            continue  # Validated here; effect_render preserves order in the DSP chain.
         if not fx.get('enabled',True): continue
         typ=fx['type']
         if typ in ('highpass','lowpass'): filters.append(f"{typ}=f={bounded(fx.get('frequency',80 if typ=='highpass' else 16000),20,22000)}")
@@ -162,7 +170,7 @@ def effects_filter(effects):
         else: raise ValueError(f'未实现的效果：{typ}')
     return filters
 
-def mix(store,tracks,output,cancel=None,range_ticks=None,timeline_end=None):
+def mix(store,tracks,output,cancel=None,range_ticks=None,timeline_end=None,master_limit=False):
     tracks=[t for t in tracks if not t.get('mute')]
     if any(t.get('solo') for t in tracks): tracks=[t for t in tracks if t.get('solo')]
     if not tracks:
@@ -172,11 +180,21 @@ def mix(store,tracks,output,cancel=None,range_ticks=None,timeline_end=None):
         raise ValueError('没有可混音的轨道。')
     args=[binary('ffmpeg'),'-v','error','-nostdin']; graph=[]; inputs=[]; total=0
     for i,t in enumerate(tracks):
-        a=store.get('artifacts',t['artifact_id']); inputs.append(a['id']); args+=safe_input(validate_artifact(a))
+        a=store.get('artifacts',t['artifact_id']); inputs.append(a['id'])
+        from .audio_effects import native_effect
+        effects_filter(t.get('effects',[]))
+        native=any(fx.get('enabled',True) and native_effect(fx) for fx in t.get('effects',[]))
+        if native:
+            from .effect_render import prepared_track, restoration_inputs
+            path=prepared_track(store,a,t,cancel)
+            if any(fx.get('enabled',True) and fx.get('type')=='vocal_restore' for fx in t.get('effects',[])):
+                inputs.extend(v['id'] for v in restoration_inputs(store,a) if v['id'] not in inputs)
+        else:path=validate_artifact(a)
+        args+=safe_input(path)
         offset=int(t.get('offset_ticks',0)); total=max(total,round(a['sample_count']*TIMEBASE/a['sample_rate'])+offset)
         gain=10**(bounded(t.get('gain_db',0),-96,24)/20); pan=bounded(t.get('pan',0),-1,1)
         left=math.sqrt(1-max(0,pan)); right=math.sqrt(1+min(0,pan))
-        filters=['aresample=48000','aformat=channel_layouts=stereo',f'volume={gain}',f'pan=stereo|c0={left}*c0|c1={right}*c1',*effects_filter(t.get('effects',[]))]
+        filters=['anull'] if native else ['aresample=48000','aformat=channel_layouts=stereo',f'volume={gain}',f'pan=stereo|c0={left}*c0|c1={right}*c1',*effects_filter(t.get('effects',[]))]
         if offset>0: filters.append(f'adelay={offset}S:all=1')
         elif offset<0: filters.append(f'atrim=start_sample={-offset}')
         filters+=['asetpts=PTS-STARTPTS']
@@ -187,7 +205,8 @@ def mix(store,tracks,output,cancel=None,range_ticks=None,timeline_end=None):
         start,end=range_ticks
         if type(start) is not int or type(end) is not int or start<0 or end<=start:raise ValueError('混音试听选区无效。')
         trim+=f',apad,atrim=start_sample={start}:end_sample={end},asetpts=PTS-STARTPTS'
-    graph.append(''.join(f'[t{i}]' for i in range(len(tracks)))+f'amix=inputs={len(tracks)}:normalize=0:duration=longest,apad,{trim}[out]')
+    limiter=',alimiter=limit=0.891250938:level=false:latency=true' if master_limit else ''
+    graph.append(''.join(f'[t{i}]' for i in range(len(tracks)))+f'amix=inputs={len(tracks)}:normalize=0:duration=longest{limiter},apad,{trim}[out]')
     run(args+['-filter_complex',';'.join(graph),'-map','[out]','-c:a','pcm_f32le','-y',str(output)],cancel)
     return inputs
 

@@ -16,6 +16,8 @@ from .rvc_service import resolve_selection,selection_fields,normalized_job_param
 from .model_selection import resolve_binding
 from .candidate_assembly import assemble_preview
 from .mixing import mix_tracks,preview_key
+from . import production
+from workers.pitch.voicing import normalize_voicing_settings
 from workers.rvc_parameters import pitch_analysis_parameters,parameter_hash,pitch_parameter_subset
 from workers.pitch.engine import apply_target_parameters,shift_pitch_to_project
 from workers.separation.options import separation_options
@@ -41,8 +43,12 @@ class Scheduler:
             previous=self.store.idem(pid,key)
             if previous: return previous
             if body.get('revision')!=p['revision']: raise Conflict('工程已更新，请刷新后重试。')
+            if not production.enabled(p):
+                p=self.store.change(pid,production.initialize,revision=p['revision'],history=False)
             operation=body.get('operation')
             if operation not in OPERATIONS: raise ValueError('不支持的作业类型。')
+            if production.enabled(p) and operation in ('pipeline','convert_parts','comp','adopt_preview'):
+                raise ValueError('标准流程每次处理一条输入；请生成候选、人工验收后加入 Final List。')
             source=body.get('input_artifact_id')
             if source and source not in [a['id'] for a in p['assets']]: raise ValueError('输入产物不属于当前工程。')
             overrides=copy.deepcopy(body.get('parameters',{}))
@@ -93,6 +99,14 @@ class Scheduler:
                     start=n.get('start_tick',n.get('start',0))
                     unit=next((u for u in params['lyrics'] if u.get('start',0)<=start<u.get('end',0)),None)
                     if unit and not n.get('lyric'): n['lyric']=unit.get('text','');n['phonemes']=unit.get('pronunciation') or None
+            if production.enabled(p) and operation in ('convert','compare_versions'):
+                source=source or production.source_context(p)[0]
+                if not source:raise ValueError('请先选择当前处理输入。')
+                production.pin_generation(p,source,params)
+                if not overrides.get('range_ticks'):
+                    params.pop('range_ticks',None)
+                    params['full_source']=True
+                    params['ignore_clip_bindings']=True
             job=dict(id=uid('job'),schema_version=1,revision=1,project_id=pid,project_revision=p['revision'],operation=operation,idempotency_key=key,state='queued',progress=None,progress_basis='unknown',stage='等待执行',message='已排队',parameters=params,input_artifact_id=source,artifact_ids=[],created_at=now(),updated_at=now(),error=None,attempts=1,project_snapshot=copy.deepcopy(p))
             job['plan_hash']=media.hash_json({'operation':operation,'project_revision':p['revision'],'parameters':params,'source':source})
             self.store.put('jobs',job); self.tokens[job['id']]=threading.Event(); self.serial+=1
@@ -182,6 +196,10 @@ class Scheduler:
                 p['warnings'].append({'code':'separation_previous_revision','artifact_ids':[a['id'] for a in artifacts],'message':'分离期间工程声部已修改，本次分离结果保留且静音，没有覆盖新的绑定。重新运行分离可从缓存采用。'})
             if add_tracks and not is_pair and any(a.get('stem_role') in ('vocal','instrumental','guide','synthesized') for a in artifacts):invalidate_mix(p,'上游音轨已更新，请更新混音')
             context=parameters or job['parameters']
+            if production.enabled(p) and job['operation']=='pitch':
+                for artifact in artifacts:
+                    if artifact.get('stem_role')=='pitch' and artifact.get('input_artifact_ids'):
+                        production.bind_pitch(p,artifact['input_artifact_ids'][0],artifact,before)
             node_type='mix' if any(a['stem_role']=='mix' for a in artifacts) else 'pitch' if all(a['stem_role']=='pitch' for a in artifacts) else 'convert' if all(a['stem_role']=='converted' for a in artifacts) else job['operation']
             p['graph'].append({'id':uid('node'),'job_id':job['id'],'type':node_type,'voice_part':context.get('voice_part'),'input_refs':list(dict.fromkeys(ref for a in artifacts for ref in a.get('input_artifact_ids',[]))),'artifact_refs':[a['id'] for a in artifacts],'state':'succeeded','project_revision':job['project_revision'],'parameters':copy.deepcopy(context),'dependency_ranges':'whole_node_context_unknown'})
         self.store.change(job['project_id'],mutate)
@@ -219,6 +237,13 @@ class Scheduler:
             if (sep.get('task')=='lead_backing')!=harmony:raise ValueError('分离模型任务不匹配，不能混淆人声/伴奏与主唱/和声。')
             if not sep or media.sha256(sep['path'])!=sep['model_hash'] or media.sha256(sep['config_path'])!=sep['config_hash']:
                 raise ValueError('分离模型或配置已变更，需重新注册，旧缓存不能复用。')
+            ensemble_models=[]
+            if parameters['separation_algorithm']=='ensemble':
+                from workers.separation.ensemble import ensemble_manifests
+                for item in ensemble_manifests(config['separation'],parameters):
+                    if media.sha256(item['path'])!=item['model_hash'] or media.sha256(item['config_path'])!=item['config_hash']:
+                        raise ValueError('双模型和声分离的模型或配置哈希不匹配，请重新准备资源。')
+                    ensemble_models.append({key:item[key] for key in ('id','model_hash','config_hash')})
         if engine=='svs':
             model=next((m for m in config['svs']['models'] if m['id']==parameters.get('svs_model_id',config['svs']['default_model'])),None)
             if not model: raise ValueError('缺少兼容的 SVS 声库。')
@@ -234,12 +259,14 @@ class Scheduler:
         elif engine=='separation':
             fingerprint={'source':source['sha256'],'engine':'separation','worker_code':{name:digest for name,digest in source_files.items() if name.startswith('workers/separation/') or name=='workers/common.py'},
                          'model_hash':sep['model_hash'],'config_hash':sep['config_hash'],'runtime':config.get('separation',{}).get('version'),
-                         'parameters':{key:parameters.get(key) for key in ('separation_task','segment_size','overlap_step_seconds','separation_algorithm','primary_gain','device','cpu_threads')}}
+                         'parameters':{key:parameters.get(key) for key in ('separation_task','segment_size','overlap_step_seconds','separation_algorithm','primary_gain','device','cpu_threads','secondary_weight','backing_suppression','spatial_protection')},
+                         'ensemble_models':ensemble_models}
         elif engine=='rvc':
             fingerprint={'source':source['sha256'],'engine':'rvc','worker_code':source_files,'runtime':config.get('applio',{}),
                          'model_hash':model['model_hash'],'index_hash':model.get('index_hash') if parameters['index_rate']>0 else None,
                          'architecture':model.get('architecture'),'sample_rate':model.get('sample_rate'),'embedder':model.get('embedder_model'),
                          'parameters':parameter_audit['effective_parameters'],'pitch':pitch['sha256'] if pitch else None,
+                         'voicing_settings':normalize_voicing_settings(parameters.get('voicing_settings')),
                          'edits':parameters.get('pitch_edits',[]),'range_ticks':parameters.get('range_ticks'),
                          'source_timeline_offset_ticks':parameters.get('source_timeline_offset_ticks',0)}
         key=media.hash_json(fingerprint)
@@ -350,7 +377,9 @@ class Scheduler:
         self.attach(job,[a],False,parameters);return a
 
     def convert(self,job,source,cancel,pitch=None,parameters=None):
-        params=parameters or job['parameters']; depth=1;part=params.get('voice_part')
+        params=copy.deepcopy(parameters or job['parameters']); depth=1;part=params.get('voice_part')
+        if production.enabled(job['project_snapshot']) and not params.get('f0_version_id'):
+            production.pin_generation(job['project_snapshot'],source['id'],params)
         if params.get('chain_candidate_id'):
             candidate=next((c for c in job['project_snapshot']['candidates'] if c['id']==params['chain_candidate_id']),None)
             if not candidate: raise ValueError('串联来源候选不存在。')
@@ -383,6 +412,28 @@ class Scheduler:
             candidate['requested_f0_hash']=outputs[0].get('requested_f0_hash');candidate['consumed_f0_hash']=outputs[0].get('consumed_f0_hash')
             candidate['pitch_artifact_id']=pitch['id'] if pitch else None
             candidate['source_preview_artifact_id']=reference['id']
+            candidate['render_signature']=render_signature(source,{**params,**selection_fields({**identity,'id':params['model_id']},params),'source_timeline_offset_ticks':timeline_offset})
+            if production.enabled(p):
+                candidate.update(selected=False,review_status='pending',voice_part=part,
+                    f0_version_id=params.get('f0_version_id'),f0_version_revision=params.get('f0_version_revision'),
+                    f0_version_snapshot=copy.deepcopy(params.get('f0_version_snapshot')),
+                    checkpoint_id=identity.get('model_artifact_id') or identity.get('canonical_id') or params['model_id'],
+                    preview_only=not covers_source(outputs[0],source,timeline_offset),render_status='needs_review')
+                if part:
+                    candidate['name']=PART_NAMES[part]+' · '+candidate['name']
+                    candidate['part_source_artifact_id']=source['id']
+                if identity.get('epoch') is not None:candidate['name']+=f" · Epoch {identity['epoch']}"
+                p['candidates'].append(candidate)
+                p['tracks'].append(dict(id=uid('track'),name=candidate['name'],role='converted',voice_part=part,
+                    candidate_id=candidate['id'],artifact_id=outputs[0]['id'],gain_db=0,pan=0,mute=True,solo=False,
+                    offset_ticks=outputs[0].get('timeline_offset_ticks',timeline_offset),effects=[]))
+                # Editing while a render runs cannot redirect focus or adopt its output.
+                current_version=production.active_version(p,source['id'])
+                if (p.get('last_user_audio_edit')==job['project_snapshot'].get('last_user_audio_edit')
+                    and production.source_context(p)[0]==source['id'] and current_version
+                    and (current_version['id'],current_version['revision'])==(params.get('f0_version_id'),params.get('f0_version_revision'))):
+                    p.setdefault('view_preferences',{})['generation_step']='check'
+                return
             candidate['render_signature']=render_signature(source,{**params,**selection_fields({**identity,'id':params['model_id']},params),'source_timeline_offset_ticks':timeline_offset})
             if identity.get('epoch') is not None:candidate['name']+=f" · Epoch {identity['epoch']}"
             before=job['project_snapshot']
@@ -433,8 +484,13 @@ class Scheduler:
 
     def execute(self,job,cancel):
         op=job['operation']; folder=DATA/'jobs'/job['id']; folder.mkdir(parents=True,exist_ok=True)
+        if production.enabled(job['project_snapshot']) and op in ('pipeline','comp','adopt_preview','convert_parts'):
+            raise ValueError('标准流程必须单轨生成并人工验收，不能跳过 Check。')
         if op=='separate':
-            outputs=self.engine('separation',job,self.source(job,['original']),cancel);self.attach(job,outputs);return outputs
+            source=self.source(job,['original'])
+            outputs=self.engine('separation',job,source,cancel)
+            if {a['stem_role'] for a in outputs}!={'vocal','instrumental'}:raise ValueError('一级分离未完整返回 Voice 与 Background。')
+            self.attach(job,outputs);return outputs
         if op=='separate_harmony':
             source=self.source(job,['vocal'])
             if source['stem_role']!='vocal':raise ValueError('主唱/和声分离需要混合人声；请先分离原曲或明确导入干人声。')
@@ -608,10 +664,11 @@ class Scheduler:
     def export_stems(self,job,cancel):
         p=job['project_snapshot'];params=job['parameters'];semantics=params.get('semantics','post_fader_fx')
         if semantics not in ('raw','post_fader_fx'):raise ValueError('分轨导出语义必须明确。')
-        tracks=[t for t in p['tracks'] if not t.get('mute') and t['role'] not in ('original','mix')]
+        tracks=[t for t in mix_tracks(p) if not t.get('mute')]
         if any(t.get('solo') for t in tracks):tracks=[t for t in tracks if t.get('solo')]
         if not tracks:raise ValueError('没有已启用的人声或伴奏分轨。')
         length=max(round(self.store.get('artifacts',t['artifact_id'])['sample_count']*TIMEBASE/self.store.get('artifacts',t['artifact_id'])['sample_rate'])+t.get('offset_ticks',0) for t in tracks)
+        if production.enabled(p):length=max(length,production.timeline_end(p))
         outputs=[];folder=DATA/'jobs'/job['id']
         original_params=copy.deepcopy(job['parameters'])
         for i,t in enumerate(tracks):
@@ -619,7 +676,7 @@ class Scheduler:
             self.update(job,state='running',stage='分轨导出',message=f'处理第 {i+1}/{len(tracks)} 轨',progress=i/len(tracks),progress_basis='tracks')
             settings={**t,'mute':False,'solo':False}
             if semantics=='raw':settings.update(gain_db=0,pan=0,effects=[])
-            temporary=folder/f'stem-{i}.wav';media.mix(self.store,[settings],temporary,cancel)
+            temporary=folder/f'stem-{i}.wav';media.mix(self.store,[settings],temporary,cancel,timeline_end=length if production.enabled(p) else None)
             aligned=folder/f'stem-{i}-aligned.wav'
             media.run([binary('ffmpeg'),'-v','error',*media.safe_input(temporary),'-af',f'apad,atrim=end_sample={length}','-c:a','pcm_f32le','-y',str(aligned)],cancel)
             a=media.commit(self.store,aligned,kind='dsp',inputs=[t['artifact_id']],job=job,engine='ffmpeg',role='stem_export',name=t['name'],extra={'bus_export_semantics':semantics+'; no bus/send processing; common 48kHz stereo timeline'})
@@ -633,12 +690,16 @@ class Scheduler:
     def mix_job(self,job,cancel,project_snapshot=None,parameters=None):
         self.update(job,state='running',stage='混音与效果',message='处理选定轨道；原混音默认不叠加')
         p=project_snapshot or job['project_snapshot'];params=job['parameters'] if parameters is None else parameters;tracks=params.get('tracks')
+        if production.enabled(p) and tracks is not None:raise ValueError('标准混音只读取 Background 和 Final List；请在混音台修改轨道。')
         if tracks is None:
             tracks=mix_tracks(p)
         owned={a['id'] for a in p['assets']}
         if any(t['artifact_id'] not in owned for t in tracks): raise ValueError('混音轨道不属于当前工程。')
-        output=DATA/'jobs'/job['id']/'mix.wav';inputs=media.mix(self.store,tracks,output,cancel)
-        a=media.commit(self.store,output,kind='dsp',inputs=inputs,job=job,role='mix',name='最终混音',extra={'bus_export_semantics':'post-fader/post-FX/stereo sum; no implicit master limiting; effect tails trimmed to timeline length'})
+        output=DATA/'jobs'/job['id']/'mix.wav';inputs=media.mix(self.store,tracks,output,cancel,
+            timeline_end=production.timeline_end(p) if production.enabled(p) else None,master_limit=production.enabled(p))
+        a=media.commit(self.store,output,kind='dsp',inputs=inputs,job=job,role='mix',name='最终混音',extra={
+            'bus_export_semantics':'48kHz stereo; Background + accepted Final List; -1dBFS latency-compensated master limiter' if production.enabled(p) else 'post-fader/post-FX/stereo sum; no implicit master limiting; effect tails trimmed to timeline length',
+            'mix_track_snapshot':copy.deepcopy(tracks),'final_ids':[f['id'] for f in p.get('final_list',[])]})
         self.attach(job,[a])
         def mark_mix(current):
             if mix_signature(current)==mix_signature(p):current['warnings']=[w for w in current['warnings'] if w.get('code')!='pending_mix']
@@ -663,7 +724,8 @@ class Scheduler:
         if a is None:
             self.update(job,state='running',stage='渲染当前混音选区',message='使用当前推子、声像、静音/独奏、偏移及效果')
             folder=DATA/'jobs'/job['id'];output=folder/'mix-preview.wav'
-            inputs=media.mix(self.store,tracks,output,cancel,range_ticks=region)
+            inputs=media.mix(self.store,tracks,output,cancel,range_ticks=region,
+                timeline_end=production.timeline_end(p) if production.enabled(p) else None,master_limit=production.enabled(p) and not monitor)
             enabled=[t for t in tracks if not t.get('mute')]
             if any(t.get('solo') for t in enabled):enabled=[t for t in enabled if t.get('solo')]
             by_id={a['id']:a for a in p['assets']}
@@ -698,6 +760,8 @@ class Scheduler:
         selected=params.get('artifact_id') or job.get('input_artifact_id')
         a=self.store.get('artifacts',selected) if selected else next((x for x in reversed(p['assets']) if x.get('stem_role') in ('mix','converted','synthesized','original')),None)
         if not a or a['id'] not in [x['id'] for x in p['assets']]: raise ValueError('请先选择可导出的音频产物。')
+        if production.enabled(p) and a.get('stem_role')=='converted' and not any(f['candidate_id']==c['id'] for f in p['final_list'] for c in p['candidates'] if c['artifact_id']==a['id']):
+            raise ValueError('此结果尚未人工接受，请先加入 Final List。')
         if a.get('stem_role')=='mix' and not params.get('allow_stale') and any(a['id'] in n.get('artifact_refs',[]) and n.get('state')=='stale' for n in p['graph']):raise ValueError('所选混音已因编辑失效，请重新混音；导出旧版本需显式允许 allow_stale。')
         path=media.validate_artifact(a)
         if not a['media_type'].startswith('audio'): raise ValueError('所选产物不是音频。')

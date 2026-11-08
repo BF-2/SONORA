@@ -14,7 +14,7 @@ def voice_part(value):
 def new_binding(artifact,previous=None):
     binding=copy.deepcopy(previous or {})
     same=binding.get('source_artifact_id')==artifact['id']
-    parameters={**PART_DEFAULTS,**binding.get('parameters',{})}
+    parameters={**PART_DEFAULTS,**(binding.get('parameters',{}) if same else {})}
     if not same:
         parameters.pop('pitch_artifact_id',None)
         parameters.pop('accepted_preview_id',None)
@@ -29,6 +29,7 @@ def part_track_ids(project,part):
 
 def sync_part_tracks(project,parts=None):
     """Choose exactly one full source/candidate per group without altering other groups."""
+    if project.get('production_version') == 1:return
     bindings=project.get('voice_parts',{})
     for part in parts or bindings:
         if part not in VOICE_PARTS or part not in bindings:continue
@@ -86,7 +87,8 @@ def invalidate_mix(project,reason):
     project['warnings'].append({'code':'pending_mix','message':reason+'；请重新混音后导出当前版本。'})
 
 def mix_signature(project):
-    enabled=[t for t in project['tracks'] if not t.get('mute') and t['role']!='mix']
+    from .mixing import mix_tracks
+    enabled=[t for t in mix_tracks(project) if not t.get('mute') and t['role']!='mix']
     if any(t.get('solo') for t in enabled):enabled=[t for t in enabled if t.get('solo')]
     return enabled
 

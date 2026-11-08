@@ -46,6 +46,7 @@ try {
 }
 
 $sonoraLogs = Join-Path $sonoraRoot 'runtime\logs'
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
 New-Item -ItemType Directory -Path $sonoraLogs -Force | Out-Null
 $sonoraRandom = New-Object byte[] 32
 $sonoraRng = [Security.Cryptography.RandomNumberGenerator]::Create()
@@ -55,16 +56,19 @@ $sonoraToken = [BitConverter]::ToString($sonoraRandom).Replace('-', '').ToLowerI
 $oldToken = $env:SONORA_SESSION_TOKEN
 $oldRoot = $env:SONORA_ROOT
 $oldUtf8 = $env:PYTHONUTF8
+$oldDevSession = $env:SONORA_DEV_SESSION
 $sonoraProcess = $null
 
 try {
     $env:SONORA_SESSION_TOKEN = $sonoraToken
     $env:SONORA_ROOT = $sonoraRoot
     $env:PYTHONUTF8 = '1'
+    $env:SONORA_DEV_SESSION = '1'
     $sonoraProcess = Start-Process -FilePath $sonoraPython -ArgumentList @('-m', 'services.orchestrator.app', '--port', [string]$sonoraPort) -WorkingDirectory $sonoraRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $sonoraLogs 'browser-service.stdout.log') -RedirectStandardError (Join-Path $sonoraLogs 'browser-service.stderr.log')
     $env:SONORA_SESSION_TOKEN = $oldToken
     $env:SONORA_ROOT = $oldRoot
     $env:PYTHONUTF8 = $oldUtf8
+    $env:SONORA_DEV_SESSION = $oldDevSession
     $sonoraDeadline = [DateTime]::UtcNow.AddSeconds(45)
     $sonoraReady = $false
     while ([DateTime]::UtcNow -lt $sonoraDeadline) {
@@ -81,6 +85,12 @@ try {
         }
     }
     if (-not $sonoraReady) { throw 'Core service authentication handshake timed out. See runtime/logs/browser-service.stderr.log.' }
+    $sonoraSession = [ordered]@{
+        endpoint = "http://127.0.0.1:$sonoraPort"
+        pid = $sonoraProcess.Id
+        token_dpapi = (ConvertTo-SecureString $sonoraToken -AsPlainText -Force | ConvertFrom-SecureString)
+    } | ConvertTo-Json
+    [IO.File]::WriteAllText((Join-Path $sonoraRoot 'runtime\launcher-session.json'), $sonoraSession, [Text.UTF8Encoding]::new($false))
     Write-Host "SONORA is ready at http://127.0.0.1:$sonoraPort. All audio processing stays local."
     if (-not $NoOpenBrowser) {
         # The fragment is never sent to the HTTP server. The UI consumes/removes it.
@@ -95,6 +105,7 @@ try {
     $env:SONORA_SESSION_TOKEN = $oldToken
     $env:SONORA_ROOT = $oldRoot
     $env:PYTHONUTF8 = $oldUtf8
+    $env:SONORA_DEV_SESSION = $oldDevSession
     if ($null -ne $sonoraProcess) {
         $sonoraProcess.Refresh()
         if (-not $sonoraProcess.HasExited) {

@@ -803,7 +803,7 @@ export function CatalogManager({
             rows={2}
             value={roots}
             onChange={(e) => setRoots(e.target.value)}
-            placeholder="E:\voice\Applio\logs"
+            placeholder="E:\voice\aponyvoice\resources\models\haysay"
           />
         </Field>
         <button

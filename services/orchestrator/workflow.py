@@ -4,11 +4,11 @@ from .config import TIMEBASE
 from .rvc_service import candidate_matches,pitch_analysis_state
 from .mixing import mix_tracks
 
-STAGES=[('import','导入诊断',['导入音频','确认媒体属性','选择任务','设置选区']),
-        ('prepare','人声整理',['确认输入','选择整理路线','运行或跳过分离','独听检查产物']),
-        ('pitch','音高与歌词',['确认人声源','检测音高','检查与编辑','锁定目标曲线']),
-        ('convert','声音转换',['选择输入','选择声音与版本','检查索引和兼容性','调整参数','生成完整版本','选定混音版本']),
-        ('mix','混音',['确认采用的人声','选择伴奏','调整推子与效果','渲染混音','检查电平']),
+STAGES=[('import','导入与信息',['导入音频','读取媒体属性','确认任务与素材角色']),
+        ('prepare','两级分离',['Background + Voice','Main + Follower','Lock 源轨','保存缓存']),
+        ('pitch','音高与歌词',['选择 Main / Follower','提取 F0','编辑独立版本','保存目标曲线']),
+        ('convert','生成与验收',['选择输入','编辑输入','选择模型 / checkpoint','设置参数','Generate','Check：接受 / 重试 / 丢弃']),
+        ('mix','成品与混音',['Final List','Background + 已验收人声','调整音量 / 声像 / 偏移','完整混音预览']),
         ('export','导出',['选择有效产物','设置格式与范围','检查技术指标','导出文件与配方'])]
 
 def scoped_context(project,part=None):
@@ -116,6 +116,25 @@ def describe_workflow(project,model=None,part=None,store=None):
            (bool(mix and not graph_stale(project,mix['id'])),'先渲染当前设置的完整混音。')]
     for i,(allowed,reason) in enumerate(gates):
         result[i]['continuation']={'id':'continue','kind':'navigate','target_stage':i+1,'label':'继续 · '+STAGES[i+1][1],'disabled':not allowed,'reason':'' if allowed else reason}
+    if project.get('production_version')==1:
+        finals=project.get('final_list',[])
+        pending=[c for c in candidates if not c.get('preview_only') and c.get('review_status','pending') in ('pending','retry')]
+        result[3]['continuation'].update(disabled=not finals,reason='' if finals else '请先试听并接受至少一个候选，加入 Final List。')
+        if pending and not result[3]['blockers']:
+            result[3].update(state='needs_review',next_hint='A/B 对比原声与候选；接受加入 Final List，重试返回编辑，丢弃只移除本次候选。',
+                recommendation={'id':'audition','kind':'navigate','operation':None,'target_stage':3,'label':'Check · 人工验收','candidate_id':pending[-1]['id']})
+        elif finals and not result[3]['blockers']:
+            result[3].update(state='ready',recommendation={'id':'mix','kind':'navigate','operation':None,'target_stage':4,'label':'管理 Final List 与混音'})
+        result[4]['input'].update(name='Background + Final List',valid=bool(enabled_tracks))
+        if finals:
+            result[4].update(state='ready' if mix and not graph_stale(project,mix['id']) else 'editable',next_hint='全部启用的已验收人声与一条 Background 同步混音；新候选不会替换旧成品。',
+                recommendation={'id':'mix','kind':'execute','operation':'mix','target_stage':4,'label':'渲染完整混音','disabled':not enabled_tracks})
+        else:
+            result[4].update(state='needs_review',next_hint='Final List 为空，请返回生成并人工验收。',
+                recommendation={'id':'audition','kind':'navigate','operation':None,'target_stage':3,'label':'返回生成与验收'})
+        if source and source.get('stem_role')=='vocal' and source.get('processing_kind')!='decode' and not project.get('voice_parts') and project['task']!='speech' and not params.get('skip_separation'):
+            result[1]['continuation'].update(disabled=True,reason='Voice 尚未分为 Main / Follower，请完成二级分离。单人干声可明确跳过。')
+            result[1]['recommendation']={'id':'separate_harmony','kind':'execute','operation':'separate_harmony','target_stage':1,'label':'二级分离 · Main / Follower'}
     for stage in result:
         stage['completed']=stage['id']<5 and not stage.get('continuation',{}).get('disabled',True) or stage['id']==5 and bool(project['exports'])
     return {'project_id':project['id'],'revision':project['revision'],'stages':result,'parameter_sources':params.get('parameter_sources',{}),'voice_part':part if binding else None,'pitch_analysis':analysis}

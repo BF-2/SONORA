@@ -1,16 +1,31 @@
 flowchart TD
-  Import["导入原始音频 / 干人声 / 分轨"] --> Task{"制作任务"}
-  Task -->|"语音"| Pitch["独立 F0 / 音符参考 / 锁定编辑"]
-  Task -->|"歌曲"| Separate["真实分离 / 确认人声与伴奏"] --> Pitch
-  Task -->|"改词"| Lyrics["歌词与窗口 / 手工音符或 MIDI"]
-  Lyrics --> Guide["用户录制或导入新导唱"] --> Pitch
-  Lyrics --> SVS["日语 DiffSinger 合成\n其他语言提示使用导唱"]
-  SVS --> Pitch
-  Pitch --> Preview["带上下文的真实短试听"]
-  Preview --> Candidates["同源候选 / 共享位置 A-B\n可选参数实验 / 显式串联"]
-  Candidates --> Edit{"试听是否满意"}
-  Edit -->|"修改"| Pitch
-  Edit -->|"整段渲染 / 片段拼选"| Mix["启用人声与伴奏 / 推子与效果\n不默认叠加完整原混音"]
-  SVS -->|"直接使用声库声音"| Mix
-  Mix --> Export["媒体 / 分轨 / 配方 / MIDI\n校验、测量、冲突另存版本"]
-  Export --> Listen["最终人工听感检查"]
+  Import["导入音频"] --> Info["读取时长 / 采样率 / 声道 / SHA-256"]
+  Info --> Route{"素材角色"}
+  Route -->|原曲| Sep1["一级分离：Background + Voice\n保存成套结果与内容缓存"]
+  Sep1 --> Background["Background · Lock"]
+  Sep1 --> Voice["Voice · 混合人声"]
+  Voice --> Sep2["二级分离：双 Karaoke 模型\n错位融合 + 立体声伴唱保护"]
+  Sep2 --> Main["Main · Lock"]
+  Sep2 --> Follower["Follower · Lock"]
+  Sep2 -->|模型缺失或输出不完整| Failed["明确失败，保留一级结果\n不伪造 Follower"]
+  Route -->|干声或单人语音| Dry["明确跳过不必要的分离"]
+  Route -->|改词翻唱| Guide["新词导唱 / 日语 SVS 新演唱"]
+  Main & Follower & Dry & Guide --> F0["各源轨独立提取 F0\n静音 / 无声帧保持时间轴"]
+  F0 --> Versions["Edit 1 / Edit 2 / Edit 3 / …\n绘制、擦除、保存、切换、撤销"]
+  Versions --> Select["选择单条输入 + F0 版本"]
+  Select --> Edit["编辑输入"]
+  Edit --> Model["选择模型与具体 checkpoint / Epoch"]
+  Model --> Params["RVC 参数：默认值、范围、解释、推荐与高级项"]
+  Params --> Generate["Generate：不可变候选\n无音高区静音 / 记录 F0 与模型快照"]
+  Generate --> Check{"Check：原声与结果 A/B\n人工试听验收"}
+  Generate -->|失败、取消或中断| Recover["保留完成数据与状态"]
+  Recover --> Edit
+  Check -->|接受| Finals["Final List：持续添加多个版本\n试听、重命名、删除、音量、声像、静音、偏移"]
+  Check -->|重试| Edit
+  Check -->|丢弃| Discard["移除该候选引用\n源轨与已有成品保持"]
+  Finals -->|继续制作另一条| Select
+  Background & Finals --> Mix["仅一条 Background + 全部启用成品\n48 kHz 立体声 / 样本对齐 / -1 dBFS 总线限幅"]
+  Mix --> Preview["选区监听 / 完整混音预览"]
+  Preview --> Export["WAV / FLAC / MP3 / 分轨 / 工程配方\n同名导出另存版本"]
+  State[("SQLite 工程 + 不可变媒体缓存\n源轨、F0 版本、生成配置、候选、Final List、任务状态")]
+  Versions & Generate & Finals & Export -.保存与恢复.-> State

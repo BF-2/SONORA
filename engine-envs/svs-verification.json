@@ -20,40 +20,8 @@
     "94094f1daa3d1ffa432d50f2183a11752717c3bbcef51e31eec2a79c64737441"
   ],
   "elapsed_seconds": [
-    2.759406300028786,
-    2.7455400000326335
+    3.7775882000569254,
+    3.3634527001995593
   ],
-  "scope": "Real duration+variance+acoustic+vocoder synthesis; exact fixed length and changed phoneme conditioning; intelligibility requires listening",
-  "measured_notes": [
-    {
-      "note": 0,
-      "target_hz": 261.6255653005986,
-      "measured_median_hz": 261.5723575856655,
-      "median_cents": -0.3521229884655642,
-      "voiced_frames": 30
-    },
-    {
-      "note": 1,
-      "target_hz": 261.6255653005986,
-      "measured_median_hz": 261.5278592126446,
-      "median_cents": -0.646663484583739,
-      "voiced_frames": 30
-    },
-    {
-      "note": 2,
-      "target_hz": 391.99543598174927,
-      "measured_median_hz": 391.9007627694354,
-      "median_cents": -0.4181714103226848,
-      "voiced_frames": 30
-    },
-    {
-      "note": 3,
-      "target_hz": 391.99543598174927,
-      "measured_median_hz": 391.8113209640006,
-      "median_cents": -0.8133285167779719,
-      "voiced_frames": 29
-    }
-  ],
-  "measurement_source_hash": "76c6a74d58c1c0aa478f7eb08ab72ef6377dc56c9ab4c469319dcf0a274ddba7",
-  "contract_tests_passed": 5
+  "scope": "Real duration+variance+acoustic+vocoder synthesis; exact fixed length and changed phoneme conditioning; intelligibility requires listening"
 }

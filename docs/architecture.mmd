@@ -1,6 +1,10 @@
 flowchart LR
   Desktop["Tauri 2 Windows 桌面壳\n随机会话 / Job Object 生命周期"] --> UI["React + TypeScript\n六阶段工作区 / 全局时间轴"]
   UI -->|"回环 API v1 + Bearer / Origin"| API["FastAPI 编排"]
+  API --> Production["production.py 标准流程状态\nLock / F0 versions / Check / Final List"]
+  Production --> DB
+  Production --> Routing["唯一混音路由\n一条 Background + 已接受 Final List"]
+  Routing --> FFmpeg
   API --> DB[("SQLite WAL\n原子工程历史 / 作业 / 事件")]
   API --> Queue["串行重计算队列\n幂等 / 取消 / 快照 / 恢复"]
   Queue --> FFmpeg["FFmpeg 9.0 子进程\n解码 / DSP / 混音 / 导出测量"]

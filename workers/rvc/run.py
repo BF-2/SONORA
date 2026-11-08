@@ -11,6 +11,7 @@ import importlib.util
 import importlib.metadata
 from common import ROOT, worker_main, resource_config, write_json, read_json, environment, safe_torch, setup_applio, device_name, sha256, audio_metadata
 from pitch.engine import apply_target_parameters,contour_hash,resample_voiced,shift_pitch_to_project
+from pitch.voicing import mute_unpitched, normalize_voicing_settings
 from rvc_parameters import validate_rvc_parameters,pitch_parameter_subset,pitch_analysis_parameters,parameter_hash,PARAMETER_SCHEMA_VERSION
 
 
@@ -39,6 +40,7 @@ def render(request):
     validation=validate_rvc_parameters(requested_params,model,has_external_f0=bool(request.get('pitch_path')),
                                        clean_audio_available=importlib.util.find_spec('noisereduce') is not None)
     params={**validation['accepted_parameters'],**validation['context_parameters']}
+    voicing_settings = normalize_voicing_settings(params.get('voicing_settings'))
     torch=safe_torch()
     if sha256(model['path'])!=model['model_hash']: raise ValueError('Model hash changed; re-register before rendering')
     index_rate=float(params['index_rate']);protect=float(params['protect']) if index_rate>0 else .5
@@ -183,7 +185,7 @@ def render(request):
                                 proposed_pitch_threshold=155,filter_radius=0)
     if not consumed or not generator_consumption: raise RuntimeError('Generator did not consume external F0')
     if index_rate and not retrieval_audit['calls']:raise RuntimeError('Requested retrieval index was never consumed')
-    if not np.isfinite(converted).all() or np.max(np.abs(converted))==0: raise ValueError('Invalid or silent model output')
+    if not np.isfinite(converted).all() or (np.max(np.abs(converted))==0 and any(target['voiced'])): raise ValueError('Invalid or silent model output')
     expected=(source_count*sample_rate+source_sr//2)//source_sr
     original_count=len(converted)
     if abs(original_count-expected)>sample_rate*.04: raise ValueError('Unexpected conversion length drift >40 ms')
@@ -200,6 +202,9 @@ def render(request):
     valid_count=((requested_end-requested_start)*sample_rate+source_sr//2)//source_sr
     converted=converted[valid_start:valid_start+valid_count]
     if len(converted)!=valid_count: raise ValueError('Preview valid range exceeds rendered context')
+    converted, voicing_gate = mute_unpitched(converted, sample_rate, target,
+        source_timeline_offset / 48000 + requested_start / source_sr, **voicing_settings)
+    processing_chain.append(voicing_gate)
     output=Path(request['output_dir'])/'converted.wav'; sf.write(output,converted,sample_rate,subtype='FLOAT')
     consumed_hash=contour_hash(consumed); write_json(Path(request['output_dir'])/'consumed-f0.json',consumed)
     metadata={'requested_f0_hash':requested_hash,'consumed_f0_hash':consumed_hash,'generator_conditions':generator_consumption,

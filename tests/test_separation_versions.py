@@ -60,7 +60,7 @@ def test_harmony_switch_restores_independent_edits_and_no_duplicate_tracks(tmp_p
     assert project['voice_parts']['lead_vocal']['parameters']['pitch_artifact_id'] == 'pitch_old_source'
     assert project['voice_parts']['backing_vocal']['parameters']['transpose'] == -1
     for role in ('lead_vocal','backing_vocal'):
-        assert sum(not t['mute'] and t['role'] == role for t in project['tracks']) == 1
+        assert sum(not t['mute'] and t['role'] == role for t in project['tracks']) == 0  # Source stems are previewable, not accepted vocals.
     assert project['selected_separations']['separate'] == parent['id']
     change_run(project, second['id'], 'archive')
     assert all(output['id'] in {a['id'] for a in project['assets']} for output in outputs)

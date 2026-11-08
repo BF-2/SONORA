@@ -17,7 +17,7 @@ POST /projects/{id}/import multipart file + role (original|vocal|instrumental|gu
 POST /projects/{id}/demo {} -> {project,artifact} (explicitly synthetic technical fixture)
 GET /projects/{id}/recipe -> JSON recipe
 POST /projects/restore multipart file -> Project (references relink by hash; never arbitrary paths)
-POST /projects/{id}/jobs {revision,idempotency_key,operation:"separate"|"pitch"|"convert"|"mix"|"export"|"pipeline",input_artifact_id?,parameters:{...}} -> Job
+POST /projects/{id}/jobs {revision,idempotency_key,operation:"separate"|"pitch"|"convert"|"mix"|"export"|"separate_harmony"|"export_stems"|"svs",input_artifact_id?,parameters:{...}} -> Job
 Additional `mix_preview` job: `{range_ticks:[start,end],monitor_track_id?:id|null}`. Uses the same routing, faders, pan, offsets and FX chain as full mix, renders from the source start to retain stateful effect history, then crops to the selection. Range must be at least 50 ms and within project audio duration. All-muted monitoring returns silence. Result artifact has role `mix_preview`, timeline offset, actual per-track/master 50ms peak envelopes, measurements and an immutable cache key; it stays in the job/cache ledger rather than project assets, tracks or undo history. Changing controls never adopts an obsolete result.
 GET /jobs?project_id=... -> {jobs:[Job]}
 GET /jobs/{id} -> Job
@@ -36,7 +36,7 @@ GET /projects/{id}/midi -> standard MIDI reference notes
 POST /projects/{id}/experiments {revision,idempotency_key,input_artifact_id?,range_ticks?,variants:[{transpose?,index_rate?,protect?,pitch_algorithm?,seed?}]} -> {jobs}; max8 serial variants with immutable shared source
 POST /projects/{id}/relink {hash,path} -> {project,artifact}; requires exact original or artifact hash, restores saved track placement
 
-Additional job operations: comp {base_candidate_id,segments:[{candidate_id,start_tick,end_tick,fade_ms:20}]} preserves the full base candidate timeline and blends override edges; export_stems {semantics:raw|post_fader_fx,format:wav|flac} aligns enabled stems to common 48kHz stereo start/length; svs {svs_model_id?,language:ja,notes:[{start_tick,end_tick,pitch_midi_float,lyric,phonemes?}],duration_ticks,steps:10} synthesizes real Japanese lyrics in a locked window (0.1–60s), no source audio required.
+Additional job operations: export_stems {semantics:raw|post_fader_fx,format:wav|flac} aligns enabled stems to common 48kHz stereo start/length; svs {svs_model_id?,language:ja,notes:[{start_tick,end_tick,pitch_midi_float,lyric,phonemes?}],duration_ticks,steps:10} synthesizes real Japanese lyrics in a locked window (0.1–60s), no source audio required.
 
 RVC range_ticks requests an actual contextual excerpt. Audio artifacts carry timeline_offset_ticks and source_sample_rate/source_offset. Transport must map global playhead to local audio time. A/B clamps to the shared interval. Excerpts do not promise sample equivalence to full-node render and cannot silently replace full-song candidates in full-length comps.
 
@@ -60,7 +60,7 @@ Canonical machine schemas: `model-catalog.schema.json`, `rvc-parameters.schema.j
 - `PATCH /projects/{id} {revision,patch:{candidates:[{id,archived:true|false}]}}` merges a reversible candidate-list removal/restoration by ID without deleting media or provenance. Rejects removal of adopted/unmuted candidates; undo restores the list. Archived results are excluded from new stage suggestions.
 - `POST /projects/{id}/model-selection {revision,idempotency_key,model_id,index_id?,speaker_id?,scope:project|track|clip,track_id?,clip_id?,range_ticks?,policy:preserve_overrides|reset_defaults}` returns `{project,selection}` with immutable hashes. `/model-selection/clear {revision,idempotency_key,scope:track|clip,track_id?,clip_id?}` restores inheritance. Track/clip parameter deltas use `PATCH /projects/{id}` with `model_parameter_updates`; view preferences persist without invalidating audio.
 - Job `compare_versions {model_ids:[2..8 distinct IDs],range_ticks:[start,end],...RVC parameters}` serially renders compatible exports from one run against one source and one shared F0. Saves comparison ID, all model/index hashes, actual parameters and candidate IDs; partial failure preserves completed versions. It does not adopt previews automatically.
-- Job `adopt_preview {candidate_id,base_candidate_id,fade_ms?}` maps the preview identified by `candidate_id` into a full same-source converted base. It preserves samples outside the selected interval and records both immutable versions. Adopting preview settings and assembling preview audio are separate operations.
+- Standard projects reject `pipeline`, `convert_parts`, `comp`, and `adopt_preview`: generate a single input and explicitly review it before mixing. Pitch excerpts remain audition-only.
 
 Every job still requires a revision and idempotency key. Requested/consumed F0 hashes represent different grids; compare each hash across versions, not requested against consumed. Cache identity includes actual numeric controls, source/model/index hashes and external target conditions, excluding view and comparison IDs. Unsupported controls fail before rendering; no missing-index fallback to zero.
 
@@ -87,3 +87,32 @@ Presentation changes (`playhead`, `mode`, `view_preferences`, active voice-part 
 - Separation controls live in `parameters.separation_settings` and `parameters.harmony_settings`: `segment_size` (64–1024 integer), `overlap_step_seconds` (0.25–16), `separation_algorithm:single|tta`, `primary_gain` (0.5–1.5), `cpu_threads` (1–8 integer). Worker metadata records effective values, actual step, chunk length and inference passes. Legacy top-level controls remain accepted. Model/config hashes and effective controls participate in the separation cache key.
 
 `python workers/<engine>/run.py --request <json> --response <json>` in isolated subprocess. JSON request {protocol_version:1,job_id,input_path,output_dir,parameters,model?,pitch_path?,resource_config_path}. Response atomically written {ok:true,outputs:[{path,role,processing_kind,sample_rate,sample_count,channels,engine,model_hash?,requested_f0_hash?,consumed_f0_hash?,...}],metadata:{...},warnings:[]}, or {ok:false,error:{code,message}} and nonzero exit. stdout human logs; parent uses actual lifecycle progress and kills entire process tree on cancellation. Worker outputs must be under output_dir. Resource config lives engine-envs/resources.json, generated by scripts/bootstrap_resources.py. Each worker supports --probe (JSON environment/capabilities), no downloads at render time. Engines: separation, pitch, rvc. Root builds FFmpeg/DSP orchestration. Worker owner also owns resource bootstrap/registries and engine-envs. UI owner owns apps/web exclusively. Desktop owner apps/desktop and desktop launch scripts exclusively. Root owns services, contracts, integration tests, root package, README.
+
+
+## Standard production workflow (production_version=1)
+
+Each Edit can store `parameters.voicing_settings = {enabled:true, min_silence_ms:0, fade_ms:3}`. `enabled` is boolean, minimum silence is 0–2000 ms, and each boundary fade is 0–200 ms. Update through the existing scoped parameter patch for the active input. Versions capture these settings with their edits and undo state. Missing fields use the defaults above. A newly copied Edit inherits the source Edit's settings. Generation pins the selected version's settings and includes them in its cache identity and recipe. Short previews classify silence against the full F0 curve. Disabling the gate bypasses both interval muting and its fades.
+
+See [standard-workflow.md](../../docs/standard-workflow.md) for state ownership, migration and rendering semantics. These rules supersede legacy single-selected-candidate and automatic-archive behavior described above.
+
+- `POST /projects/{id}/pitch-versions/{create|select|save|undo|redo|rename}`: `{revision,source_artifact_id,version_id?,name?}`. Versions are source-owned; cross-source selection fails.
+- `POST /projects/{id}/candidates/{candidateId}/review`: `{revision,action:accept|retry|discard}`. New candidates are pending. Accept appends an idempotent Final List entry; retry only returns to editing; discard preserves sources and accepted finals.
+- `DELETE /projects/{id}/final-list/{finalId}`: `{revision}`. Removes a mix reference, not source/cache files.
+- `POST /projects/{id}/background`: `{revision,track_id}`. Selects exactly one existing instrumental track.
+- Project additions: `production_version`, `background_track_id`, `pitch_versions`, `active_pitch_versions`, `input_workspaces`, `final_list`. Candidate additions: `review_status`, `checkpoint_id`, `f0_version_id`, `f0_version_revision`, `f0_version_snapshot`. Assets and source tracks carry `locked=true`.
+- Final settings reuse `track_updates` (name/gain_db/pan/mute/solo/offset_ticks/effects). Asset IDs, candidate lineage, roles and Lock cannot be patched. `selected_candidate_id` cannot bypass review. Only Background + Final List route to monitoring/mixing; unaccepted converted outputs cannot be exported.
+- All candidates are retained by default; scheduler auto-archive is disabled for standard projects. Existing immutable cached audio may be shared by distinct generation IDs.
+# 可调人声修复与立体声混响（2026-11-05）
+
+`PATCH /api/v1/projects/{pid}` 的 `track_updates[id].effects` 支持按数组顺序排列下列效果。每项可通过 `enabled:false` 旁路；更新通过原有 revision/历史机制保存。数值越界或非有限值在提交前拒绝，不写入部分轨道修改。
+
+```json
+[
+  {"type":"vocal_restore","strength":100,"enabled":true},
+  {"type":"vocal_space","strength":200,"room_seconds":0.4,"predelay_ms":18,"width":1,"ducking":0.3,"lowcut_hz":220,"damping_hz":6200,"enabled":true}
+]
+```
+
+`vocal_restore.strength` 为 0–150；仅支持能够沿产物来源找到原人声及 F0 的候选，否则 400。`vocal_space.strength` 为 0–350，100/200/316 对应 C/C+/C++。空间共用参数：`room_seconds` 0.1–3、`predelay_ms` 0–100、`width` 0–1.5、`ducking` 0–0.8、`lowcut_hz` 40–1200、`damping_hz` 1500–16000。
+
+`reverb` 新增 `algorithm:"diffuse-v1"`，使用上述空间共用参数及 `wet` 0–0.5。未指定 algorithm 或指定 `legacy` 时保持原有延迟混响；不隐式迁移旧项目。一次轨道处理链最多 16 项。完整混音、分轨的 post-fader/post-FX 导出和选区预览使用同一缓存处理链。

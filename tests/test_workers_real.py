@@ -42,8 +42,8 @@ def main():
     vowel=sum(np.sin(2*np.pi*220*k*t)/k for k in range(1,9))*.13*envelope
     source=OUT/'harmonic-vowel.wav'; sf.write(source,vowel,sr,subtype='FLOAT')
     pitch=run('pitch','pitch-baseline',source,{'pitch_algorithm':'rmvpe'})
-    a=run('rvc','f0-baseline',source,{'model_id':'twilight_sparkle_pony_singing_r18m_20260914','index_rate':0,'transpose':0},pitch_path=pitch['outputs'][0]['path'])
-    b=run('rvc','f0-octave',source,{'model_id':'twilight_sparkle_pony_singing_r18m_20260914','index_rate':0,'transpose':12},pitch_path=pitch['outputs'][0]['path'])
+    a=run('rvc','f0-baseline',source,{'model_id':'haysay_twilight_sparkle','index_rate':0,'transpose':0},pitch_path=pitch['outputs'][0]['path'])
+    b=run('rvc','f0-octave',source,{'model_id':'haysay_twilight_sparkle','index_rate':0,'transpose':12},pitch_path=pitch['outputs'][0]['path'])
     analyzed_a=run('pitch','output-baseline',a['outputs'][0]['path'],{'pitch_algorithm':'rmvpe'})
     analyzed_b=run('pitch','output-octave',b['outputs'][0]['path'],{'pitch_algorithm':'rmvpe'})
     def median(response):

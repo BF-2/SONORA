@@ -4,9 +4,9 @@
 
 ## 启动
 
-完成根目录 README 的核心依赖与资源准备后，双击 `启动声序.bat`。优先启动 `apps/desktop/target/release/sonora-harmony.exe`，不存在时使用旧版 `sonora.exe`，两者都不存在时使用本地浏览器界面。
+完成根目录 README 的依赖准备后，`启动声序.bat` 默认启动浏览器版；`启动声序-桌面.bat` 使用桌面壳，优先加载 `apps/desktop/target/release/sonora-recovery.exe`。
 
-本轮和声更新按用户要求不再测试 Windows 桌面 UI。新版采用独立文件名并行交付，避免覆盖仍在运行的旧 EXE；构建脚本默认 `--bin sonora-harmony`，复用原有 Cargo 依赖缓存。旧窗口未被自动关闭，请手动关闭旧会话后启动新版。此前的原生窗口验证属于旧构建，不能作为本轮新增界面的原生验收。
+2026-11-04 标准流程更新已构建到浏览器产物与 `sonora-recovery.exe`。交互验收在同一 React 前端的 Chromium 浏览器中执行；本轮没有单独进行原生窗口交互验收。构建使用既有锁定依赖和离线 Cargo 缓存，不打包模型权重。
 
 桌面壳先建立后台进程生命周期约束，启动 `.venv/Scripts/python.exe -m services.orchestrator.app --port 8765`，完成协议和认证握手后显示编辑器。凭据在每次启动时随机生成，仅经受限 `get_connection` IPC 交给内置主窗口。服务只监听 `127.0.0.1:8765`；已有程序占用端口时不接管或停止它。
 
@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-sonora.ps1 -
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-desktop.ps1
 ```
 
-构建使用 `apps/web/package-lock.json` 和 `apps/desktop/Cargo.lock`。首次构建会下载这些已锁定的开发依赖。输出为 `apps/desktop/target/release/sonora.exe`，脚本显示其 SHA-256。桌面应用启动和首次播放不会安装依赖或下载模型。
+构建使用 `apps/web/package-lock.json` 和 `apps/desktop/Cargo.lock`。当前脚本使用 `--locked --offline`；首次准备需先具备锁定依赖缓存。默认输出为 `apps/desktop/target/release/sonora-recovery.exe`，脚本显示其 SHA-256。桌面应用启动和首次播放不会安装依赖或下载模型。
 
 `apps/desktop/dependencies.windows.json` 记录 Windows 实际依赖图的名称、版本、许可证表达式和 Cargo.lock 哈希；构建脚本自动更新它。这是桌面依赖清单，发布时仍须随包保留第三方许可证原文，不能把模型与整个组合软件统一标作同一许可证。
 

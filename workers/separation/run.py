@@ -5,6 +5,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import logging
 from common import worker_main, resource_config, environment, safe_torch, device_name, sha256, audio_metadata
 from separation.options import separation_options
+from separation.ensemble import shifted_prediction, fuse_vocals, ensemble_manifests
 
 
 def probe():
@@ -65,10 +66,14 @@ def harmony_demix(separator,request,manifest,target):
     if padding: mix=np.pad(mix,((0,0),(0,padding)),mode='reflect' if mix.shape[1]>1 else 'edge')
     # Call the installed inference implementation directly to avoid individual
     # output normalization breaking source = lead + backing.
-    predicted=separator.model_instance.demix(mix)
-    if not isinstance(predicted,dict) or target not in predicted: raise RuntimeError('Model did not return its registered target')
-    estimate=np.asarray(predicted[target],dtype=np.float32)
     options=separation_options(request.get('parameters',{}))
+    shifts=[]
+    if options['separation_algorithm']=='ensemble':
+        estimate,shifts=shifted_prediction(separator.model_instance.demix,mix,target,target_sr)
+    else:
+        predicted=separator.model_instance.demix(mix)
+        if not isinstance(predicted,dict) or target not in predicted: raise RuntimeError('Model did not return its registered target')
+        estimate=np.asarray(predicted[target],dtype=np.float32)
     if options['separation_algorithm']=='tta':
         swapped=separator.model_instance.demix(mix[::-1].copy())[target]
         inverted=separator.model_instance.demix(-mix)[target]
@@ -87,7 +92,8 @@ def harmony_demix(separator,request,manifest,target):
               'right_context_padding_samples':padding,'neural_target_native_stem':target,
               'complement_method':f'{secondary_role} = resampled_input - neural_{primary_role}_estimate',
               'model_input_gain':model_input_gain,'input_gain_restored_before_commit':True,'input_sample_peak':source_peak,
-              'inference_passes':3 if options['separation_algorithm']=='tta' else 1,
+              'inference_passes':3 if options['separation_algorithm'] in ('tta','ensemble') else 1,
+              'shift_samples':shifts,
               'primary_gain':options['primary_gain'],'chunk_seconds':chunk_size/target_sr,
               'effective_step_seconds':min(options['overlap_step_seconds'],chunk_size/target_sr),
               'independent_stem_normalization':False,'reconstruction_max_abs':float(np.max(np.abs(residual))),
@@ -97,15 +103,8 @@ def harmony_demix(separator,request,manifest,target):
     return outputs,metadata
 
 
-def render(request):
+def load_separator(manifest, section, task, options, device, torch, output_dir):
     import yaml
-    import soundfile as sf
-    import numpy as np
-    torch=safe_torch(); config=resource_config(request); params=request.get('parameters',{})
-    section=config['separation'];task=params.get('separation_task','vocals_instrumental')
-    selected=(params.get('harmony_model_id') or section.get('default_harmony_model')) if task=='lead_backing' else params.get('separation_model_id',section['default_model'])
-    manifest=next((m for m in section['models'] if m['id']==selected),None)
-    if not manifest: raise ValueError('Registered separation model missing')
     if sha256(manifest['path'])!=manifest['model_hash'] or sha256(manifest['config_path'])!=manifest['config_hash']:
         raise ValueError('Separation model/config hash changed; re-register before rendering')
     # The known tuple is data, handled by SafeLoader only; every other Python tag remains forbidden.
@@ -115,11 +114,9 @@ def render(request):
     mapping,target=validate_semantics(manifest,model_data,task)
     model_data['is_roformer']=True
     from audio_separator.separator import Separator
-    device=device_name(params)
-    options=separation_options(params)
     segment_size=options['segment_size'];overlap=options['overlap_step_seconds']
     torch.set_num_threads(options['cpu_threads'])
-    separator=Separator(output_dir=request['output_dir'],model_file_dir=section['model_dir'],output_format='WAV',
+    separator=Separator(output_dir=output_dir,model_file_dir=section['model_dir'],output_format='WAV',
                         sample_rate=manifest['sample_rate'],normalization_threshold=1.0,amplification_threshold=0,
                         use_soundfile=True,log_level=logging.INFO,
                         mdxc_params={'segment_size':segment_size,'override_model_segment_size':True,
@@ -129,7 +126,44 @@ def render(request):
     separator.download_model_files=lambda _name:(Path(manifest['path']).name,'MDXC',manifest['name'],manifest['path'],manifest['config_path'])
     separator.load_model_data_from_yaml=lambda _path:model_data
     separator.load_model(Path(manifest['path']).name)
+    return separator, mapping, target
+
+
+def render(request):
+    import soundfile as sf
+    import numpy as np
+    torch=safe_torch(); config=resource_config(request); params=request.get('parameters',{})
+    section=config['separation'];task=params.get('separation_task','vocals_instrumental')
+    selected=(params.get('harmony_model_id') or section.get('default_harmony_model')) if task=='lead_backing' else params.get('separation_model_id',section['default_model'])
+    manifest=next((m for m in section['models'] if m['id']==selected),None)
+    if not manifest: raise ValueError('Registered separation model missing')
+    device=device_name(params)
+    options=separation_options(params)
+    manifests=ensemble_manifests(section,params) if options['separation_algorithm']=='ensemble' else (manifest,)
+    separator,mapping,target=load_separator(manifest,section,task,options,device,torch,request['output_dir'])
     outputs,task_metadata=harmony_demix(separator,request,manifest,target)
+    if options['separation_algorithm']=='ensemble':
+        import gc
+        first_lead, rate=sf.read(Path(request['output_dir'])/'lead_vocal.wav',dtype='float32',always_2d=True)
+        first_backing,_=sf.read(Path(request['output_dir'])/'backing_vocal.wav',dtype='float32',always_2d=True)
+        mixture=first_lead+first_backing
+        del separator
+        gc.collect()
+        if device.startswith('cuda'):torch.cuda.empty_cache()
+        secondary=manifests[1]
+        separator,_,secondary_target=load_separator(secondary,section,task,options,device,torch,request['output_dir'])
+        _,second_metadata=harmony_demix(separator,request,secondary,secondary_target)
+        second_lead,_=sf.read(Path(request['output_dir'])/'lead_vocal.wav',dtype='float32',always_2d=True)
+        lead,backing,fusion_metadata=fuse_vocals(mixture,first_lead,second_lead,
+            options['secondary_weight'],options['backing_suppression'],rate,options['spatial_protection'])
+        for role,audio in [('lead_vocal',lead),('backing_vocal',backing)]:
+            sf.write(Path(request['output_dir'])/(role+'.wav'),audio,rate,subtype='FLOAT')
+        task_metadata.update(fusion_metadata,inference_passes=6,complement_method='backing_vocal = resampled_input - fused_lead_vocal',
+            ensemble_models=[{key:model[key] for key in ('id','model_hash','config_hash')} for model in manifests],
+            per_model_passes=[{'model_id':manifest['id'],'shift_samples':task_metadata['shift_samples']},
+                              {'model_id':secondary['id'],'shift_samples':second_metadata['shift_samples']}],
+            stem_rms={'lead_vocal':float(np.sqrt(np.mean(lead.astype(np.float64)**2))),
+                      'backing_vocal':float(np.sqrt(np.mean(backing.astype(np.float64)**2)))})
     artifacts=[]
     timeline_offset=int(params.get('source_timeline_offset_ticks',0))
     source_offset=int(params.get('source_offset_samples',0))
