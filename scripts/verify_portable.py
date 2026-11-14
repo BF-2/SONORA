@@ -30,7 +30,10 @@ def verify(root, inference=False):
     report['checks'].append('all three Python runtimes resolve inside extracted directory')
     sys.path.insert(0, str(root))
     from services.orchestrator.resource_paths import resolve_resources
+    from services.orchestrator.resource_integrity import verify_applio_resources
     config = resolve_resources(json.loads((root / 'engine-envs/resources.json').read_text(encoding='utf-8')), root)
+    verify_applio_resources(config, root)
+    report['checks'].append('installed engine code and ContentVec/F0 resources match portable manifests')
     for engine, name in [('rvc', 'rvc'), ('pitch', 'rvc'), ('separation', 'separation')]:
         command = [str(interpreters[name]), str(root / 'workers' / engine / 'run.py'), '--probe']
         result = subprocess.run(command, cwd=root, env=env, capture_output=True, text=True, encoding='utf-8', timeout=90)

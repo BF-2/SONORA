@@ -9,6 +9,7 @@ import time
 import shutil
 from . import media
 from .config import DATA, ROOT, TIMEBASE, resources, binary
+from .resource_integrity import verify_applio_resources
 from .store import now, uid, Conflict
 from .editing import note_edits,compose
 from .model_catalog import ModelCatalog
@@ -213,10 +214,7 @@ class Scheduler:
         if os.environ.get('SONORA_DISABLE_MODEL_WORKERS')=='1': raise ValueError('模型 worker 已关闭，不能转换。')
         if not python or not Path(python).is_file() or not script.is_file(): raise ValueError(f'缺少 {engine} 执行环境，请运行资源准备脚本。')
         if engine in ('rvc','pitch'):
-            ledger=ROOT/'engine-envs/resource-links.json'
-            if ledger.exists():
-                for item in json.loads(ledger.read_text(encoding='utf-8'))['files']:
-                    if media.sha256(item['path'])!=item['sha256']:raise ValueError('推理代码/编码器/音高权重已改变，请重新准备资源；旧缓存不可使用。')
+            verify_applio_resources(config, ROOT)
         if engine=='rvc':
             model=resolve_selection(self.catalog,requested)
             parameters,parameter_audit=normalized_job_parameters(requested,model,external=bool(pitch))

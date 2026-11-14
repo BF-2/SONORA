@@ -20,6 +20,9 @@ import uuid
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from services.orchestrator.resource_integrity import verify_applio_resources
 
 
 def digest(path):
@@ -365,6 +368,8 @@ class Installer:
                   'models': voices, 'catalog': {'roots': ['./resources/models/haysay'], 'provider': 'haysay'},
                   'svs': {'python': './.tools/runtimes/separation/python.exe', 'models': [], 'default_model': None},
                   'ffmpeg': './resources/tools/ffmpeg.exe', 'ffprobe': './resources/tools/ffprobe.exe'}
+        # Environment-only preparation also works before model weights are downloaded.
+        verify_applio_resources(config, self.root, check_models=False)
         locks = {}
         for name, key in [('rvc', 'rvc'), ('separation', 'separation')]:
             python = self.root / '.tools/runtimes' / name / 'python.exe'
